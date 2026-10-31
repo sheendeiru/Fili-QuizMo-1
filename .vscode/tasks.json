@@ -22,6 +22,18 @@
 			],
 			"isBackground": false,
 			"problemMatcher": []
+		},
+		{
+			"label": "Check TypeScript module resolution",
+			"type": "shell",
+			"command": "cmd.exe",
+			"args": [
+				"/c",
+				"npx tsc --noEmit"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "test"
 		}
 	]
 }

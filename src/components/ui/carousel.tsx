@@ -133,4 +133,3 @@ export function Carousel({ items }: CarouselProps) {
     </div>
   );
 }
-import { BrandLogo } from "@/components/layout/brand-logo";

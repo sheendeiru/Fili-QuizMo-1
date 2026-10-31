@@ -14,7 +14,7 @@ export default function TeacherLoginPage() {
       subtitle="Sign in to manage quizzes, students, and scores."
       footer={
         <>
-          New here?{" "}
+          Are you new here?{" "}
           <Link
             href="/signup"
             className="font-semibold text-primary hover:underline"
@@ -22,7 +22,7 @@ export default function TeacherLoginPage() {
             Create an account
           </Link>
           <span className="block pt-3">
-            Student?{" "}
+            Are you a student?{" "}
             <Link
               href="/student-login"
               className="font-semibold text-secondary hover:underline focus-visible:outline"

@@ -125,7 +125,7 @@ export default function Home() {
               </h1>
 
               <p className="mt-6 max-w-xl text-lg leading-8 text-white/75">
-                Turn learning into an interactive quiz experience.
+                Fili-QuizMo turns learning into an interactive quiz experience.
                 Built for students who want a fun and engaging way to answer
                 quizzes, and for teachers who want to see progress at a glance.
               </p>
@@ -209,7 +209,7 @@ export default function Home() {
                   A quiz experience built for real classrooms.
                 </h2>
                 <p className="mt-5 text-lg leading-8 text-neutral-600">
-                  This quiz-based learning platform helps users
+                  Fili-QuizMo is a quiz-based learning platform that helps users
                   practice with interactive quizzes, track performance, and
                   prepare effectively. It is designed for learners who want
                   immediate feedback and for teachers who need tools to manage
@@ -278,8 +278,8 @@ export default function Home() {
               />
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src="/assets/School.jpg"
-                alt="The Little Einstein Discovery School campus"
+                src="/assets/DocumentationwthClient.jpg"
+                alt="The Fili-QuizMo Team with The Little Einstein Discovery School campus"
                 className="relative aspect-[4/3] w-full rounded-3xl object-cover shadow-xl ring-1 ring-black/5"
               />
               <div className="relative mx-auto -mt-8 w-[calc(100%-2rem)] rounded-2xl bg-white p-4 shadow-lg ring-1 ring-black/5 sm:absolute sm:-bottom-6 sm:left-6 sm:mt-0 sm:w-auto">
@@ -316,7 +316,7 @@ export default function Home() {
                 Built by a small team that loves learning.
               </h2>
               <p className="mt-5 text-lg leading-8 text-neutral-600">
-                The app was created by a small team of developers who wanted
+                Fili-QuizMo was created by a small team of developers who wanted
                 to make learning more interactive, accessible, and fun.
               </p>
 
@@ -324,8 +324,8 @@ export default function Home() {
                 <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-5">
                   <h3 className="text-base font-semibold">Our Story</h3>
                   <p className="mt-2 text-sm leading-6 text-neutral-600">
-                    What began as a simple quiz concept became a platform
-                    designed to help learners practice through
+                    What began as a simple quiz concept grew into Fili-QuizMo, a
+                    platform designed to help learners practice through
                     interactive quizzes while giving educators tools to manage
                     content and track progress.
                   </p>
