@@ -1,36 +1,15 @@
-import { redirect } from "next/navigation";
+import { Suspense } from "react";
 import TeacherDashboardContent from "@/components/dashboard/teacher-dashboard-content";
-import { createClient } from "@/lib/supabase/server";
+import { requireTeacherAccess } from "@/lib/auth/require-dashboard-access";
+import { PixelLoader } from "@/components/ui/pixel-loader";
 
-export default function TeacherDashboardPage() {
-  return <ProtectedTeacherDashboard />;
-}
-
-async function ProtectedTeacherDashboard() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-    error: userError,
-  } = await supabase.auth.getUser();
-
-  if (userError) {
-    throw userError;
-  }
-
-  if (!user) {
-    redirect("/teacher-login");
-  }
-
-  const { data: teacher_accountsRow, error: teacher_accountsError } = await supabase
-            .from("teacher_accounts")
-            .select("school_id")
-            .eq("school_id", user.id)
-            .maybeSingle();
-  
-    if (teacher_accountsError || !teacher_accountsRow) {
-      redirect("/teacher-login?error=unauthorized");
-    }
-  
-
-  return <TeacherDashboardContent />;
+export default async function TeacherDashboardPage() {
+  await requireTeacherAccess();
+  return (
+    <Suspense
+      fallback={<PixelLoader label="Loading teacher dashboard..." variant="screen" />}
+    >
+      <TeacherDashboardContent />
+    </Suspense>
+  );
 }

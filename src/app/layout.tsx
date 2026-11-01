@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import localFont from "next/font/local";
+import { SessionBoundary } from "@/components/auth/session-boundary";
 import "./globals.css";
 
 const pressStart = localFont({
@@ -10,8 +11,31 @@ const pressStart = localFont({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(
+    process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000",
+  ),
   title: "Fili-QuizMo",
   description: "Fili-QuizMo is an interactive quiz platform for learners and educators.",
+  openGraph: {
+    title: "Fili-QuizMo",
+    description:
+      "An interactive Filipino quiz platform for learners and educators.",
+    images: [
+      {
+        url: "/assets/Fili-QuizMo%20Logo.png",
+        width: 2000,
+        height: 2000,
+        alt: "Fili-QuizMo trophy logo",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary",
+    title: "Fili-QuizMo",
+    description:
+      "An interactive Filipino quiz platform for learners and educators.",
+    images: ["/assets/Fili-QuizMo%20Logo.png"],
+  },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
@@ -21,20 +45,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       className={`${pressStart.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
-        <svg aria-hidden="true" className="pointer-events-none absolute h-0 w-0">
-          <filter
-            id="remove-logo-background"
-            colorInterpolationFilters="sRGB"
-          >
-            <feColorMatrix
-              type="matrix"
-              values="1 0 0 0 0
-                      0 1 0 0 0
-                      0 0 1 0 0
-                      -0.85 -2.86 -0.29 0 3.4"
-            />
-          </filter>
-        </svg>
+        <SessionBoundary />
         {children}
       </body>
     </html>

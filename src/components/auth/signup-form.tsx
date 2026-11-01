@@ -2,43 +2,243 @@
 
 import { useRouter } from "next/navigation";
 import type { FormEvent } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { FormField } from "@/components/ui/form-field";
+import { Spinner } from "@/components/ui/spinner";
+import {
+  USERNAME_REQUIREMENTS,
+  isValidUsername,
+} from "@/lib/auth/roles";
+import { createClient } from "@/lib/supabase/client";
+import {
+  clearSensitiveFormFields,
+  clearSessionEndedMarker,
+  createSessionRequestController,
+  expireSessionAndRedirect,
+  releaseSessionRequestController,
+  SESSION_ENDED_EVENT,
+} from "@/lib/auth/session-state";
+
+type SignupRole = "student" | "teacher";
+
+type ProfileResponse = {
+  destination?: string;
+  error?: {
+    code?: string;
+    message?: string;
+  };
+};
+
+function friendlySignupError(message: string): string {
+  const normalized = message.toLowerCase();
+
+  if (
+    normalized.includes("already registered") ||
+    normalized.includes("already exists")
+  ) {
+    return "An account with this email already exists. Sign in or reset your password.";
+  }
+
+  if (normalized.includes("rate limit")) {
+    return "Too many signup attempts. Wait a moment and try again.";
+  }
+
+  return message;
+}
 
 export function SignupForm() {
   const router = useRouter();
+  const [role, setRole] = useState<SignupRole>("student");
+  const [errorMessage, setErrorMessage] = useState("");
+  const [statusMessage, setStatusMessage] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  useEffect(() => {
+    function clearSignupState() {
+      setRole("student");
+      setErrorMessage("");
+      setStatusMessage("");
+      setIsLoading(false);
+    }
+
+    window.addEventListener(SESSION_ENDED_EVENT, clearSignupState);
+    return () =>
+      window.removeEventListener(SESSION_ENDED_EVENT, clearSignupState);
+  }, []);
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    router.push("/teacher-login");
+    const form = event.currentTarget;
+    setErrorMessage("");
+    setStatusMessage("");
+
+    const formData = new FormData(form);
+    const username = String(formData.get("username") ?? "").trim();
+    const email = String(formData.get("email") ?? "").trim();
+    const password = String(formData.get("password") ?? "");
+    const confirmPassword = String(
+      formData.get("confirmPassword") ?? "",
+    );
+
+    if (!isValidUsername(username)) {
+      setErrorMessage(USERNAME_REQUIREMENTS);
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      setErrorMessage("The passwords do not match.");
+      return;
+    }
+
+    if (password.length < 8) {
+      setErrorMessage("Password must be at least 8 characters.");
+      return;
+    }
+
+    setIsLoading(true);
+    const controller = createSessionRequestController();
+
+    try {
+      const supabase = createClient();
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            account_role: role,
+            username,
+          },
+          emailRedirectTo: new URL(
+            "/auth/confirm",
+            window.location.origin,
+          ).toString(),
+        },
+      });
+
+      if (controller.signal.aborted) {
+        return;
+      }
+
+      if (error) {
+        clearSensitiveFormFields(form);
+        setErrorMessage(friendlySignupError(error.message));
+        return;
+      }
+
+      if (!data.session) {
+        clearSensitiveFormFields(form);
+        setStatusMessage(
+          "Check your email to confirm your account. After confirming, you will finish setting up your profile.",
+        );
+        return;
+      }
+
+      clearSensitiveFormFields(form);
+      clearSessionEndedMarker();
+      const profileResponse = await fetch("/api/auth/profile", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ role, username }),
+        signal: controller.signal,
+      });
+      if (controller.signal.aborted) {
+        return;
+      }
+      const profileResult =
+        (await profileResponse.json()) as ProfileResponse;
+
+      if (profileResponse.status === 401) {
+        await expireSessionAndRedirect("/signup?status=session_expired");
+        return;
+      }
+
+      if (profileResponse.ok && profileResult.destination) {
+        router.replace(profileResult.destination);
+        router.refresh();
+        return;
+      }
+
+      if (profileResponse.status === 409) {
+        router.replace("/complete-profile?reason=username_taken");
+        router.refresh();
+        return;
+      }
+
+      setErrorMessage(
+        profileResult.error?.message ??
+          "Your account was created, but profile setup could not finish.",
+      );
+      router.replace("/complete-profile");
+      router.refresh();
+    } catch (error) {
+      if (controller.signal.aborted) {
+        return;
+      }
+      clearSensitiveFormFields(form);
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : "Unable to create your account.",
+      );
+    } finally {
+      releaseSessionRequestController(controller);
+      setIsLoading(false);
+    }
   }
 
   return (
     <form className="space-y-5" onSubmit={handleSubmit}>
-      <FormField
-        label="Full name"
-        id="signup-name"
-        name="name"
-        type="text"
-        placeholder="Your full name"
-        autoComplete="name"
-        required
-      />
+      <div>
+        <p className="text-sm font-medium text-foreground">Account type</p>
+        <div
+          role="group"
+          aria-label="Account type"
+          className="mt-2 grid grid-cols-2 gap-2"
+        >
+          <Button
+            type="button"
+            variant={role === "student" ? "primary" : "outline"}
+            aria-pressed={role === "student"}
+            onClick={() => setRole("student")}
+          >
+            Student
+          </Button>
+          <Button
+            type="button"
+            variant={role === "teacher" ? "primary" : "outline"}
+            aria-pressed={role === "teacher"}
+            onClick={() => setRole("teacher")}
+          >
+            Teacher
+          </Button>
+        </div>
+        <p className="mt-2 text-xs text-neutral-500">
+          {role === "student"
+            ? "Student accounts can track quiz history and scores."
+            : "Teacher accounts are created as pending and need administrator approval before sign-in."}
+        </p>
+      </div>
+
       <div>
         <FormField
-          label="School ID"
-          id="signup-school-id"
-          name="schoolId"
+          label="Username"
+          id="signup-username"
+          name="username"
           type="text"
-          placeholder="Enter your school ID"
-          autoComplete="off"
+          placeholder="e.g. juan_dela_cruz"
+          autoComplete="username"
           spellCheck={false}
+          minLength={3}
+          maxLength={15}
+          pattern="[A-Za-z][A-Za-z0-9_]{2,14}"
           required
         />
         <p className="mt-1.5 text-xs text-neutral-500">
-          Use the ID issued by your school.
+          {USERNAME_REQUIREMENTS}
         </p>
       </div>
+
       <FormField
         label="Email address"
         id="signup-email"
@@ -48,6 +248,7 @@ export function SignupForm() {
         autoComplete="email"
         required
       />
+
       <FormField
         label="Password"
         id="signup-password"
@@ -55,8 +256,10 @@ export function SignupForm() {
         type="password"
         placeholder="Create a password"
         autoComplete="new-password"
+        minLength={8}
         required
       />
+
       <FormField
         label="Confirm password"
         id="signup-confirm-password"
@@ -64,10 +267,31 @@ export function SignupForm() {
         type="password"
         placeholder="Confirm your password"
         autoComplete="new-password"
+        minLength={8}
         required
       />
-      <Button type="submit" className="w-full">
-        Create Account
+
+      {statusMessage ? (
+        <p role="status" className="text-sm text-success">
+          {statusMessage}
+        </p>
+      ) : null}
+
+      {errorMessage ? (
+        <p role="alert" className="text-sm text-danger">
+          {errorMessage}
+        </p>
+      ) : null}
+
+      <Button type="submit" className="w-full" disabled={isLoading}>
+        {isLoading ? (
+          <span className="inline-flex items-center gap-2">
+            <Spinner className="h-4 w-4" />
+            Creating account...
+          </span>
+        ) : (
+          "Create Account"
+        )}
       </Button>
     </form>
   );

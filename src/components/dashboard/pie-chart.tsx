@@ -1,60 +1,60 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 const quizDistributions = [
   {
     quiz: "General Knowledge Quiz",
     average: 82,
     bands: [
-      { label: "Excellent (90–100)", value: 35, color: "#0f1f3d" },
-      { label: "Good (75–89)", value: 30, color: "#1d4ed8" },
-      { label: "Needs Improvement (50–74)", value: 20, color: "#60a5fa" },
-      { label: "At Risk (below 50)", value: 15, color: "#cbd5e1" },
+      { label: "Excellent (90–100)", value: 35, color: "var(--color-success)" },
+      { label: "Good (75–89)", value: 30, color: "var(--color-primary-foreground)" },
+      { label: "Needs Improvement (50–74)", value: 20, color: "var(--color-warning)" },
+      { label: "At Risk (below 50)", value: 15, color: "var(--color-danger)" },
     ],
   },
   {
     quiz: "Science Fundamentals",
     average: 78,
     bands: [
-      { label: "Excellent (90–100)", value: 28, color: "#0f1f3d" },
-      { label: "Good (75–89)", value: 34, color: "#1d4ed8" },
-      { label: "Needs Improvement (50–74)", value: 24, color: "#60a5fa" },
-      { label: "At Risk (below 50)", value: 14, color: "#cbd5e1" },
+      { label: "Excellent (90–100)", value: 28, color: "var(--color-success)" },
+      { label: "Good (75–89)", value: 34, color: "var(--color-primary-foreground)" },
+      { label: "Needs Improvement (50–74)", value: 24, color: "var(--color-warning)" },
+      { label: "At Risk (below 50)", value: 14, color: "var(--color-danger)" },
     ],
   },
   {
     quiz: "Math Essentials",
     average: 71,
     bands: [
-      { label: "Excellent (90–100)", value: 22, color: "#0f1f3d" },
-      { label: "Good (75–89)", value: 28, color: "#1d4ed8" },
-      { label: "Needs Improvement (50–74)", value: 32, color: "#60a5fa" },
-      { label: "At Risk (below 50)", value: 18, color: "#cbd5e1" },
+      { label: "Excellent (90–100)", value: 22, color: "var(--color-success)" },
+      { label: "Good (75–89)", value: 28, color: "var(--color-primary-foreground)" },
+      { label: "Needs Improvement (50–74)", value: 32, color: "var(--color-warning)" },
+      { label: "At Risk (below 50)", value: 18, color: "var(--color-danger)" },
     ],
   },
   {
     quiz: "English Vocabulary",
     average: 86,
     bands: [
-      { label: "Excellent (90–100)", value: 40, color: "#0f1f3d" },
-      { label: "Good (75–89)", value: 32, color: "#1d4ed8" },
-      { label: "Needs Improvement (50–74)", value: 18, color: "#60a5fa" },
-      { label: "At Risk (below 50)", value: 10, color: "#cbd5e1" },
+      { label: "Excellent (90–100)", value: 40, color: "var(--color-success)" },
+      { label: "Good (75–89)", value: 32, color: "var(--color-primary-foreground)" },
+      { label: "Needs Improvement (50–74)", value: 18, color: "var(--color-warning)" },
+      { label: "At Risk (below 50)", value: 10, color: "var(--color-danger)" },
     ],
   },
 ];
 
 export function PieChart() {
-  const [mounted, setMounted] = useState(false);
   const [selectedQuiz, setSelectedQuiz] = useState(0);
 
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
   const distribution = quizDistributions[selectedQuiz];
-  let offset = 0;
+  const bands = distribution.bands.map((item, index) => ({
+    item,
+    offset: distribution.bands
+      .slice(0, index)
+      .reduce((total, band) => total + band.value, 0),
+  }));
 
   return (
     <div className="space-y-6">
@@ -82,10 +82,7 @@ export function PieChart() {
       <div className="flex flex-col items-center gap-6 sm:flex-row sm:justify-around">
         <div className="relative h-48 w-48 shrink-0">
           <svg viewBox="0 0 100 100" className="h-full w-full -rotate-90">
-            {distribution.bands.map((item) => {
-              const currentOffset = offset;
-              offset += item.value;
-
+            {bands.map(({ item, offset }) => {
               return (
                 <circle
                   key={item.label}
@@ -96,10 +93,8 @@ export function PieChart() {
                   stroke={item.color}
                   strokeWidth="20"
                   pathLength="100"
-                  strokeDasharray={
-                    mounted ? `${item.value} ${100 - item.value}` : "0 100"
-                  }
-                  strokeDashoffset={-currentOffset}
+                  strokeDasharray={`${item.value} ${100 - item.value}`}
+                  strokeDashoffset={-offset}
                   style={{
                     transition:
                       "stroke-dasharray 1s ease-out, stroke-dashoffset 1s ease-out",

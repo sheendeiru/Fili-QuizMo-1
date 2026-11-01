@@ -1,5 +1,5 @@
-import { LoadingScreen } from "@/components/ui/loading-screen";
+import { PixelLoader } from "@/components/ui/pixel-loader";
 
 export default function Loading() {
-  return <LoadingScreen label="Loading page..." fullScreen />;
+  return <PixelLoader label="Loading page..." variant="screen" />;
 }

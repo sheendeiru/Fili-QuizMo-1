@@ -1,10 +1,16 @@
 "use client";
 
 import type { FormEvent } from "react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { FormField } from "@/components/ui/form-field";
 import { createClient } from "@/lib/supabase/client";
+import { isInvalidSession } from "@/lib/auth/session-errors";
+import {
+  clearSensitiveFormFields,
+  expireSessionAndRedirect,
+  SESSION_ENDED_EVENT,
+} from "@/lib/auth/session-state";
 
 export function ChangePasswordForm() {
   const [hasRecoverySession, setHasRecoverySession] = useState(false);
@@ -12,6 +18,21 @@ export function ChangePasswordForm() {
   const [errorMessage, setErrorMessage] = useState("");
   const [statusMessage, setStatusMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const sessionEndedRef = useRef(false);
+
+  useEffect(() => {
+    function clearRecoveryState() {
+      sessionEndedRef.current = true;
+      setHasRecoverySession(false);
+      setErrorMessage("");
+      setStatusMessage("");
+      setIsSubmitting(false);
+    }
+
+    window.addEventListener(SESSION_ENDED_EVENT, clearRecoveryState);
+    return () =>
+      window.removeEventListener(SESSION_ENDED_EVENT, clearRecoveryState);
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -21,11 +42,17 @@ export function ChangePasswordForm() {
         const supabase = createClient();
         const { data, error } = await supabase.auth.getSession();
 
-        if (!active) {
+        if (!active || sessionEndedRef.current) {
           return;
         }
 
         if (error) {
+          if (isInvalidSession(error)) {
+            await expireSessionAndRedirect();
+            setHasRecoverySession(false);
+            setErrorMessage("Your password reset session expired.");
+            return;
+          }
           setErrorMessage(error.message);
         } else {
           setHasRecoverySession(Boolean(data.session));
@@ -65,7 +92,17 @@ export function ChangePasswordForm() {
         redirectTo: new URL("/change-password", window.location.origin).toString(),
       });
 
+      if (sessionEndedRef.current) {
+        return;
+      }
+
       if (error) {
+        if (isInvalidSession(error)) {
+          await expireSessionAndRedirect();
+          setHasRecoverySession(false);
+          setErrorMessage("Your password reset session expired.");
+          return;
+        }
         setErrorMessage(error.message);
         return;
       }
@@ -97,6 +134,7 @@ export function ChangePasswordForm() {
       const confirmPassword = String(formData.get("confirmPassword") ?? "");
 
       if (password !== confirmPassword) {
+        clearSensitiveFormFields(form);
         setErrorMessage("The passwords do not match.");
         return;
       }
@@ -104,7 +142,18 @@ export function ChangePasswordForm() {
       const supabase = createClient();
       const { error } = await supabase.auth.updateUser({ password });
 
+      if (sessionEndedRef.current) {
+        return;
+      }
+
       if (error) {
+        if (isInvalidSession(error)) {
+          await expireSessionAndRedirect();
+          setHasRecoverySession(false);
+          setErrorMessage("Your password reset session expired.");
+          return;
+        }
+        clearSensitiveFormFields(form);
         setErrorMessage(error.message);
         return;
       }
@@ -128,12 +177,12 @@ export function ChangePasswordForm() {
   return (
     <div className="space-y-5">
       {errorMessage ? (
-        <p role="alert" className="text-sm text-red-600">
+        <p role="alert" className="text-sm text-danger">
           {errorMessage}
         </p>
       ) : null}
       {statusMessage ? (
-        <p role="status" className="text-sm text-emerald-300">
+        <p role="status" className="text-sm text-success">
           {statusMessage}
         </p>
       ) : null}

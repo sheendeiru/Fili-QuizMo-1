@@ -3,6 +3,7 @@ import type {
   SearchQuery,
   SearchResponse,
 } from "./types";
+import { expireSessionAndRedirect } from "@/lib/auth/session-state";
 
 export class SearchApiError extends Error {
   readonly status: number;
@@ -114,6 +115,10 @@ export async function fetchSearchResults(
   }
 
   if (!response.ok) {
+    if (response.status === 401 && typeof window !== "undefined") {
+      await expireSessionAndRedirect();
+    }
+
     if (isErrorBody(body)) {
       throw new SearchApiError(
         response.status,

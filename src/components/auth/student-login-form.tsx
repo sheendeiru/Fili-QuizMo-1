@@ -3,25 +3,80 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { FormEvent } from "react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { FormField } from "@/components/ui/form-field";
 import { Spinner } from "@/components/ui/spinner";
+import {
+  createAccountRoleLookup,
+  resolveAccountAccess,
+} from "@/lib/auth/roles";
 import { createClient } from "@/lib/supabase/client";
+import {
+  clearSensitiveFormFields,
+  clearSessionEndedMarker,
+  SESSION_ENDED_EVENT,
+  signOutAndReset,
+} from "@/lib/auth/session-state";
 
-export function StudentLoginForm() {
+function initialErrorMessage(status?: string): string {
+  if (status === "pending") {
+    return "Your account is pending administrator approval.";
+  }
+
+  if (status === "blocked") {
+    return "Your account is not active. Contact an administrator.";
+  }
+
+  if (status === "session_expired") {
+    return "Your session expired. Sign in again to continue.";
+  }
+
+  if (status === "unavailable") {
+    return "We could not verify your account access. Please try again.";
+  }
+
+  if (status === "logout_unverified") {
+    return "Your browser session was cleared, but server sign-out could not be confirmed.";
+  }
+
+  return "";
+}
+
+export function StudentLoginForm({ status }: { status?: string }) {
   const router = useRouter();
-  const [errorMessage, setErrorMessage] = useState("");
+  const [errorMessage, setErrorMessage] = useState(
+    initialErrorMessage(status),
+  );
+  const [noticeMessage, setNoticeMessage] = useState(
+    status === "confirmed"
+      ? "Email confirmed. Sign in to continue."
+      : "",
+  );
   const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    function clearMessages() {
+      setErrorMessage("");
+      setNoticeMessage("");
+      setIsLoading(false);
+    }
+
+    window.addEventListener(SESSION_ENDED_EVENT, clearMessages);
+    return () =>
+      window.removeEventListener(SESSION_ENDED_EVENT, clearMessages);
+  }, []);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = event.currentTarget;
     setErrorMessage("");
+    setNoticeMessage("");
     setIsLoading(true);
+    let sessionEstablished = false;
 
     try {
-      const formData = new FormData(event.currentTarget);
+      const formData = new FormData(form);
       const supabase = createClient();
       const { error: signInError } = await supabase.auth.signInWithPassword({
         email: String(formData.get("email") ?? "").trim(),
@@ -29,16 +84,81 @@ export function StudentLoginForm() {
       });
 
       if (signInError) {
+        clearSensitiveFormFields(form);
         setErrorMessage("Invalid email or password.");
         return;
       }
 
-      form.reset();
-      router.replace("/");
-      router.refresh();
+      sessionEstablished = true;
+      clearSessionEndedMarker();
+      const { data: userData, error: userError } =
+        await supabase.auth.getUser();
+
+      if (userError || !userData.user) {
+        await signOutAndReset(supabase);
+        sessionEstablished = false;
+        setErrorMessage(
+          userError?.message ?? "Unable to fetch student account.",
+        );
+        return;
+      }
+
+      const access = await resolveAccountAccess(
+        createAccountRoleLookup(supabase),
+        userData.user,
+      );
+
+      if (access.state === "unregistered") {
+        clearSensitiveFormFields(form);
+        router.replace("/complete-profile");
+        router.refresh();
+        return;
+      }
+
+      if (access.role === "student" && access.state === "active") {
+        clearSensitiveFormFields(form);
+        router.replace("/student-dashboard");
+        router.refresh();
+        return;
+      }
+
+      const signOutConfirmed = await signOutAndReset(supabase);
+      sessionEstablished = false;
+      const signOutNote = signOutConfirmed
+        ? ""
+        : " Your local session was cleared, but server sign-out could not be confirmed.";
+
+      if (access.role === "teacher" && access.state === "pending") {
+        setErrorMessage(`Your teacher account is pending administrator approval.${signOutNote}`);
+        return;
+      }
+
+      if (access.role === "teacher" && access.state === "active") {
+        setErrorMessage(`This is a teacher account. Use the teacher login page.${signOutNote}`);
+        return;
+      }
+
+      if (access.role === "admin") {
+        setErrorMessage(`This is an administrator account. Use the admin login page.${signOutNote}`);
+        return;
+      }
+
+      if (access.role === "teacher") {
+        setErrorMessage(`Your teacher account is not active. Contact an administrator.${signOutNote}`);
+        return;
+      }
+
+      setErrorMessage(`This account is not authorized for student access.${signOutNote}`);
     } catch (error) {
+      if (sessionEstablished) {
+        await signOutAndReset(createClient());
+      } else {
+        clearSensitiveFormFields(form);
+      }
       setErrorMessage(
-        error instanceof Error ? error.message : "Unable to sign in securely.",
+        error instanceof Error
+          ? error.message
+          : "Unable to sign in securely.",
       );
     } finally {
       setIsLoading(false);
@@ -46,7 +166,7 @@ export function StudentLoginForm() {
   }
 
   return (
-    <form className="space-y-5" onSubmit={handleSubmit}>
+    <form className="space-y-5" autoComplete="off" onSubmit={handleSubmit}>
       <FormField
         label="Email address"
         id="student-email"
@@ -73,8 +193,13 @@ export function StudentLoginForm() {
           Forgot password?
         </Link>
       </div>
+      {noticeMessage ? (
+        <p role="status" className="text-sm text-success">
+          {noticeMessage}
+        </p>
+      ) : null}
       {errorMessage ? (
-        <p role="alert" className="text-sm text-red-600">
+        <p role="alert" className="text-sm text-danger">
           {errorMessage}
         </p>
       ) : null}

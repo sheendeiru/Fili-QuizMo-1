@@ -34,6 +34,7 @@ The project is built with Webpack because the Turbopack native bindings are unav
 | `/admin-login`       | Admin login                                          |
 | `/teacher-dashboard` | Teacher dashboard with quizzes, students, and scores |
 | `/admin-dashboard`   | Admin dashboard for quizzes and teacher management   |
+| `/api/export`       | Authenticated, role-scoped CSV and Excel exports     |
 
 ## Supabase authentication setup
 
@@ -42,7 +43,10 @@ The project is built with Webpack because the Turbopack native bindings are unav
    ```dotenv
    NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
    NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+   NEXT_PUBLIC_SITE_URL=http://localhost:3000
    ```
+
+   Set `NEXT_PUBLIC_SITE_URL` to the deployed app origin in production; it is used to resolve social metadata images.
 
 2. Create admin and teacher users through Supabase Auth or another trusted provisioning process. Set each user's trusted `app_metadata.role` to exactly `admin` or `teacher`, respectively. The admin login rejects teacher accounts, and the teacher login rejects admin accounts. Role values in user-editable `user_metadata` are not used for authorization.
 3. Do not allow public sign-up to assign roles. Only a trusted administrator or server-side process should set `app_metadata.role`; never expose a Supabase service-role/secret key in browser code.
@@ -51,6 +55,10 @@ The project is built with Webpack because the Turbopack native bindings are unav
 6. Keep database access protected with Row Level Security. Policies for admin-only data should validate trusted admin metadata and `auth.jwt()->>'aal' = 'aal2'`; teacher policies should validate the trusted teacher role. Route protection does not replace database authorization.
 
 The Supabase anon/publishable key is intended for browser use and does not bypass Row Level Security. Never expose a Supabase service-role/secret key in a `NEXT_PUBLIC_*` variable or client-side code.
+
+## Session cleanup
+
+Dashboard logout revokes the Supabase session globally, clears form controls and browser storage/cache data, aborts registered dashboard requests, and replaces the current history entry with the role's login page. Logout is broadcast to other tabs; protected pages are marked `private, no-store`, and pages restored from the back-forward cache after a session change are reloaded through the server-side access checks. The browser boundary also handles Supabase `SIGNED_OUT` events and API `401` responses.
 
 ## Dashboard search and filters
 
@@ -120,6 +128,17 @@ For local development, the endpoint defaults to deterministic mock data; use `SE
 The migration adds B-tree indexes for teacher/status/date/join columns and `pg_trgm` GIN indexes for substring-matched text columns. Trigram indexes support the `%term%` `ILIKE` searches without requiring a separate full-text search language configuration. Password columns are intentionally absent from views and indexes.
 
 To add a filter field, add its key to `SearchFilterKey`, define role/entity visibility in `FILTER_DEFINITIONS`, expose the field in the corresponding `entityConfigs` view/select/filter configuration, parse and validate it in `validation.ts`, apply it in `query-builder.ts`, then add its control/chip in `SearchFilter` and any required view/index changes to a migration. Add query-builder and role-scope tests for the new field.
+
+## Dashboard exports
+
+Teachers and admins can export the available dashboard datasets as Excel (`.xlsx`) or CSV. Exports use the authenticated session, the same role scope and applicable filters as dashboard search, and the Supabase search views protected by the existing grants and RLS policies.
+
+```http
+GET /api/export?entity=participants&format=xlsx&q=maria&status=completed
+GET /api/export?entity=participants&format=csv&q=maria&status=completed
+```
+
+Exports include all matching rows, not just the current dashboard page, and are streamed in batches. A single export is capped at 100,000 rows; narrow the filters if a dataset exceeds that limit. CSV output includes a UTF-8 BOM, escaped cells, and protection against spreadsheet formula injection.
 
 ## Notes
 

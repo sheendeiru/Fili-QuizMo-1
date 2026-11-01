@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { Footer } from "@/components/layout/footer";
 import { Navbar } from "@/components/layout/navbar";
+import { SessionExpiredNotice } from "@/components/auth/session-expired-notice";
 
 type AuthShellProps = {
   title: string;
@@ -25,7 +26,10 @@ export function AuthShell({
             {title}
           </h1>
           <p className="mt-2 text-sm text-neutral-500">{subtitle}</p>
-          <div className="mt-8">{children}</div>
+          <div className="mt-8">
+            <SessionExpiredNotice />
+            {children}
+          </div>
           {footer ? (
             <div className="mt-6 text-center text-sm text-neutral-500">
               {footer}

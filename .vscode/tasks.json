@@ -34,6 +34,17 @@
 			"isBackground": false,
 			"problemMatcher": [],
 			"group": "test"
+		},
+		{
+			"label": "Inspect current repo changes",
+			"type": "shell",
+			"command": "cmd.exe",
+			"args": [
+				"/c",
+				"git status --short && git diff --stat && git diff --check"
+			],
+			"isBackground": false,
+			"problemMatcher": []
 		}
 	]
 }

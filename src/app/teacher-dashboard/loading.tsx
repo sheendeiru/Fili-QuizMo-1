@@ -1,5 +1,7 @@
-import { LoadingScreen } from "@/components/ui/loading-screen";
+import { PixelLoader } from "@/components/ui/pixel-loader";
 
 export default function TeacherDashboardLoading() {
-  return <LoadingScreen label="Verifying teacher session..." fullScreen />;
+  return (
+    <PixelLoader label="Verifying teacher session..." variant="screen" />
+  );
 }

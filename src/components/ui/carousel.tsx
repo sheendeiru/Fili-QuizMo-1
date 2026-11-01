@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useCallback, useEffect, useState } from "react";
 import { BrandLogo } from "@/components/layout/brand-logo";
 
@@ -41,8 +42,6 @@ export function Carousel({ items }: CarouselProps) {
     return () => clearInterval(interval);
   }, [paused, items.length]);
 
-  const item = items[index];
-
   return (
     <div
       className="relative mx-auto w-full max-w-4xl overflow-hidden rounded-2xl bg-primary shadow-lg"
@@ -58,19 +57,21 @@ export function Carousel({ items }: CarouselProps) {
             key={slide.src}
             className="relative h-[30rem] w-full shrink-0 overflow-hidden bg-primary md:h-[34rem]"
           >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
+            <Image
               src={slide.src}
               alt=""
               aria-hidden="true"
-              className="absolute inset-0 h-full w-full scale-110 object-cover opacity-25 blur-2xl"
+              fill
+              sizes="(max-width: 768px) 100vw, 896px"
+              className="scale-110 object-cover opacity-25 blur-2xl"
             />
             <div className="relative flex h-full items-center justify-center px-6 pb-28 pt-8">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
+              <Image
                 src={slide.src}
                 alt={slide.alt}
-                className="max-h-full w-auto max-w-full rounded-xl object-contain shadow-2xl ring-1 ring-white/20"
+                fill
+                sizes="(max-width: 768px) 100vw, 896px"
+                className="object-contain shadow-2xl ring-1 ring-white/20"
               />
             </div>
             <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-primary via-primary/90 to-transparent px-6 pb-12 pt-16 text-white md:px-8">

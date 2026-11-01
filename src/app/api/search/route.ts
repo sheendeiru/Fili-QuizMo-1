@@ -2,6 +2,10 @@ import { createClient } from "@/lib/supabase/server";
 import { SearchError, isSearchError } from "@/lib/search/errors";
 import { resolveSearchContext } from "@/lib/search/auth";
 import type { SearchAuthClient } from "@/lib/search/auth";
+import {
+  createAccountRoleLookup,
+  resolveAccountAccess,
+} from "@/lib/auth/roles";
 import { getSearchDataSource, createSearchRepository } from "@/lib/search/runtime";
 import { executeSearch } from "@/lib/search/service";
 import { parseSearchQuery } from "@/lib/search/validation";
@@ -35,20 +39,8 @@ export async function GET(request: Request): Promise<Response> {
             supabase.auth.mfa.getAuthenticatorAssuranceLevel(),
         },
       },
-      async hasMembership({ table, column, userId }) {
-        const { data, error } = await supabase
-          .from(table)
-          .select(column)
-          .eq(column, userId)
-          .maybeSingle();
-
-        return {
-          exists: Boolean(data),
-          error: error
-            ? { code: error.code, message: error.message }
-            : null,
-        };
-      },
+      resolveAccess: (user) =>
+        resolveAccountAccess(createAccountRoleLookup(supabase), user),
     };
     const context = await resolveSearchContext(authClient);
     const query = parseSearchQuery(params, context.role);

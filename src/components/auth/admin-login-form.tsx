@@ -2,14 +2,51 @@
 
 import { useRouter } from "next/navigation";
 import type { FormEvent } from "react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { FormField } from "@/components/ui/form-field";
 import { Spinner } from "@/components/ui/spinner";
+import {
+  createAccountRoleLookup,
+  resolveAccountAccess,
+} from "@/lib/auth/roles";
 import { createClient } from "@/lib/supabase/client";
+import {
+  clearSensitiveFormFields,
+  clearSessionEndedMarker,
+  SESSION_ENDED_EVENT,
+  signOutAndReset,
+} from "@/lib/auth/session-state";
+import Image from "next/image";
 
-export function AdminLoginForm() {
+function initialErrorMessage(status?: string): string {
+  if (status === "blocked") {
+    return "This account is not authorized for admin access.";
+  }
+
+  if (status === "session_expired") {
+    return "Your session expired. Sign in again to continue.";
+  }
+
+  if (status === "unavailable") {
+    return "We could not verify your account access. Please try again.";
+  }
+
+  if (status === "logout_unverified") {
+    return "Your browser session was cleared, but server sign-out could not be confirmed.";
+  }
+
+  return "";
+}
+
+export function AdminLoginForm({
+  status,
+  mfaRequired = false,
+}: {
+  status?: string;
+  mfaRequired?: boolean;
+}) {
   const router = useRouter();
   const [step, setStep] = useState<"credentials" | "enroll" | "verify">(
     "credentials",
@@ -17,63 +54,100 @@ export function AdminLoginForm() {
   const [factorId, setFactorId] = useState("");
   const [qrCode, setQrCode] = useState("");
   const [secret, setSecret] = useState("");
-  const [errorMessage, setErrorMessage] = useState("");
+  const [errorMessage, setErrorMessage] = useState(
+    initialErrorMessage(status),
+  );
+  const [noticeMessage, setNoticeMessage] = useState(
+    mfaRequired
+      ? "Complete multi-factor authentication to access the admin dashboard."
+      : "",
+  );
   const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    function clearMfaState() {
+      setStep("credentials");
+      setFactorId("");
+      setQrCode("");
+      setSecret("");
+      setErrorMessage("");
+      setNoticeMessage("");
+      setIsLoading(false);
+    }
+
+    window.addEventListener(SESSION_ENDED_EVENT, clearMfaState);
+    return () =>
+      window.removeEventListener(SESSION_ENDED_EVENT, clearMfaState);
+  }, []);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    const form = event.currentTarget;
     setErrorMessage("");
+    setNoticeMessage("");
     setIsLoading(true);
+    let sessionEstablished = false;
+    let supabase: ReturnType<typeof createClient> | null = null;
 
     try {
-      const supabase = createClient();
-      const formData = new FormData(event.currentTarget);
+      supabase = createClient();
+      const formData = new FormData(form);
 
       if (step === "credentials") {
-        const { error: signInError } = await supabase.auth.signInWithPassword({
-          email: String(formData.get("email") ?? ""),
-          password: String(formData.get("password") ?? ""),
-        });
+        const { error: signInError } =
+          await supabase.auth.signInWithPassword({
+            email: String(formData.get("email") ?? "").trim(),
+            password: String(formData.get("password") ?? ""),
+          });
 
         if (signInError) {
+          clearSensitiveFormFields(form);
           setErrorMessage(signInError.message);
           return;
         }
 
-      const { data: userData, error: userError } = await supabase.auth.getUser();
+        sessionEstablished = true;
+        clearSessionEndedMarker();
+        const { data: userData, error: userError } =
+          await supabase.auth.getUser();
 
-      if (userError || !userData.user) {
-        setErrorMessage(userError?.message ?? "Unable to fetch admin account.");
-        return;
-      }
+        if (userError || !userData.user) {
+          await signOutAndReset(supabase);
+          sessionEstablished = false;
+          setErrorMessage(
+            userError?.message ?? "Unable to fetch admin account.",
+          );
+          return;
+        }
 
-      const { data: admin_accountsRow, error: admin_accountsError } = await supabase
-        .from("admin_accounts")
-        .select("user_id")
-        .eq("user_id", userData.user.id)
-        .maybeSingle();
-
-      if (admin_accountsError || !admin_accountsRow) {
-        const { error: signOutError } = await supabase.auth.signOut();
-        setErrorMessage(
-          signOutError
-            ? `This account is not authorized for admin access. ${signOutError.message}`
-            : "This account is not authorized for admin access."
+        const access = await resolveAccountAccess(
+          createAccountRoleLookup(supabase),
+          userData.user,
         );
-        return;
-      }
 
-
+        if (access.role !== "admin" || access.state !== "active") {
+          const signOutConfirmed = await signOutAndReset(supabase);
+          sessionEstablished = false;
+          setErrorMessage(
+            signOutConfirmed
+              ? "This account is not authorized for admin access."
+              : "This account is not authorized for admin access. Your local session was cleared, but server sign-out could not be confirmed.",
+          );
+          return;
+        }
 
         const { data: assurance, error: assuranceError } =
           await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
 
         if (assuranceError) {
+          await signOutAndReset(supabase);
+          sessionEstablished = false;
           setErrorMessage(assuranceError.message);
           return;
         }
 
         if (assurance.currentLevel === "aal2") {
+          clearSensitiveFormFields(form);
           router.replace("/admin-dashboard");
           router.refresh();
           return;
@@ -83,6 +157,8 @@ export function AdminLoginForm() {
           await supabase.auth.mfa.listFactors();
 
         if (factorsError) {
+          await signOutAndReset(supabase);
+          sessionEstablished = false;
           setErrorMessage(factorsError.message);
           return;
         }
@@ -92,6 +168,7 @@ export function AdminLoginForm() {
         );
 
         if (verifiedFactor) {
+          clearSensitiveFormFields(form);
           setFactorId(verifiedFactor.id);
           setStep("verify");
           return;
@@ -106,6 +183,8 @@ export function AdminLoginForm() {
               await supabase.auth.mfa.unenroll({ factorId: factor.id });
 
             if (unenrollError) {
+              await signOutAndReset(supabase);
+              sessionEstablished = false;
               setErrorMessage(unenrollError.message);
               return;
             }
@@ -119,6 +198,8 @@ export function AdminLoginForm() {
           });
 
         if (enrollmentError) {
+          await signOutAndReset(supabase);
+          sessionEstablished = false;
           setErrorMessage(enrollmentError.message);
           return;
         }
@@ -126,6 +207,7 @@ export function AdminLoginForm() {
         setFactorId(enrollment.id);
         setQrCode(enrollment.totp.qr_code);
         setSecret(enrollment.totp.secret);
+        clearSensitiveFormFields(form);
         setStep("enroll");
         return;
       }
@@ -135,6 +217,7 @@ export function AdminLoginForm() {
         await supabase.auth.mfa.challenge({ factorId });
 
       if (challengeError) {
+        clearSensitiveFormFields(form);
         setErrorMessage(challengeError.message);
         return;
       }
@@ -146,6 +229,7 @@ export function AdminLoginForm() {
       });
 
       if (verifyError) {
+        clearSensitiveFormFields(form);
         setErrorMessage(verifyError.message);
         return;
       }
@@ -154,22 +238,35 @@ export function AdminLoginForm() {
         await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
 
       if (assuranceError) {
+        await signOutAndReset(supabase);
+        sessionEstablished = false;
+        clearSensitiveFormFields(form);
         setErrorMessage(assuranceError.message);
         return;
       }
 
       if (assurance.currentLevel !== "aal2") {
+        await signOutAndReset(supabase);
+        sessionEstablished = false;
+        clearSensitiveFormFields(form);
         setErrorMessage(
           "MFA verification did not establish the required admin session. Try again.",
         );
         return;
       }
 
+      clearSensitiveFormFields(form);
       router.replace("/admin-dashboard");
       router.refresh();
     } catch (error) {
+      if (sessionEstablished && supabase) {
+        await signOutAndReset(supabase);
+      }
+      clearSensitiveFormFields(form);
       setErrorMessage(
-        error instanceof Error ? error.message : "Unable to sign in securely.",
+        error instanceof Error
+          ? error.message
+          : "Unable to sign in securely.",
       );
     } finally {
       setIsLoading(false);
@@ -177,7 +274,7 @@ export function AdminLoginForm() {
   }
 
   return (
-    <form className="space-y-5" onSubmit={handleSubmit}>
+    <form className="space-y-5" autoComplete="off" onSubmit={handleSubmit}>
       {step === "credentials" ? (
         <>
           <FormField
@@ -215,10 +312,12 @@ export function AdminLoginForm() {
                 Scan this QR code with an authenticator app, then enter its
                 current six-digit code.
               </p>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
+              <Image
                 src={qrCode}
                 alt="QR code for admin authenticator setup"
+                width={192}
+                height={192}
+                unoptimized
                 className="mx-auto h-48 w-48"
               />
               <p className="break-all">
@@ -245,8 +344,14 @@ export function AdminLoginForm() {
         </>
       )}
 
+      {noticeMessage ? (
+        <p role="status" className="text-sm text-neutral-600">
+          {noticeMessage}
+        </p>
+      ) : null}
+
       {errorMessage ? (
-        <p role="alert" className="text-sm text-red-600">
+        <p role="alert" className="text-sm text-danger">
           {errorMessage}
         </p>
       ) : null}

@@ -18,7 +18,7 @@ export function Footer() {
     <footer className="relative w-full bg-primary text-primary-foreground">
       <div
         aria-hidden="true"
-        className="h-px w-full bg-gradient-to-r from-sky-400/60 via-emerald-400/50 to-amber-300/60"
+        className="h-px w-full bg-gradient-to-r from-secondary/60 via-success/50 to-secondary/60"
       />
 
       <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-8">

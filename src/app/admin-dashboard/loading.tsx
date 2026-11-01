@@ -1,5 +1,7 @@
-import { LoadingScreen } from "@/components/ui/loading-screen";
+import { PixelLoader } from "@/components/ui/pixel-loader";
 
 export default function AdminDashboardLoading() {
-  return <LoadingScreen label="Verifying admin session..." fullScreen />;
+  return (
+    <PixelLoader label="Verifying admin session..." variant="screen" />
+  );
 }

@@ -5,18 +5,44 @@ import {
   useRouter,
   useSearchParams,
 } from "next/navigation";
+import dynamic from "next/dynamic";
 import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import {
   DashboardShell,
   type DashboardNavItem,
 } from "@/components/dashboard/dashboard-shell";
-import { PieChart } from "@/components/dashboard/pie-chart";
+import { PixelLoader } from "@/components/ui/pixel-loader";
 import { Button } from "@/components/ui/button";
 import { SearchFilter } from "@/components/dashboard/search-filter";
 import { FormField } from "@/components/ui/form-field";
 import { defaultSearchQuery } from "@/lib/search/url-state";
+import { logoutAndRedirect } from "@/lib/auth/logout";
 import { createClient } from "@/lib/supabase/client";
+
+export async function getQuizzes() {
+  const supabase = createClient();
+
+  const {data, error} = await supabase
+  .from("quizzes")
+  .select("*");
+
+  if(error) {
+    console.error("Error fetching quizzes", error);
+    throw error;
+  }
+  return data;
+}
+
+const PieChart = dynamic(
+  () =>
+    import("@/components/dashboard/pie-chart").then(
+      (module) => module.PieChart,
+    ),
+  {
+    loading: () => <PixelLoader label="Loading score chart..." />,
+  },
+);
 
 const navItems: DashboardNavItem[] = [
   { key: "quizzes", label: "View Quizzes" },
@@ -29,8 +55,7 @@ const navItems: DashboardNavItem[] = [
 const scores = [
   {
     student: "Maria Santos",
-    quiz: "General Knowledge Quiz",
-    score: "92%",
+
     status: "Excellent",
   },
   {
@@ -103,14 +128,7 @@ export default function TeacherDashboardContent() {
     setLogoutError("");
 
     try {
-      const { error } = await createClient().auth.signOut();
-      if (error) {
-        setLogoutError(error.message);
-        return;
-      }
-
-      router.replace("/teacher-login");
-      router.refresh();
+      await logoutAndRedirect(router);
     } catch (error) {
       setLogoutError(
         error instanceof Error ? error.message : "Unable to log out.",
@@ -127,7 +145,7 @@ export default function TeacherDashboardContent() {
       onLogout={handleLogout}
     >
       {logoutError ? (
-        <p role="alert" className="mb-6 text-sm text-red-600">
+        <p role="alert" className="mb-6 text-sm text-danger">
           Unable to log out: {logoutError}
         </p>
       ) : null}
@@ -277,11 +295,13 @@ function ScoresSection() {
 }
 
 function SettingsSection() {
-  const [saved, setSaved] = useState(false);
+  const [saveNotice, setSaveNotice] = useState("");
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setSaved(true);
+    setSaveNotice(
+      "Settings are not connected to profile storage yet; no changes were saved.",
+    );
   }
 
   return (
@@ -320,9 +340,9 @@ function SettingsSection() {
           </label>
           <div className="flex items-center gap-3">
             <Button type="submit">Save Changes</Button>
-            {saved ? (
-              <span className="text-sm font-medium text-green-600">
-                Settings saved.
+            {saveNotice ? (
+              <span role="status" className="text-sm text-warning">
+                {saveNotice}
               </span>
             ) : null}
           </div>

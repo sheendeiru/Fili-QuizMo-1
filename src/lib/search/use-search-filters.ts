@@ -8,6 +8,10 @@ import {
   parseSearchState,
   serializeSearchState,
 } from "./url-state";
+import {
+  createSessionRequestController,
+  releaseSessionRequestController,
+} from "@/lib/auth/session-state";
 import type { SearchQuery, SearchResponse, SearchRole } from "./types";
 
 function messageFromError(error: unknown): string {
@@ -80,7 +84,7 @@ export function useSearchFilters(
       return;
     }
 
-    const controller = new AbortController();
+    const controller = createSessionRequestController();
     let active = true;
 
     queueMicrotask(() => {
@@ -119,11 +123,13 @@ export function useSearchFilters(
           loading: false,
           error: messageFromError(error),
         });
-      });
+      })
+      .finally(() => releaseSessionRequestController(controller));
 
     return () => {
       active = false;
       controller.abort();
+      releaseSessionRequestController(controller);
     };
   }, [parsedState.error, query, queryKey]);
 
