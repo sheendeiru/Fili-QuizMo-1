@@ -12,6 +12,10 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Deno edge functions use their own tsconfig and import map.
+    "supabase/functions/**",
+    // Generated CLI artifacts, not application source.
+    "supabase/.temp/**",
   ]),
 ]);
 

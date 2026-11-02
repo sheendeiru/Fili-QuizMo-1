@@ -99,7 +99,13 @@ export default function AdminDashboardContent() {
       onLogout={handleLogout}
     >
       {logoutError ? (
-        <p role="alert" className="mb-6 text-sm text-danger">
+        <p
+          role="alert"
+          className="mb-6 flex items-center gap-2 border-2 border-red-400 bg-red-950/60 px-4 py-3 text-sm text-red-200"
+        >
+          <span aria-hidden="true" className="font-bold">
+            !
+          </span>
           Unable to log out: {logoutError}
         </p>
       ) : null}
@@ -233,7 +239,7 @@ function AdminSettingsSection() {
               type="checkbox"
               name="notifications"
               defaultChecked
-              className="h-4 w-4 rounded border-neutral-300 text-primary focus:ring-primary"
+              className="h-4 w-4 rounded border-neutral-300 text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
             />
             Notify me about new teacher account requests
           </label>

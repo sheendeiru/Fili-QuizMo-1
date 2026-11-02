@@ -129,7 +129,9 @@ export function SignupForm() {
       if (!data.session) {
         clearSensitiveFormFields(form);
         setStatusMessage(
-          "Check your email to confirm your account. After confirming, you will finish setting up your profile.",
+          role === "teacher"
+            ? "Check your email to confirm your account. Your teacher account stays pending until an administrator approves it."
+            : "Check your email to confirm your account. After confirming, sign in to view your dashboard.",
         );
         return;
       }
@@ -165,11 +167,7 @@ export function SignupForm() {
         return;
       }
 
-      setErrorMessage(
-        profileResult.error?.message ??
-          "Your account was created, but profile setup could not finish.",
-      );
-      router.replace("/complete-profile");
+      router.replace("/complete-profile?reason=profile_error");
       router.refresh();
     } catch (error) {
       if (controller.signal.aborted) {

@@ -11,6 +11,7 @@ import {
   createAccountRoleLookup,
   resolveAccountAccess,
 } from "@/lib/auth/roles";
+import { friendlyLoginError } from "@/lib/auth/error-messages";
 import { createClient } from "@/lib/supabase/client";
 import {
   clearSensitiveFormFields,
@@ -102,7 +103,7 @@ export function AdminLoginForm({
 
         if (signInError) {
           clearSensitiveFormFields(form);
-          setErrorMessage(signInError.message);
+          setErrorMessage(friendlyLoginError(signInError.message));
           return;
         }
 

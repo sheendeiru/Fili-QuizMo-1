@@ -69,6 +69,7 @@ describe("resolveSearchContext", () => {
   it("uses the live teachers row id for the teacher scope", async () => {
     const context = await resolveSearchContext(
       createClient({
+        id: "auth-user-id",
         access: access({
           userId: "auth-user-id",
           teacherId: 42,

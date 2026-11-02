@@ -11,6 +11,7 @@ import {
   createAccountRoleLookup,
   resolveAccountAccess,
 } from "@/lib/auth/roles";
+import { friendlyLoginError } from "@/lib/auth/error-messages";
 import { createClient } from "@/lib/supabase/client";
 import {
   clearSensitiveFormFields,
@@ -85,7 +86,7 @@ export function TeacherLoginForm({ status }: { status?: string }) {
 
       if (signInError) {
         clearSensitiveFormFields(form);
-        setErrorMessage("Invalid email or password.");
+        setErrorMessage(friendlyLoginError(signInError.message));
         return;
       }
 

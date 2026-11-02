@@ -54,11 +54,13 @@ function formatDate(value: string | null): string {
 }
 
 function formatPercent(value: number | null): string {
-  return value === null ? "—" : `${Math.round(value)}%`;
+  return value === null || !Number.isFinite(value)
+    ? "—"
+    : `${Math.round(value)}%`;
 }
 
 function formatDuration(value: number | null): string {
-  if (value === null || value < 0) {
+  if (value === null || !Number.isFinite(value) || value < 0) {
     return "—";
   }
 
@@ -167,7 +169,10 @@ export default function StudentDashboardContent({
   const router = useRouter();
   const percentages = history
     .map((row) => row.percentage)
-    .filter((value): value is number => value !== null);
+    .filter(
+      (value): value is number =>
+        value !== null && Number.isFinite(value),
+    );
   const average =
     percentages.length > 0
       ? percentages.reduce((total, value) => total + value, 0) /
@@ -197,9 +202,9 @@ export default function StudentDashboardContent({
 
           <section className="grid gap-4 sm:grid-cols-3">
             <StatCard
-              label="Quizzes completed"
+              label="Recorded attempts"
               value={String(history.length)}
-              hint="Recorded attempts"
+              hint="Latest 100 attempts"
             />
             <StatCard
               label="Average score"

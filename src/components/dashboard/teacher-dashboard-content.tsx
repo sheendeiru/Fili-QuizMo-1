@@ -18,21 +18,6 @@ import { SearchFilter } from "@/components/dashboard/search-filter";
 import { FormField } from "@/components/ui/form-field";
 import { defaultSearchQuery } from "@/lib/search/url-state";
 import { logoutAndRedirect } from "@/lib/auth/logout";
-import { createClient } from "@/lib/supabase/client";
-
-export async function getQuizzes() {
-  const supabase = createClient();
-
-  const {data, error} = await supabase
-  .from("quizzes")
-  .select("*");
-
-  if(error) {
-    console.error("Error fetching quizzes", error);
-    throw error;
-  }
-  return data;
-}
 
 const PieChart = dynamic(
   () =>
@@ -145,7 +130,13 @@ export default function TeacherDashboardContent() {
       onLogout={handleLogout}
     >
       {logoutError ? (
-        <p role="alert" className="mb-6 text-sm text-danger">
+        <p
+          role="alert"
+          className="mb-6 flex items-center gap-2 border-2 border-red-400 bg-red-950/60 px-4 py-3 text-sm text-red-200"
+        >
+          <span aria-hidden="true" className="font-bold">
+            !
+          </span>
           Unable to log out: {logoutError}
         </p>
       ) : null}
@@ -334,7 +325,7 @@ function SettingsSection() {
               type="checkbox"
               name="notifications"
               defaultChecked
-              className="h-4 w-4 rounded border-neutral-300 text-primary focus:ring-primary"
+              className="h-4 w-4 rounded border-neutral-300 text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
             />
             Email me when students submit quiz scores
           </label>

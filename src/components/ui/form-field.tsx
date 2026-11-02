@@ -22,7 +22,7 @@ export function FormField({
       </label>
       <input
         id={id}
-        className={`mt-2 w-full rounded-lg border border-neutral-300 bg-white px-4 py-3 text-sm text-foreground outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20 ${className}`}
+        className={`mt-2 w-full rounded-lg border border-neutral-300 bg-white px-4 py-3 text-sm text-foreground placeholder:text-neutral-600 outline-none transition focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 ${className}`}
         {...props}
       />
     </div>

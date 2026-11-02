@@ -33,8 +33,9 @@ export default function AuthErrorPage() {
       }
     >
       <p className="text-sm text-neutral-500">
-        Request a new confirmation email by signing up again, or contact your
-        Fili-QuizMo administrator if the problem continues.
+        If you already confirmed your email, sign in below. Otherwise, sign up
+        again to request a new confirmation email, or contact your Fili-QuizMo
+        administrator if the problem continues.
       </p>
     </AuthShell>
   );
