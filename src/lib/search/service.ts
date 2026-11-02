@@ -63,11 +63,8 @@ export function mapSearchItem(
     const item: StudentSearchItem = {
       entity: "students",
       id: textValue(row, "student_id"),
-      name: textValue(row, "name"),
-      schoolId: textValue(row, "school_id"),
+      username: textValue(row, "username"),
       email: textValue(row, "email"),
-      enrollmentStatus: textValue(row, "enrollment_status"),
-      accountStatus: textValue(row, "account_status"),
       teacherId: textValue(row, "teacher_id"),
       teacherUsername: textValue(row, "teacher_username"),
       createdAt: textValue(row, "created_at"),
@@ -102,7 +99,6 @@ export function mapSearchItem(
       quizTitle: textValue(row, "quiz_title"),
       sessionId: textValue(row, "session_id"),
       sessionCode: textValue(row, "session_code"),
-      studentSchoolId: textValue(row, "student_school_id"),
       studentEmail: textValue(row, "student_email"),
       teacherId: textValue(row, "teacher_id"),
       teacherUsername: textValue(row, "teacher_username"),
@@ -117,7 +113,7 @@ export function mapSearchItem(
     id: textValue(row, "teacher_id"),
     username: textValue(row, "username"),
     email: textValue(row, "email"),
-    accountStatus: textValue(row, "account_status"),
+    status: textValue(row, "status"),
     quizCount: numberValue(row, "quiz_count"),
     createdAt: textValue(row, "created_at"),
   };
@@ -166,7 +162,6 @@ export async function executeSearch(input: {
       filters: {
         q: input.query.q,
         status: input.query.status,
-        accountStatus: input.query.accountStatus,
         teacher: input.query.teacher,
         quiz: input.query.quiz,
         session: input.query.session,

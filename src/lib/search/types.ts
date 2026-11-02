@@ -21,7 +21,6 @@ export type SearchDataSource = "supabase" | "mock";
 
 export type SearchFilterKey =
   | "status"
-  | "accountStatus"
   | "teacher"
   | "quiz"
   | "session"
@@ -32,7 +31,6 @@ export type SearchQuery = {
   entity: SearchEntity;
   q: string;
   status: string | null;
-  accountStatus: "active" | "inactive" | null;
   teacher: string;
   quiz: string;
   session: string;
@@ -92,11 +90,8 @@ export type SearchRepository = {
 export type StudentSearchItem = {
   entity: "students";
   id: string;
-  name: string;
-  schoolId: string;
+  username: string;
   email: string;
-  enrollmentStatus: string;
-  accountStatus: string;
   teacherId: string;
   teacherUsername: string;
   createdAt: string;
@@ -123,7 +118,6 @@ export type ParticipantSearchItem = {
   quizTitle: string;
   sessionId: string;
   sessionCode: string;
-  studentSchoolId: string;
   studentEmail: string;
   teacherId: string;
   teacherUsername: string;
@@ -135,7 +129,7 @@ export type TeacherSearchItem = {
   id: string;
   username: string;
   email: string;
-  accountStatus: string;
+  status: string;
   quizCount: number;
   createdAt: string;
 };
@@ -149,7 +143,6 @@ export type SearchItem =
 export type SearchAppliedFilters = {
   q: string;
   status: string | null;
-  accountStatus: "active" | "inactive" | null;
   teacher: string;
   quiz: string;
   session: string;

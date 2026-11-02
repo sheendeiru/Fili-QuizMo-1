@@ -1,54 +1,25 @@
 "use client";
 
 import { useState } from "react";
+import type { ScoreDistribution } from "@/lib/dashboard/score-bands";
 
-const quizDistributions = [
-  {
-    quiz: "General Knowledge Quiz",
-    average: 82,
-    bands: [
-      { label: "Excellent (90–100)", value: 35, color: "var(--color-success)" },
-      { label: "Good (75–89)", value: 30, color: "var(--color-primary-foreground)" },
-      { label: "Needs Improvement (50–74)", value: 20, color: "var(--color-warning)" },
-      { label: "At Risk (below 50)", value: 15, color: "var(--color-danger)" },
-    ],
-  },
-  {
-    quiz: "Science Fundamentals",
-    average: 78,
-    bands: [
-      { label: "Excellent (90–100)", value: 28, color: "var(--color-success)" },
-      { label: "Good (75–89)", value: 34, color: "var(--color-primary-foreground)" },
-      { label: "Needs Improvement (50–74)", value: 24, color: "var(--color-warning)" },
-      { label: "At Risk (below 50)", value: 14, color: "var(--color-danger)" },
-    ],
-  },
-  {
-    quiz: "Math Essentials",
-    average: 71,
-    bands: [
-      { label: "Excellent (90–100)", value: 22, color: "var(--color-success)" },
-      { label: "Good (75–89)", value: 28, color: "var(--color-primary-foreground)" },
-      { label: "Needs Improvement (50–74)", value: 32, color: "var(--color-warning)" },
-      { label: "At Risk (below 50)", value: 18, color: "var(--color-danger)" },
-    ],
-  },
-  {
-    quiz: "English Vocabulary",
-    average: 86,
-    bands: [
-      { label: "Excellent (90–100)", value: 40, color: "var(--color-success)" },
-      { label: "Good (75–89)", value: 32, color: "var(--color-primary-foreground)" },
-      { label: "Needs Improvement (50–74)", value: 18, color: "var(--color-warning)" },
-      { label: "At Risk (below 50)", value: 10, color: "var(--color-danger)" },
-    ],
-  },
-];
+type PieChartProps = {
+  distributions: readonly ScoreDistribution[];
+};
 
-export function PieChart() {
+export function PieChart({ distributions }: PieChartProps) {
   const [selectedQuiz, setSelectedQuiz] = useState(0);
 
-  const distribution = quizDistributions[selectedQuiz];
+  if (distributions.length === 0) {
+    return (
+      <p className="rounded-lg bg-neutral-100 p-6 text-sm text-neutral-600">
+        Score distributions will appear after students complete a quiz.
+      </p>
+    );
+  }
+
+  const selectedIndex = Math.min(selectedQuiz, distributions.length - 1);
+  const distribution = distributions[selectedIndex];
   const bands = distribution.bands.map((item, index) => ({
     item,
     offset: distribution.bands
@@ -67,11 +38,11 @@ export function PieChart() {
         </label>
         <select
           id="score-quiz-select"
-          value={selectedQuiz}
+          value={selectedIndex}
           onChange={(event) => setSelectedQuiz(Number(event.target.value))}
           className="mt-2 w-full rounded-lg border border-neutral-300 bg-white px-4 py-2.5 text-sm font-medium text-foreground outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
         >
-          {quizDistributions.map((item, index) => (
+          {distributions.map((item, index) => (
             <option key={item.quiz} value={index}>
               {item.quiz}
             </option>
@@ -85,7 +56,7 @@ export function PieChart() {
             {bands.map(({ item, offset }) => {
               return (
                 <circle
-                  key={item.label}
+                  key={item.key}
                   cx="50"
                   cy="50"
                   r="40"
@@ -114,7 +85,7 @@ export function PieChart() {
 
         <ul className="space-y-3">
           {distribution.bands.map((item) => (
-            <li key={item.label} className="flex items-center gap-3 text-sm">
+            <li key={item.key} className="flex items-center gap-3 text-sm">
               <span
                 className="h-3 w-3 shrink-0 rounded-full"
                 style={{ backgroundColor: item.color }}
@@ -127,6 +98,11 @@ export function PieChart() {
           ))}
         </ul>
       </div>
+
+      <p className="text-xs text-neutral-500">
+        Based on {distribution.sampleSize}{" "}
+        {distribution.sampleSize === 1 ? "completed attempt" : "completed attempts"}.
+      </p>
     </div>
   );
 }

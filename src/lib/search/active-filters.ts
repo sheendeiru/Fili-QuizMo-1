@@ -1,5 +1,4 @@
 import {
-  ACCOUNT_STATUS_OPTIONS,
   getEntityConfig,
   getStatusLabel,
 } from "./config";
@@ -29,17 +28,6 @@ export function getActiveFilterChips(
     });
   }
 
-  if (query.accountStatus) {
-    chips.push({
-      key: "accountStatus",
-      label: "Account status",
-      value:
-        ACCOUNT_STATUS_OPTIONS.find(
-          (option) => option.value === query.accountStatus,
-        )?.label ?? query.accountStatus,
-    });
-  }
-
   if (query.teacher) {
     chips.push({
       key: "teacher",
@@ -55,7 +43,7 @@ export function getActiveFilterChips(
   if (query.session) {
     chips.push({
       key: "session",
-      label: "Session ID",
+      label: "Session code",
       value: query.session,
     });
   }

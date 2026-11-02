@@ -17,7 +17,9 @@ import { Button } from "@/components/ui/button";
 import { SearchFilter } from "@/components/dashboard/search-filter";
 import { FormField } from "@/components/ui/form-field";
 import { defaultSearchQuery } from "@/lib/search/url-state";
+import { getStatusLabel } from "@/lib/search/config";
 import { logoutAndRedirect } from "@/lib/auth/logout";
+import type { TeacherDashboardData } from "@/lib/dashboard/data";
 
 const PieChart = dynamic(
   () =>
@@ -37,33 +39,17 @@ const navItems: DashboardNavItem[] = [
   { key: "settings", label: "Settings" },
 ];
 
-const scores = [
-  {
-    student: "Maria Santos",
+function formatDate(value: string): string {
+  return new Date(value).toLocaleDateString("en-PH", {
+    dateStyle: "medium",
+  });
+}
 
-    status: "Excellent",
-  },
-  {
-    student: "Juan Dela Cruz",
-    quiz: "Science Fundamentals",
-    score: "78%",
-    status: "Good",
-  },
-  {
-    student: "Ana Reyes",
-    quiz: "Math Essentials",
-    score: "64%",
-    status: "Needs Improvement",
-  },
-  {
-    student: "Carlo Mendoza",
-    quiz: "English Vocabulary",
-    score: "88%",
-    status: "Good",
-  },
-];
-
-export default function TeacherDashboardContent() {
+export default function TeacherDashboardContent({
+  data,
+}: {
+  data: TeacherDashboardData;
+}) {
   const searchParams = useSearchParams();
   const entity = searchParams.get("entity");
   const searchActiveKey =
@@ -140,10 +126,10 @@ export default function TeacherDashboardContent() {
           Unable to log out: {logoutError}
         </p>
       ) : null}
-      {activeKey === "quizzes" && <QuizzesSection />}
+      {activeKey === "quizzes" && <QuizzesSection data={data} />}
       {activeKey === "students" && <StudentsSection />}
       {activeKey === "participants" && <ParticipantsSection />}
-      {activeKey === "scores" && <ScoresSection />}
+      {activeKey === "scores" && <ScoresSection data={data} />}
       {activeKey === "settings" && <SettingsSection />}
     </DashboardShell>
   );
@@ -173,7 +159,7 @@ function StatCard({ label, value }: { label: string; value: string }) {
   );
 }
 
-function QuizzesSection() {
+function QuizzesSection({ data }: { data: TeacherDashboardData }) {
   return (
     <div className="space-y-6">
       <SectionHeading
@@ -182,12 +168,60 @@ function QuizzesSection() {
       />
 
       <div className="grid gap-4 sm:grid-cols-3">
-        <StatCard label="Total Quizzes" value="12" />
-        <StatCard label="Active Students" value="48" />
-        <StatCard label="Average Score" value="82%" />
+        <StatCard
+          label="Total Quizzes"
+          value={String(data.quizzes.total)}
+        />
+        <StatCard
+          label="Active Students"
+          value={String(data.studentCount)}
+        />
+        <StatCard
+          label="Average Score"
+          value={`${data.results.average}%`}
+        />
       </div>
 
       <SearchFilter role="teacher" entity="quizzes" />
+
+      <div className="overflow-x-auto rounded-xl bg-white shadow-sm">
+        <table className="min-w-full divide-y divide-neutral-200 text-left text-sm">
+          <caption className="sr-only">Recently created quizzes</caption>
+          <thead className="bg-neutral-50">
+            <tr>
+              <th className="px-6 py-4 font-semibold text-foreground">Quiz</th>
+              <th className="px-6 py-4 font-semibold text-foreground">Status</th>
+              <th className="px-6 py-4 font-semibold text-foreground">Created</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-neutral-100">
+            {data.recentQuizzes.length === 0 ? (
+              <tr>
+                <td
+                  colSpan={3}
+                  className="px-6 py-4 text-neutral-600"
+                >
+                  You have not created a quiz yet.
+                </td>
+              </tr>
+            ) : (
+              data.recentQuizzes.map((quiz) => (
+                <tr key={quiz.id}>
+                  <td className="px-6 py-4 font-medium text-foreground">
+                    {quiz.title}
+                  </td>
+                  <td className="px-6 py-4 text-neutral-600">
+                    {getStatusLabel("quizzes", quiz.status)}
+                  </td>
+                  <td className="px-6 py-4 text-neutral-600">
+                    {formatDate(quiz.createdAt)}
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
 
       <div className="rounded-xl bg-white p-6 shadow-sm">
         <h3 className="text-lg font-semibold text-foreground">
@@ -197,7 +231,7 @@ function QuizzesSection() {
           Latest quiz performance across score bands.
         </p>
         <div className="mt-6">
-          <PieChart />
+          <PieChart distributions={data.distributions} />
         </div>
       </div>
     </div>
@@ -229,7 +263,7 @@ function ParticipantsSection() {
   );
 }
 
-function ScoresSection() {
+function ScoresSection({ data }: { data: TeacherDashboardData }) {
   return (
     <div className="space-y-6">
       <SectionHeading
@@ -240,6 +274,7 @@ function ScoresSection() {
       <div className="grid gap-6 lg:grid-cols-2">
         <div className="overflow-x-auto rounded-xl bg-white shadow-sm">
           <table className="min-w-full divide-y divide-neutral-200 text-left text-sm">
+            <caption className="sr-only">Recent student scores</caption>
             <thead className="bg-neutral-50">
               <tr>
                 <th className="px-6 py-4 font-semibold text-foreground">
@@ -253,18 +288,33 @@ function ScoresSection() {
               </tr>
             </thead>
             <tbody className="divide-y divide-neutral-100">
-              {scores.map((score) => (
-                <tr key={`${score.student}-${score.quiz}`}>
-                  <td className="px-6 py-4 font-medium text-foreground">
-                    {score.student}
+              {data.recentScores.length === 0 ? (
+                <tr>
+                  <td
+                    colSpan={4}
+                    className="px-6 py-4 text-neutral-600"
+                  >
+                    No quiz results have been recorded yet.
                   </td>
-                  <td className="px-6 py-4 text-neutral-600">{score.quiz}</td>
-                  <td className="px-6 py-4 font-semibold text-foreground">
-                    {score.score}
-                  </td>
-                  <td className="px-6 py-4 text-neutral-600">{score.status}</td>
                 </tr>
-              ))}
+              ) : (
+                data.recentScores.map((score) => (
+                  <tr key={score.id}>
+                    <td className="px-6 py-4 font-medium text-foreground">
+                      {score.student}
+                    </td>
+                    <td className="px-6 py-4 text-neutral-600">
+                      {score.quizTitle}
+                    </td>
+                    <td className="px-6 py-4 font-semibold text-foreground">
+                      {score.score}%
+                    </td>
+                    <td className="px-6 py-4 text-neutral-600">
+                      {score.status}
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
@@ -277,7 +327,7 @@ function ScoresSection() {
             Student score distribution per quiz.
           </p>
           <div className="mt-6">
-            <PieChart />
+            <PieChart distributions={data.distributions} />
           </div>
         </div>
       </div>

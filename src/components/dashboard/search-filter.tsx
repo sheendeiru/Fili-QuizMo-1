@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { KeyboardEvent } from "react";
 import {
-  ACCOUNT_STATUS_OPTIONS,
   FILTER_DEFINITIONS,
   SORT_OPTIONS,
   getEntityConfig,
@@ -98,11 +97,12 @@ function DebouncedTextInput({
 function itemValues(item: SearchItem): string[] {
   if (item.entity === "students") {
     return [
-      item.name,
-      item.schoolId,
+      item.username,
       item.email,
-      getStatusLabel("students", item.enrollmentStatus),
-      getStatusLabel("teachers", item.accountStatus),
+      item.teacherUsername,
+      new Date(item.createdAt).toLocaleDateString("en-PH", {
+        dateStyle: "medium",
+      }),
     ];
   }
 
@@ -123,7 +123,7 @@ function itemValues(item: SearchItem): string[] {
       item.username,
       item.quizTitle,
       item.sessionCode,
-      item.studentSchoolId,
+      item.studentEmail,
       getStatusLabel("participants", item.status),
       item.score === null ? "—" : String(item.score),
       new Date(item.joinedAt).toLocaleDateString("en-PH", {
@@ -135,7 +135,7 @@ function itemValues(item: SearchItem): string[] {
   return [
     item.username,
     item.email,
-    getStatusLabel("teachers", item.accountStatus),
+    getStatusLabel("teachers", item.status),
     String(item.quizCount),
     new Date(item.createdAt).toLocaleDateString("en-PH", {
       dateStyle: "medium",
@@ -176,32 +176,6 @@ function FilterFields({
           >
             <option value="">All statuses</option>
             {config.statusOptions.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </label>
-      );
-    }
-
-    if (key === "accountStatus") {
-      return (
-        <label key={key} htmlFor={id} className="block text-sm font-medium">
-          Account status
-          <select
-            id={id}
-            value={query.accountStatus ?? ""}
-            onChange={(event) =>
-              updateQuery({
-                accountStatus:
-                  (event.currentTarget.value as "active" | "inactive") || null,
-              })
-            }
-            className="mt-1 block w-full rounded-lg border border-neutral-300 bg-white px-3 py-2"
-          >
-            <option value="">All account statuses</option>
-            {ACCOUNT_STATUS_OPTIONS.map((option) => (
               <option key={option.value} value={option.value}>
                 {option.label}
               </option>
@@ -337,10 +311,6 @@ export function SearchFilter({ role, entity }: SearchFilterProps) {
     }
     if (key === "status") {
       updateQuery({ status: null });
-      return;
-    }
-    if (key === "accountStatus") {
-      updateQuery({ accountStatus: null });
       return;
     }
     if (key === "teacher" || key === "quiz" || key === "session") {

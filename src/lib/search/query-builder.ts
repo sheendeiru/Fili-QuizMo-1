@@ -63,23 +63,15 @@ export function buildSearchPlan(
     });
   }
 
-  if (query.status && config.filters.includes("status")) {
+  if (
+    query.status &&
+    config.statusColumn &&
+    config.filters.includes("status")
+  ) {
     filters.push({
       column: config.statusColumn,
       operator: "eq",
       value: query.status,
-    });
-  }
-
-  if (
-    query.accountStatus &&
-    config.accountStatusColumn &&
-    config.filters.includes("accountStatus")
-  ) {
-    filters.push({
-      column: config.accountStatusColumn,
-      operator: "eq",
-      value: query.accountStatus,
     });
   }
 

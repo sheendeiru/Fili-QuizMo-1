@@ -1,5 +1,4 @@
 import {
-  ACCOUNT_STATUS_OPTIONS,
   DEFAULT_PAGE_SIZE,
   FILTER_DEFINITIONS,
   MAX_PAGE_SIZE,
@@ -187,30 +186,6 @@ export function parseSearchQuery(
     }
   }
 
-  let accountStatus: "active" | "inactive" | null = null;
-  if (params.has("accountStatus")) {
-    assertFilterAllowed(role, entity, "accountStatus");
-    const rawAccountStatus =
-      params.get("accountStatus")?.trim().toLowerCase() ?? "";
-
-    if (rawAccountStatus) {
-      if (
-        !ACCOUNT_STATUS_OPTIONS.some(
-          (option) => option.value === rawAccountStatus,
-        )
-      ) {
-        throw new SearchError(
-          400,
-          "INVALID_FILTER",
-          "Account status must be active or inactive.",
-          { field: "accountStatus" },
-        );
-      }
-
-      accountStatus = rawAccountStatus as "active" | "inactive";
-    }
-  }
-
   let teacher = "";
   if (params.has("teacher")) {
     assertFilterAllowed(role, entity, "teacher");
@@ -276,6 +251,16 @@ export function parseSearchQuery(
   }
 
   const sort = rawSort as SearchSortField;
+
+  if (!config.sortFields.includes(sort)) {
+    throw new SearchError(
+      400,
+      "INVALID_SORT",
+      `The ${sort} sort is not available for ${config.pluralLabel.toLowerCase()}.`,
+      { sort, entity },
+    );
+  }
+
   const rawDir = params.get("dir")?.trim().toLowerCase() || "desc";
 
   if (rawDir !== "asc" && rawDir !== "desc") {
@@ -308,7 +293,6 @@ export function parseSearchQuery(
     entity,
     q,
     status,
-    accountStatus,
     teacher,
     quiz,
     session,

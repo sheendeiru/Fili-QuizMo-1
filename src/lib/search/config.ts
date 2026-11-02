@@ -29,13 +29,13 @@ export type SearchEntityConfig = {
   idColumn: string;
   scopeColumn: string;
   dateColumn: string;
-  statusColumn: string;
+  statusColumn: string | null;
   statusLabel: string;
   statusOptions: readonly SearchStatusOption[];
-  accountStatusColumn: string | null;
   searchColumns: readonly string[];
   searchableFields: readonly string[];
   sortColumns: Record<SearchSortField, string>;
+  sortFields: readonly SearchSortField[];
   select: readonly string[];
   filters: readonly SearchFilterKey[];
 };
@@ -43,11 +43,6 @@ export type SearchEntityConfig = {
 export const DEFAULT_PAGE_SIZE = 20;
 export const MAX_PAGE_SIZE = 100;
 export const MAX_SEARCH_LENGTH = 200;
-
-export const ACCOUNT_STATUS_OPTIONS: readonly SearchStatusOption[] = [
-  { value: "active", label: "Active" },
-  { value: "inactive", label: "Inactive" },
-];
 
 export const SORT_OPTIONS: readonly {
   value: SearchSortField;
@@ -66,15 +61,10 @@ export const FILTER_DEFINITIONS: Record<
     label: "Status",
     type: "select",
   },
-  accountStatus: {
-    label: "Account status",
-    type: "select",
-    roles: ["admin"],
-    entities: ["students", "teachers"],
-  },
   teacher: {
     label: "Teacher username",
     type: "text",
+    roles: ["admin"],
     entities: ["students", "quizzes", "participants"],
     maxLength: 100,
     placeholder: "e.g. msantos",
@@ -87,11 +77,11 @@ export const FILTER_DEFINITIONS: Record<
     placeholder: "e.g. Science Fundamentals",
   },
   session: {
-    label: "Session ID",
+    label: "Session code",
     type: "text",
     entities: ["participants"],
     maxLength: 100,
-    placeholder: "e.g. SESS-1042",
+    placeholder: "e.g. FMBFE4",
   },
   from: {
     label: "From date",
@@ -108,53 +98,34 @@ export const entityConfigs: Record<SearchEntity, SearchEntityConfig> = {
     label: "Student",
     pluralLabel: "Students",
     description:
-      "Search students by name, school ID, email, enrollment status, or account status.",
-    searchPlaceholder: "Search name, school ID, or email",
+      "Search students by username, email, or managing teacher.",
+    searchPlaceholder: "Search username, email, or teacher",
     searchHint:
-      "Searches name, school ID, email, enrollment status, and account status. Passwords are never searchable.",
+      "Searches student username, email, and managing teacher. Passwords are never searchable.",
     view: "search_students",
     idColumn: "student_id",
     scopeColumn: "teacher_id",
     dateColumn: "created_at",
-    statusColumn: "enrollment_status",
-    statusLabel: "Enrollment status",
-    statusOptions: [
-      { value: "active", label: "Active" },
-      { value: "inactive", label: "Inactive" },
-      { value: "graduated", label: "Graduated" },
-    ],
-    accountStatusColumn: "account_status",
-    searchColumns: [
-      "name",
-      "school_id",
-      "email",
-      "enrollment_status",
-      "account_status",
-    ],
-    searchableFields: [
-      "Name",
-      "School ID",
-      "Email",
-      "Enrollment status",
-      "Account status",
-    ],
+    statusColumn: null,
+    statusLabel: "Status",
+    statusOptions: [],
+    searchColumns: ["username", "email", "teacher_username"],
+    searchableFields: ["Username", "Email", "Teacher"],
     sortColumns: {
-      name: "name",
+      name: "username",
       date: "created_at",
-      status: "enrollment_status",
+      status: "username",
     },
+    sortFields: ["name", "date"],
     select: [
       "student_id",
       "teacher_id",
       "teacher_username",
-      "name",
-      "school_id",
+      "username",
       "email",
-      "enrollment_status",
-      "account_status",
       "created_at",
     ],
-    filters: ["status", "accountStatus", "teacher", "from", "to"],
+    filters: ["teacher", "from", "to"],
   },
   quizzes: {
     label: "Quiz",
@@ -172,10 +143,9 @@ export const entityConfigs: Record<SearchEntity, SearchEntityConfig> = {
     statusLabel: "Quiz status",
     statusOptions: [
       { value: "draft", label: "Draft" },
-      { value: "published", label: "Published" },
-      { value: "archived", label: "Archived" },
+      { value: "ready", label: "Ready" },
+      { value: "failed", label: "Failed" },
     ],
-    accountStatusColumn: null,
     searchColumns: ["title", "status"],
     searchableFields: ["Quiz title", "Status"],
     sortColumns: {
@@ -183,6 +153,7 @@ export const entityConfigs: Record<SearchEntity, SearchEntityConfig> = {
       date: "created_at",
       status: "status",
     },
+    sortFields: ["name", "date", "status"],
     select: [
       "quiz_id",
       "teacher_id",
@@ -198,13 +169,13 @@ export const entityConfigs: Record<SearchEntity, SearchEntityConfig> = {
     label: "Participant",
     pluralLabel: "Participants",
     description:
-      "Search participant usernames, quiz titles, status, session ID, or school ID.",
-    searchPlaceholder: "Search username, quiz, session, or school ID",
+      "Search participant usernames, quiz titles, status, session code, or email.",
+    searchPlaceholder: "Search username, quiz, session, or email",
     searchHint:
-      "Searches participant username, status, quiz title, school ID, and email. Session and quiz filters are also available.",
+      "Searches participant username, status, quiz title, session code, and email. Session and quiz filters are also available.",
     view: "search_participants",
     idColumn: "participant_id",
-    scopeColumn: "student_teacher_id",
+    scopeColumn: "teacher_id",
     dateColumn: "joined_at",
     statusColumn: "status",
     statusLabel: "Participant status",
@@ -213,19 +184,18 @@ export const entityConfigs: Record<SearchEntity, SearchEntityConfig> = {
       { value: "in_progress", label: "In progress" },
       { value: "completed", label: "Completed" },
     ],
-    accountStatusColumn: null,
     searchColumns: [
       "username",
       "status",
       "quiz_title",
-      "student_school_id",
+      "session_code",
       "student_email",
     ],
     searchableFields: [
       "Participant username",
       "Participant status",
       "Quiz title",
-      "School ID",
+      "Session code",
       "Email",
     ],
     sortColumns: {
@@ -233,6 +203,7 @@ export const entityConfigs: Record<SearchEntity, SearchEntityConfig> = {
       date: "joined_at",
       status: "status",
     },
+    sortFields: ["name", "date", "status"],
     select: [
       "participant_id",
       "session_id",
@@ -243,7 +214,6 @@ export const entityConfigs: Record<SearchEntity, SearchEntityConfig> = {
       "status",
       "score",
       "joined_at",
-      "student_school_id",
       "student_email",
       "teacher_id",
       "teacher_username",
@@ -254,34 +224,39 @@ export const entityConfigs: Record<SearchEntity, SearchEntityConfig> = {
     label: "Teacher",
     pluralLabel: "Teachers",
     description:
-      "Search teacher accounts by username or email, and filter by account status.",
+      "Search teacher accounts by username or email, and filter by approval status.",
     searchPlaceholder: "Search teacher username or email",
     searchHint:
-      "Searches teacher username, email, and account status. This view is admin-only.",
+      "Searches teacher username, email, and approval status. This view is admin-only.",
     view: "search_teachers",
     idColumn: "teacher_id",
     scopeColumn: "teacher_id",
     dateColumn: "created_at",
-    statusColumn: "account_status",
+    statusColumn: "status",
     statusLabel: "Account status",
-    statusOptions: ACCOUNT_STATUS_OPTIONS,
-    accountStatusColumn: "account_status",
-    searchColumns: ["username", "email", "account_status"],
+    statusOptions: [
+      { value: "pending", label: "Pending" },
+      { value: "approved", label: "Approved" },
+      { value: "rejected", label: "Rejected" },
+      { value: "suspended", label: "Suspended" },
+    ],
+    searchColumns: ["username", "email", "status"],
     searchableFields: ["Teacher username", "Email", "Account status"],
     sortColumns: {
       name: "username",
       date: "created_at",
-      status: "account_status",
+      status: "status",
     },
+    sortFields: ["name", "date", "status"],
     select: [
       "teacher_id",
       "username",
       "email",
-      "account_status",
+      "status",
       "quiz_count",
       "created_at",
     ],
-    filters: ["accountStatus", "from", "to"],
+    filters: ["status", "from", "to"],
   },
 };
 
@@ -322,6 +297,14 @@ export function getVisibleFilterKeys(
     }
     return true;
   });
+}
+
+export function getVisibleSortFields(
+  entity: SearchEntity,
+): SearchSortField[] {
+  return SORT_OPTIONS.filter((option) =>
+    getEntityConfig(entity).sortFields.includes(option.value),
+  ).map((option) => option.value);
 }
 
 export function getStatusLabel(

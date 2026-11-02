@@ -36,9 +36,6 @@ export function buildSearchApiParams(
   if (query.status) {
     params.set("status", query.status);
   }
-  if (query.accountStatus) {
-    params.set("accountStatus", query.accountStatus);
-  }
   if (query.teacher) {
     params.set("teacher", query.teacher);
   }
