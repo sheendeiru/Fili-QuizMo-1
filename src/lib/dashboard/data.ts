@@ -215,6 +215,8 @@ function throwOnError(error: { message: string } | null, label: string): void {
 export async function loadAdminDashboardData(
   supabase: SupabaseClient<Database>,
 ): Promise<AdminDashboardData> {
+  // shortcut: summaries cap at 1,000 result rows; switch to exact count
+  // queries when a dashboard dataset grows past that.
   const [quizzesResult, teachersResult, studentsResult, resultsResult] =
     await Promise.all([
       supabase
@@ -294,6 +296,8 @@ export async function loadTeacherDashboardData(
   supabase: SupabaseClient<Database>,
   teacherId: number,
 ): Promise<TeacherDashboardData> {
+  // shortcut: summaries cap at 1,000-5,000 rows; switch to exact count
+  // queries when a dashboard dataset grows past that.
   const [quizzesResult, studentsResult, resultsResult] = await Promise.all([
     supabase
       .from("quizzes")

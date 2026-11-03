@@ -284,7 +284,7 @@ export function parseSearchQuery(
     params,
     field: "pageSize",
     fallback: DEFAULT_PAGE_SIZE,
-    min: 1,
+    min: DEFAULT_PAGE_SIZE,
     max: MAX_PAGE_SIZE,
     clampMaximum: true,
   });

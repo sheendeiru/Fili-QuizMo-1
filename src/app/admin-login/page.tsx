@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import { NavLink } from "@/components/pixel";
 import { Suspense } from "react";
 import { AdminLoginForm } from "@/components/auth/admin-login-form";
 import { AuthShell } from "@/components/auth/auth-shell";
@@ -42,7 +42,7 @@ async function LoginStatusContent({
   return message ? (
     <p
       role={mfa === "required" ? "status" : "alert"}
-      className={`mb-5 text-sm ${mfa === "required" ? "text-success" : "text-danger"}`}
+      className={`mb-5 text-sm ${mfa === "required" ? "text-px-grass-text" : "text-danger"}`}
     >
       {message}
     </p>
@@ -59,12 +59,12 @@ export default function AdminLoginPage({
       footer={
         <>
           Need the teacher portal?{" "}
-          <Link
+          <NavLink
             href="/teacher-login"
             className="font-semibold text-primary hover:underline"
           >
             Login
-          </Link>
+          </NavLink>
         </>
       }
     >

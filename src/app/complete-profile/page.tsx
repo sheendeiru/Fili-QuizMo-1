@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import { NavLink } from "@/components/pixel";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { AuthShell } from "@/components/auth/auth-shell";
@@ -108,12 +108,12 @@ export default async function CompleteProfilePage({
       footer={
         <>
           Wrong account?{" "}
-          <Link
+          <NavLink
             href="/signup"
             className="font-semibold text-secondary hover:underline focus-visible:outline"
           >
             Return to signup
-          </Link>
+          </NavLink>
         </>
       }
     >

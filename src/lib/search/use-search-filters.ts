@@ -2,6 +2,7 @@
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useNavigation } from "@/components/pixel";
 import { fetchSearchResults } from "./api-client";
 import {
   defaultSearchQuery,
@@ -32,6 +33,7 @@ export function useSearchFilters(
   initialEntity: SearchQuery["entity"],
 ) {
   const router = useRouter();
+  const { navigate } = useNavigation();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const search = searchParams.toString();
@@ -63,7 +65,7 @@ export function useSearchFilters(
   });
 
   const updateQuery = useCallback(
-    (patch: Partial<SearchQuery>) => {
+    (patch: Partial<SearchQuery>, addHistoryEntry = false) => {
       const nextQuery = {
         ...query,
         ...patch,
@@ -74,9 +76,13 @@ export function useSearchFilters(
         ? `${pathname}?${serialized}`
         : pathname;
 
-      router.replace(nextUrl, { scroll: false });
+      navigate(() =>
+        addHistoryEntry
+          ? router.push(nextUrl, { scroll: false })
+          : router.replace(nextUrl, { scroll: false }),
+      );
     },
-    [pathname, query, router],
+    [navigate, pathname, query, router],
   );
 
   useEffect(() => {

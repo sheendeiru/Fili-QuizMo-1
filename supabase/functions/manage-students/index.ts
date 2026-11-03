@@ -16,6 +16,7 @@ import {
   HttpError,
   json,
   profileRole,
+  requireAdmin,
   rowExists,
   serve,
 } from "../_shared/accounts.ts";
@@ -36,6 +37,19 @@ import {
   usernameTaken,
 } from "../_shared/lifecycle.ts";
 
+async function isAdmin(ctx: Context): Promise<boolean> {
+  const { data, error } = await ctx.userClient.rpc("is_admin");
+  if (error) {
+    console.error("is_admin failed:", error.message);
+    throw new HttpError(500, "Authorization check failed");
+  }
+  if (data === true) {
+    await requireAdmin(ctx.userClient);
+    return true;
+  }
+  return false;
+}
+
 serve(async (req) => {
   const ctx = await authenticate(req);
   const body = await readBody(req);
@@ -54,9 +68,11 @@ serve(async (req) => {
 
 /** The caller must manage this student, and the target must really be one. */
 async function assertManagedStudent(
-  { userClient, adminClient }: Context,
+  ctx: Context,
   userId: string,
 ): Promise<void> {
+  const { userClient, adminClient } = ctx;
+  await isAdmin(ctx);
   const { data: allowed, error } = await userClient.rpc(
     "teacher_manages_account",
     { p_user_id: userId },
@@ -82,14 +98,44 @@ async function assertManagedStudent(
 async function createStudent(ctx: Context, body: Body): Promise<Response> {
   const { caller, userClient, adminClient } = ctx;
 
-  // Only an approved teacher can own students.
-  const { data: teacherId, error } = await userClient.rpc("current_teacher_id");
-  if (error) {
-    console.error("current_teacher_id failed:", error.message);
-    throw new HttpError(500, "Authorization check failed");
-  }
-  if (teacherId === null || teacherId === undefined) {
-    throw new HttpError(403, "Only approved teachers can create students");
+  let teacherId: number | null;
+  if (await isAdmin(ctx)) {
+    const rawTeacherId = body.teacher_id;
+    if (rawTeacherId === undefined || rawTeacherId === null) {
+      teacherId = null;
+    } else {
+      if (
+        typeof rawTeacherId !== "number" ||
+        !Number.isSafeInteger(rawTeacherId) ||
+        rawTeacherId < 1
+      ) {
+        throw new HttpError(400, "teacher_id must be a positive teacher id");
+      }
+
+      const { data: teacher, error } = await adminClient
+        .from("teachers")
+        .select("id, status")
+        .eq("id", rawTeacherId)
+        .maybeSingle();
+      if (error) {
+        console.error("Managing teacher lookup failed:", error.message);
+        throw new HttpError(500, "Could not verify the managing teacher");
+      }
+      if (!teacher || teacher.status !== "approved") {
+        throw new HttpError(400, "teacher_id must be an approved teacher");
+      }
+      teacherId = teacher.id;
+    }
+  } else {
+    const { data, error } = await userClient.rpc("current_teacher_id");
+    if (error) {
+      console.error("current_teacher_id failed:", error.message);
+      throw new HttpError(500, "Authorization check failed");
+    }
+    if (data === null || data === undefined) {
+      throw new HttpError(403, "Only approved teachers can create students");
+    }
+    teacherId = data;
   }
 
   const email = requireEmail(body);
@@ -169,6 +215,9 @@ async function resetStudentPassword(ctx: Context, body: Body): Promise<Response>
 async function deleteStudent(ctx: Context, body: Body): Promise<Response> {
   const { caller, adminClient } = ctx;
   const userId = requireUuid(body, "user_id");
+  if (userId === caller.id) {
+    throw new HttpError(403, "You cannot delete your own account");
+  }
   await assertManagedStudent(ctx, userId);
 
   const email = await emailOf(adminClient, userId); // keep for the audit log

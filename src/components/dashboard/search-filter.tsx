@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { KeyboardEvent } from "react";
+import type { ReactNode } from "react";
 import {
   FILTER_DEFINITIONS,
   SORT_OPTIONS,
@@ -20,11 +21,23 @@ import type {
   SearchRole,
 } from "@/lib/search/types";
 import { PixelLoader } from "@/components/ui/pixel-loader";
+import {
+  PixelBadge,
+  PixelButton,
+  PixelCard,
+  PixelInput,
+} from "@/components/ui/pixel-primitives";
+import {
+  PaginatedTable,
+  type PaginatedTableColumn,
+} from "@/components/ui/paginated-table";
 import { SESSION_ENDED_EVENT } from "@/lib/auth/session-state";
 
 type SearchFilterProps = {
   role: SearchRole;
   entity: SearchEntity;
+  toolbar?: ReactNode;
+  renderActions?: (item: SearchItem) => ReactNode;
 };
 
 function DebouncedTextInput({
@@ -71,7 +84,7 @@ function DebouncedTextInput({
   }, []);
 
   return (
-    <input
+    <PixelInput
       id={id}
       type={type}
       value={draft}
@@ -89,7 +102,7 @@ function DebouncedTextInput({
           300,
         );
       }}
-      className="mt-1 block w-full rounded-lg border border-neutral-300 bg-white px-3 py-2"
+      className="mt-1 h-10 w-full px-3 text-sm"
     />
   );
 }
@@ -102,6 +115,7 @@ function itemValues(item: SearchItem): string[] {
       item.teacherUsername,
       new Date(item.createdAt).toLocaleDateString("en-PH", {
         dateStyle: "medium",
+        timeZone: "Asia/Manila",
       }),
     ];
   }
@@ -114,6 +128,7 @@ function itemValues(item: SearchItem): string[] {
       item.teacherUsername,
       new Date(item.createdAt).toLocaleDateString("en-PH", {
         dateStyle: "medium",
+        timeZone: "Asia/Manila",
       }),
     ];
   }
@@ -125,9 +140,10 @@ function itemValues(item: SearchItem): string[] {
       item.sessionCode,
       item.studentEmail,
       getStatusLabel("participants", item.status),
-      item.score === null ? "—" : String(item.score),
+      item.score === null ? "—" : `${item.score}%`,
       new Date(item.joinedAt).toLocaleDateString("en-PH", {
         dateStyle: "medium",
+        timeZone: "Asia/Manila",
       }),
     ];
   }
@@ -139,6 +155,7 @@ function itemValues(item: SearchItem): string[] {
     String(item.quizCount),
     new Date(item.createdAt).toLocaleDateString("en-PH", {
       dateStyle: "medium",
+      timeZone: "Asia/Manila",
     }),
   ];
 }
@@ -172,7 +189,7 @@ function FilterFields({
             onChange={(event) =>
               updateQuery({ status: event.currentTarget.value || null })
             }
-            className="mt-1 block w-full rounded-lg border border-neutral-300 bg-white px-3 py-2"
+            className="pixel-input mt-1 h-10 w-full px-3 text-sm"
           >
             <option value="">All statuses</option>
             {config.statusOptions.map((option) => (
@@ -201,7 +218,7 @@ function FilterFields({
                 updateQuery({ to: value });
               }
             }}
-            className="mt-1 block w-full rounded-lg border border-neutral-300 bg-white px-3 py-2"
+            className="pixel-input mt-1 h-10 w-full px-3 text-sm"
           />
         </label>
       );
@@ -244,7 +261,12 @@ function FilterFields({
   );
 }
 
-export function SearchFilter({ role, entity }: SearchFilterProps) {
+export function SearchFilter({
+  role,
+  entity,
+  toolbar,
+  renderActions,
+}: SearchFilterProps) {
   const {
     query,
     results,
@@ -330,9 +352,19 @@ export function SearchFilter({ role, entity }: SearchFilterProps) {
   const items = results?.items ?? [];
   const pagination = results?.pagination;
 
+  useEffect(() => {
+    if (
+      !loading &&
+      pagination &&
+      query.page > pagination.totalPages
+    ) {
+      updateQuery({ page: pagination.totalPages });
+    }
+  }, [loading, pagination, query.page, updateQuery]);
+
   return (
-    <section aria-label={`${config.pluralLabel} search`} className="space-y-4">
-      <div className="rounded-xl bg-white p-4 shadow-sm sm:p-5">
+    <section aria-label={`${config.pluralLabel} search`} className="space-y-3">
+      <PixelCard className="space-y-3">
         <label
           htmlFor={`${entity}-search`}
           className="block text-sm font-semibold text-foreground"
@@ -353,17 +385,19 @@ export function SearchFilter({ role, entity }: SearchFilterProps) {
           {config.searchHint}
         </p>
 
-        <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-          <button
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <PixelButton
             type="button"
+            variant="neutral"
+            size="sm"
             ref={mobileFilterButtonRef}
-            className="rounded-lg border border-neutral-300 px-3 py-2 text-sm font-medium md:hidden"
+            className="md:hidden"
             aria-expanded={mobileFiltersOpen}
             aria-controls={`${entity}-mobile-filters`}
             onClick={() => setMobileFiltersOpen(true)}
           >
             Show filters
-          </button>
+          </PixelButton>
           <div className="flex items-center gap-2">
             <label htmlFor={`${entity}-sort`} className="text-sm font-medium">
               Sort by
@@ -376,9 +410,11 @@ export function SearchFilter({ role, entity }: SearchFilterProps) {
                   sort: event.currentTarget.value as SearchQuery["sort"],
                 })
               }
-              className="rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm"
+              className="pixel-input h-9 px-2 text-sm"
             >
-              {SORT_OPTIONS.map((option) => (
+              {SORT_OPTIONS.filter((option) =>
+                config.sortFields.includes(option.value),
+              ).map((option) => (
                 <option key={option.value} value={option.value}>
                   {option.label}
                 </option>
@@ -395,23 +431,24 @@ export function SearchFilter({ role, entity }: SearchFilterProps) {
                   dir: event.currentTarget.value as SearchQuery["dir"],
                 })
               }
-              className="rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm"
+              className="pixel-input h-9 px-2 text-sm"
             >
               <option value="asc">Ascending</option>
               <option value="desc">Descending</option>
             </select>
           </div>
-          <button
+          <PixelButton
             type="button"
+            variant="accent"
+            size="sm"
             onClick={clearAllFilters}
             disabled={chips.length === 0}
-            className="border-2 border-amber-300 bg-transparent px-3 py-2 text-sm font-semibold text-amber-200 hover:bg-amber-300 hover:text-background focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-300 disabled:cursor-not-allowed disabled:border-neutral-500 disabled:text-neutral-500"
           >
             Clear all filters
-          </button>
+          </PixelButton>
         </div>
 
-        <div className="mt-4 hidden md:block">
+        <div className="hidden md:block">
           <FilterFields
             role={role}
             entity={entity}
@@ -419,8 +456,9 @@ export function SearchFilter({ role, entity }: SearchFilterProps) {
             updateQuery={updateQuery}
             idPrefix={`${entity}-desktop`}
           />
-        </div>
-      </div>
+          </div>
+        </PixelCard>
+      </section>
 
       {mobileFiltersOpen ? (
         <div
@@ -438,7 +476,7 @@ export function SearchFilter({ role, entity }: SearchFilterProps) {
             aria-modal="true"
             aria-labelledby={`${entity}-mobile-filters-title`}
             onKeyDown={handleMobileDialogKeyDown}
-            className="ml-auto h-full w-full max-w-sm overflow-y-auto rounded-xl bg-white p-5 shadow-xl"
+            className="ml-auto h-full w-full max-w-sm overflow-y-auto border-2 border-ink bg-surface p-3 text-ink shadow-[3px_3px_0_var(--color-ink)]"
           >
             <div className="mb-5 flex items-center justify-between">
               <h3
@@ -447,14 +485,15 @@ export function SearchFilter({ role, entity }: SearchFilterProps) {
               >
                 Filters
               </h3>
-              <button
+              <PixelButton
                 type="button"
+                variant="neutral"
+                size="sm"
                 autoFocus
                 onClick={closeMobileFilters}
-                className="rounded-lg border border-neutral-300 px-3 py-2 text-sm"
               >
                 Close filters
-              </button>
+              </PixelButton>
             </div>
             <FilterFields
               role={role}
@@ -470,9 +509,10 @@ export function SearchFilter({ role, entity }: SearchFilterProps) {
       {chips.length > 0 ? (
         <div className="flex flex-wrap gap-2" aria-label="Active filters">
           {chips.map((chip) => (
-            <span
+            <PixelBadge
               key={chip.key}
-              className="inline-flex items-center gap-2 rounded-full bg-selected-option/30 px-3 py-1 text-sm text-foreground"
+              variant="info"
+              className="gap-2"
             >
               {chip.label}: {chip.value}
               <button
@@ -483,7 +523,7 @@ export function SearchFilter({ role, entity }: SearchFilterProps) {
               >
                 ×
               </button>
-            </span>
+            </PixelBadge>
           ))}
         </div>
       ) : null}
@@ -502,81 +542,44 @@ export function SearchFilter({ role, entity }: SearchFilterProps) {
       {error ? (
         <div
           role="alert"
-          className="flex items-start gap-3 border-2 border-red-400 bg-red-950/60 p-4 text-sm text-red-200"
+          className="flex items-start gap-3 border-2 border-danger-dark bg-danger-surface p-3 text-sm text-danger-dark"
         >
           {error}
         </div>
       ) : null}
 
-      {!loading && !error && results && items.length === 0 ? (
-        <p className="rounded-xl bg-white p-6 text-sm text-neutral-600">
-          No results match your filters.
-        </p>
+      {toolbar ? (
+        <div className="flex flex-wrap justify-end gap-2">{toolbar}</div>
       ) : null}
 
-      {!loading && !error && items.length > 0 ? (
-        <div className="overflow-x-auto rounded-xl bg-white shadow-sm">
-          <table className="w-max min-w-full divide-y divide-neutral-200 text-left text-sm">
-            <caption className="sr-only">{config.pluralLabel} search results</caption>
-            <thead className="bg-neutral-50">
-              <tr>
-                {resultHeaders(entity).map((header) => (
-                  <th
-                    key={header}
-                    scope="col"
-                    className="sticky top-0 min-w-24 whitespace-nowrap bg-neutral-50 px-4 py-3 font-semibold text-foreground sm:px-6"
-                  >
-                    {header}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-neutral-100">
-              {items.map((item) => (
-                <tr key={item.id}>
-                  {itemValues(item).map((value, index) => (
-                    <td
-                      key={`${item.id}-${index}`}
-                      className="whitespace-nowrap px-4 py-3 text-neutral-700 sm:px-6"
-                    >
-                      {value || "—"}
-                    </td>
-                  ))}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      ) : null}
-
-      {pagination && pagination.totalPages > 1 ? (
-        <nav
-          aria-label="Search result pages"
-          className="flex items-center justify-between gap-4 rounded-xl bg-white p-4"
-        >
-          <p className="text-sm text-neutral-600">
-            Page {pagination.page} of {pagination.totalPages} ·{" "}
-            {pagination.total} results
-          </p>
-          <div className="flex gap-2">
-            <button
-              type="button"
-              disabled={pagination.page <= 1}
-              onClick={() => updateQuery({ page: pagination.page - 1 })}
-              className="rounded-lg border border-neutral-300 px-3 py-2 text-sm disabled:opacity-50"
-            >
-              Previous
-            </button>
-            <button
-              type="button"
-              disabled={pagination.page >= pagination.totalPages}
-              onClick={() => updateQuery({ page: pagination.page + 1 })}
-              className="rounded-lg border border-neutral-300 px-3 py-2 text-sm disabled:opacity-50"
-            >
-              Next
-            </button>
-          </div>
-        </nav>
+      {!loading && !error && results ? (
+        <PaginatedTable
+          caption={`${config.pluralLabel} search results`}
+          columns={[
+            ...resultHeaders(entity).map(
+              (label, index): PaginatedTableColumn<SearchItem> => ({
+                key: `${entity}-${index}`,
+                label,
+                render: (item) => itemValues(item)[index] || "—",
+                className: "whitespace-nowrap",
+              }),
+            ),
+            ...(renderActions
+              ? [{
+                  key: "actions",
+                  label: "Actions",
+                  render: renderActions,
+                  className: "min-w-32",
+                }]
+              : []),
+          ]}
+          rows={items}
+          rowKey={(item) => item.id}
+          page={pagination?.page ?? 1}
+          totalPages={pagination?.totalPages ?? 1}
+          onPageChange={(page) => updateQuery({ page }, true)}
+          emptyMessage="No results match your filters."
+        />
       ) : null}
     </section>
   );
@@ -584,13 +587,13 @@ export function SearchFilter({ role, entity }: SearchFilterProps) {
 
 function resultHeaders(entity: SearchEntity): string[] {
   if (entity === "students") {
-    return ["Student", "School ID", "Email", "Enrollment status", "Account status"];
+    return ["Student", "Email", "Teacher", "Created"];
   }
   if (entity === "quizzes") {
     return ["Quiz", "Status", "Questions", "Teacher", "Created"];
   }
   if (entity === "participants") {
-    return ["Username", "Quiz", "Session", "School ID", "Status", "Score", "Joined"];
+    return ["Username", "Quiz", "Session", "Email", "Status", "Score", "Joined"];
   }
-  return ["Teacher", "Email", "Account status", "Quizzes", "Created"];
+  return ["Teacher", "Email", "Status", "Quizzes", "Created"];
 }

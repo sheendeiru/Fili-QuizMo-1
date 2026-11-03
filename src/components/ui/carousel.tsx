@@ -44,7 +44,7 @@ export function Carousel({ items }: CarouselProps) {
 
   return (
     <div
-      className="relative mx-auto w-full max-w-4xl overflow-hidden rounded-2xl bg-primary shadow-lg"
+      className="relative mx-auto w-full max-w-3xl overflow-hidden border-2 border-ink bg-surface shadow-[3px_3px_0_var(--color-ink)]"
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
     >
@@ -55,7 +55,7 @@ export function Carousel({ items }: CarouselProps) {
         {items.map((slide) => (
           <div
             key={slide.src}
-            className="relative h-[30rem] w-full shrink-0 overflow-hidden bg-primary md:h-[34rem]"
+            className="relative h-72 w-full shrink-0 overflow-hidden bg-sky-bottom sm:h-80"
           >
             <Image
               src={slide.src}
@@ -65,18 +65,18 @@ export function Carousel({ items }: CarouselProps) {
               sizes="(max-width: 768px) 100vw, 896px"
               className="scale-110 object-cover opacity-25 blur-2xl"
             />
-            <div className="relative flex h-full items-center justify-center px-6 pb-28 pt-8">
+            <div className="relative flex h-full items-center justify-center px-4 pb-20 pt-4">
               <Image
                 src={slide.src}
                 alt={slide.alt}
                 fill
                 sizes="(max-width: 768px) 100vw, 896px"
-                className="object-contain shadow-2xl ring-1 ring-white/20"
+                className="object-contain"
               />
             </div>
-            <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-primary via-primary/90 to-transparent px-6 pb-12 pt-16 text-white md:px-8">
-              <BrandLogo className="h-10 w-40" />
-              <h3 className="mt-2 text-2xl font-bold md:text-3xl">
+            <div className="absolute inset-x-0 bottom-0 bg-ink/90 px-4 pb-8 pt-10 text-surface">
+              <BrandLogo className="h-8 w-32" />
+              <h3 className="mt-1 text-base font-bold sm:text-lg">
                 {slide.caption}
               </h3>
             </div>
@@ -88,10 +88,10 @@ export function Carousel({ items }: CarouselProps) {
         type="button"
         onClick={prev}
         aria-label="Previous slide"
-        className="absolute left-4 top-1/2 -translate-y-1/2 rounded-full bg-white/90 p-3 text-primary shadow-md transition hover:bg-white"
+        className="absolute left-2 top-1/2 -translate-y-1/2 border-2 border-ink bg-surface p-2 text-ink shadow-[2px_2px_0_var(--color-ink)]"
       >
         <svg
-          className="h-6 w-6"
+          className="h-4 w-4"
           fill="none"
           viewBox="0 0 24 24"
           stroke="currentColor"
@@ -105,10 +105,10 @@ export function Carousel({ items }: CarouselProps) {
         type="button"
         onClick={next}
         aria-label="Next slide"
-        className="absolute right-4 top-1/2 -translate-y-1/2 rounded-full bg-white/90 p-3 text-primary shadow-md transition hover:bg-white"
+        className="absolute right-2 top-1/2 -translate-y-1/2 border-2 border-ink bg-surface p-2 text-ink shadow-[2px_2px_0_var(--color-ink)]"
       >
         <svg
-          className="h-6 w-6"
+          className="h-4 w-4"
           fill="none"
           viewBox="0 0 24 24"
           stroke="currentColor"

@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import Image from "next/image";
 import { Footer } from "@/components/layout/footer";
 import { Navbar } from "@/components/layout/navbar";
 import { SessionExpiredNotice } from "@/components/auth/session-expired-notice";
@@ -17,21 +18,32 @@ export function AuthShell({
   footer,
 }: AuthShellProps) {
   return (
-    <div className="flex min-h-screen flex-col bg-background">
+    <div className="auth-page flex min-h-screen flex-col bg-background">
       <Navbar />
 
-      <main className="flex flex-1 items-center justify-center px-4 py-16 sm:px-6 lg:px-8">
-        <div className="w-full max-w-md bg-white p-6 shadow-lg sm:p-8">
-          <h1 className="text-2xl font-bold text-foreground sm:text-3xl">
+      <main className="mx-auto flex w-full max-w-5xl flex-1 items-center justify-center px-4 py-6 sm:px-6">
+        <div className="w-full max-w-md border-2 border-ink bg-surface p-4 text-ink shadow-[4px_4px_0_var(--color-ink)] sm:p-5">
+          <div className="mb-3 flex justify-center">
+            <Image
+              src="/assets/role_select.jpg"
+              alt=""
+              aria-hidden="true"
+              width={940}
+              height={2048}
+              className="h-16 w-16 object-cover object-[50%_39%]"
+              priority
+            />
+          </div>
+          <h1 className="text-xl font-bold text-ink sm:text-2xl">
             {title}
           </h1>
-          <p className="mt-2 text-sm text-neutral-500">{subtitle}</p>
-          <div className="mt-8">
+          <p className="mt-1 text-sm text-ink">{subtitle}</p>
+          <div className="mt-4">
             <SessionExpiredNotice />
             {children}
           </div>
           {footer ? (
-            <div className="mt-6 text-center text-sm text-neutral-500">
+            <div className="mt-4 text-center text-sm text-ink">
               {footer}
             </div>
           ) : null}

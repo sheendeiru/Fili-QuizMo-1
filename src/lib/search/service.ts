@@ -39,9 +39,19 @@ function numberValue(
 ): number {
   const value = row[key];
 
-  return typeof value === "number" && Number.isFinite(value)
-    ? value
-    : fallback;
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value;
+  }
+
+  if (typeof value === "string" && value.trim() !== "") {
+    const parsed = Number(value);
+
+    if (Number.isFinite(parsed)) {
+      return parsed;
+    }
+  }
+
+  return fallback;
 }
 
 function nullableNumberValue(
@@ -50,9 +60,13 @@ function nullableNumberValue(
 ): number | null {
   const value = row[key];
 
-  return typeof value === "number" && Number.isFinite(value)
-    ? value
-    : null;
+  if (value === null || value === undefined || value === "") {
+    return null;
+  }
+
+  const parsed = numberValue(row, key, Number.NaN);
+
+  return Number.isFinite(parsed) ? parsed : null;
 }
 
 export function mapSearchItem(

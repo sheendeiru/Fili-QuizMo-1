@@ -8,11 +8,8 @@ export type ExportColumn = {
 
 export const EXPORT_COLUMNS: Record<SearchEntity, readonly ExportColumn[]> = {
   students: [
-    { key: "name", label: "Student name" },
-    { key: "school_id", label: "School ID" },
+    { key: "username", label: "Student username" },
     { key: "email", label: "Email" },
-    { key: "enrollment_status", label: "Enrollment status" },
-    { key: "account_status", label: "Account status" },
     { key: "teacher_username", label: "Teacher" },
     { key: "created_at", label: "Created at", type: "date" },
   ],
@@ -27,7 +24,6 @@ export const EXPORT_COLUMNS: Record<SearchEntity, readonly ExportColumn[]> = {
     { key: "username", label: "Participant" },
     { key: "quiz_title", label: "Quiz" },
     { key: "session_code", label: "Session code" },
-    { key: "student_school_id", label: "Student school ID" },
     { key: "student_email", label: "Student email" },
     { key: "status", label: "Status" },
     { key: "score", label: "Score", type: "number" },
@@ -37,7 +33,7 @@ export const EXPORT_COLUMNS: Record<SearchEntity, readonly ExportColumn[]> = {
   teachers: [
     { key: "username", label: "Teacher" },
     { key: "email", label: "Email" },
-    { key: "account_status", label: "Account status" },
+    { key: "status", label: "Account status" },
     { key: "quiz_count", label: "Quiz count", type: "number" },
     { key: "created_at", label: "Created at", type: "date" },
   ],

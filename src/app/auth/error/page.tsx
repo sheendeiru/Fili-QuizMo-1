@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import { NavLink } from "@/components/pixel";
 import { AuthShell } from "@/components/auth/auth-shell";
 
 export const metadata: Metadata = {
@@ -14,20 +14,20 @@ export default function AuthErrorPage() {
       footer={
         <>
           Need to sign in?{" "}
-          <Link
+          <NavLink
             href="/teacher-login"
             className="font-semibold text-secondary hover:underline focus-visible:outline"
           >
             Teacher login
-          </Link>
+          </NavLink>
           <span className="block pt-3">
             Student?{" "}
-            <Link
+            <NavLink
               href="/student-login"
               className="font-semibold text-secondary hover:underline focus-visible:outline"
             >
               Student login
-            </Link>
+            </NavLink>
           </span>
         </>
       }

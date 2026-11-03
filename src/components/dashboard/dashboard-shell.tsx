@@ -4,9 +4,11 @@ import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 import { Spinner } from "@/components/ui/spinner";
+import { Button } from "@/components/ui/button";
 import { BrandLogo } from "@/components/layout/brand-logo";
-import Image from "next/image";
+import { PixelAvatar } from "@/components/pixel/primitives";
 import { ExportDropdown } from "@/components/dashboard/export-dropdown";
+import { NavLink } from "@/components/pixel";
 import { getSessionEpoch } from "@/lib/auth/session-state";
 
 export type DashboardNavItem = {
@@ -83,55 +85,53 @@ export function DashboardShell({
       ) : null}
 
       <aside
-        className={`fixed inset-y-0 left-0 z-40 flex w-64 shrink-0 flex-col overflow-y-auto bg-primary text-primary-foreground transition-transform duration-200 lg:static lg:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-40 flex w-56 shrink-0 flex-col overflow-y-auto bg-ink text-surface transition-transform duration-200 lg:static lg:translate-x-0 ${
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
-        <div className="flex h-16 items-center border-b border-white/10 px-4">
+        <div className="flex h-14 items-center border-b border-surface/20 px-3">
           <div className="flex min-w-0 items-center">
-            <BrandLogo linked={false} priority className="h-12 w-52" />
+            <BrandLogo linked={false} priority className="h-10 w-48" />
           </div>
         </div>
 
-        <nav className="flex-1 space-y-1 p-4">
+        <nav className="flex-1 space-y-1 p-3">
           {navItems.map((item) => {
             const isActive = item.key === activeKey;
 
             return (
-              <button
+              <Button
                 key={item.key}
                 type="button"
+                size="sm"
+                variant={isActive ? "accent" : "neutral"}
                 onClick={() => handleNavigate(item.key)}
-                className={`w-full rounded-lg px-4 py-3 text-left text-sm font-medium transition-colors ${
-                  isActive
-                    ? "bg-white text-primary"
-                    : "text-primary-foreground/80 hover:bg-white/10 hover:text-white"
-                }`}
+                className="w-full justify-start text-left"
               >
                 {item.label}
-              </button>
+              </Button>
             );
           })}
         </nav>
 
-        <div className="border-t border-white/10 p-4">
-          <p className="text-xs uppercase tracking-wide text-primary-foreground/50">
+        <div className="border-t border-surface/20 p-3">
+          <p className="text-xs uppercase tracking-wide text-surface">
             {role} Portal
           </p>
         </div>
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-20 flex h-16 items-center justify-between border-b border-neutral-200 bg-white px-4 shadow-sm sm:px-6 lg:px-8">
+        <header className="sticky top-0 z-20 flex h-14 items-center justify-between border-b-2 border-ink bg-surface px-3 shadow-[0_3px_0_var(--color-ink)] sm:px-4">
           <div className="flex items-center gap-3">
             <button
               type="button"
               onClick={() => setSidebarOpen(true)}
               aria-label="Open sidebar"
-              className="inline-flex h-10 w-10 items-center justify-center rounded-lg text-neutral-600 transition-colors hover:bg-neutral-100 lg:hidden"
+              className="inline-flex h-9 w-9 items-center justify-center text-ink transition-colors hover:bg-neutral-100 lg:hidden"
             >
               <svg
-                className="h-6 w-6"
+                className="h-4 w-4"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
@@ -144,7 +144,7 @@ export function DashboardShell({
                 />
               </svg>
             </button>
-            <h1 className="text-lg font-semibold text-foreground">
+            <h1 className="text-base font-semibold text-ink">
               {role} Dashboard
             </h1>
           </div>
@@ -157,62 +157,83 @@ export function DashboardShell({
               aria-expanded={profileOpen}
               className="flex items-center focus:outline-none"
             >
-              <Image
-                src="/assets/Default_pfp.jpg"
-                alt="Profile"
-                width={40}
-                height={40}
-                className="h-10 w-10 rounded-full border-2 border-white object-cover shadow-sm"
+              <PixelAvatar
+                name={`${role} profile`}
+                className="h-9 w-9 shrink-0 border-ink"
               />
             </button>
 
             {profileOpen ? (
-              <div className="absolute right-0 mt-2 w-44 overflow-hidden rounded-lg border border-neutral-200 bg-white py-1 shadow-lg">
+              <div className="absolute right-0 mt-2 w-44 overflow-hidden border-2 border-ink bg-surface py-1 text-ink shadow-[3px_3px_0_var(--color-ink)]">
                 {role !== "Student" ? (
-                  <button
+                  <Button
                     type="button"
+                    size="sm"
+                    variant="neutral"
                     onClick={() => handleNavigate("settings")}
-                    className="block w-full px-4 py-2 text-left text-sm text-neutral-700 transition-colors hover:bg-neutral-100"
+                    className="w-full justify-start text-left"
                   >
                     Settings
-                  </button>
+                  </Button>
                 ) : null}
-                <button
+                <Button
                   type="button"
+                  size="sm"
+                  variant="danger"
                   onClick={handleLogout}
-                  className="block w-full px-4 py-2 text-left text-sm text-danger transition-colors hover:bg-danger-surface"
+                  className="w-full justify-start text-left"
                 >
                   Log out
-                </button>
+                </Button>
               </div>
             ) : null}
           </div>
         </header>
 
-        <main className="flex-1 p-4 sm:p-6 lg:p-8">
+        <main className="mx-auto w-full max-w-5xl flex-1 p-3 sm:p-4">
           {role !== "Student" &&
           ((role === "Teacher" &&
             ["quizzes", "students", "participants"].includes(activeKey)) ||
             (role === "Admin" &&
               [
                 "quizzes",
-                "teacher-data",
                 "teacher-accounts",
+                "students",
                 "participants",
               ].includes(activeKey))) ? (
-            <div className="mb-6 flex justify-end">
+            <div className="mb-3 flex justify-end">
               <ExportDropdown role={role === "Teacher" ? "teacher" : "admin"} />
             </div>
           ) : null}
           {children}
         </main>
+        <footer className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 border-t-2 border-px-cream-border px-4 py-4 text-sm text-px-cream">
+          <NavLink
+            href="/terms"
+            className="inline-flex min-h-11 items-center underline underline-offset-4 hover:text-px-gold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-px-gold"
+          >
+            Terms
+          </NavLink>
+          <NavLink
+            href="/privacy"
+            className="inline-flex min-h-11 items-center underline underline-offset-4 hover:text-px-gold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-px-gold"
+          >
+            Privacy
+          </NavLink>
+          <NavLink
+            href="/cookies"
+            className="inline-flex min-h-11 items-center underline underline-offset-4 hover:text-px-gold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-px-gold"
+          >
+            Cookies
+          </NavLink>
+        </footer>
       </div>
 
       {isLoggingOut ? (
         <div
           role="status"
           aria-live="polite"
-          className="fixed inset-0 z-[60] flex items-center justify-center bg-primary/30 px-4 backdrop-blur-sm"
+          className="pixel-grid fixed inset-0 z-[60] flex items-center justify-center bg-px-ink/80 px-4"
         >
           <div className="flex items-center gap-3 rounded-2xl bg-white px-5 py-4 shadow-2xl">
             <Spinner className="h-5 w-5 text-primary" />

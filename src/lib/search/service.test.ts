@@ -11,21 +11,17 @@ const rows: Record<"students" | "quizzes" | "participants" | "teachers", SearchR
     {
       student_id: "student-a",
       teacher_id: "teacher-a",
-      name: "Own Student",
-      school_id: "OWN-01",
+      teacher_username: "msantos",
+      username: "own_student",
       email: "own@example.test",
-      enrollment_status: "active",
-      account_status: "active",
       created_at: "2026-01-01T00:00:00.000Z",
     },
     {
       student_id: "student-b",
       teacher_id: "teacher-b",
-      name: "Other Student",
-      school_id: "OTHER-01",
+      teacher_username: "jdelacruz",
+      username: "other_student",
       email: "other@example.test",
-      enrollment_status: "active",
-      account_status: "active",
       created_at: "2026-01-02T00:00:00.000Z",
     },
   ],
@@ -34,17 +30,17 @@ const rows: Record<"students" | "quizzes" | "participants" | "teachers", SearchR
     {
       participant_id: "participant-a",
       teacher_id: "teacher-a",
-      student_teacher_id: "teacher-a",
       username: "own_student",
       status: "completed",
+      score: "92.50",
       joined_at: "2026-01-01T00:00:00.000Z",
     },
     {
       participant_id: "participant-b",
-      teacher_id: "teacher-a",
-      student_teacher_id: "teacher-b",
+      teacher_id: "teacher-b",
       username: "other_student",
       status: "completed",
+      score: null,
       joined_at: "2026-01-02T00:00:00.000Z",
     },
   ],
@@ -99,5 +95,20 @@ describe("search service role scoping", () => {
       "student-b",
     ]);
     expect(response.meta.scope).toBe("all-records");
+  });
+
+  it("coerces PostgREST numeric strings in participant scores", async () => {
+    const response = await executeSearch({
+      context: createSearchScope({ role: "admin", userId: "admin-id" }),
+      query: defaultSearchQuery("admin", "participants"),
+      repository: new MockSearchRepository(rows),
+    });
+
+    expect(response.items).toContainEqual(
+      expect.objectContaining({ id: "participant-a", score: 92.5 }),
+    );
+    expect(response.items).toContainEqual(
+      expect.objectContaining({ id: "participant-b", score: null }),
+    );
   });
 });

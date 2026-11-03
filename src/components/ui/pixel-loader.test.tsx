@@ -16,6 +16,8 @@ describe("PixelLoader", () => {
     expect(markup).toContain('role="status"');
     expect(markup).toContain("Loading dashboard");
     expect(markup).toContain("pixel-loader-logo");
+    expect(markup).toContain("Fili-QuizMo");
+    expect(markup).toContain("Logo.png");
     expect(markup).toContain("min-h-screen");
   });
 });

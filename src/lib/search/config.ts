@@ -40,8 +40,8 @@ export type SearchEntityConfig = {
   filters: readonly SearchFilterKey[];
 };
 
-export const DEFAULT_PAGE_SIZE = 20;
-export const MAX_PAGE_SIZE = 100;
+export const DEFAULT_PAGE_SIZE = 5;
+export const MAX_PAGE_SIZE = 5;
 export const MAX_SEARCH_LENGTH = 200;
 
 export const SORT_OPTIONS: readonly {
@@ -297,14 +297,6 @@ export function getVisibleFilterKeys(
     }
     return true;
   });
-}
-
-export function getVisibleSortFields(
-  entity: SearchEntity,
-): SearchSortField[] {
-  return SORT_OPTIONS.filter((option) =>
-    getEntityConfig(entity).sortFields.includes(option.value),
-  ).map((option) => option.value);
 }
 
 export function getStatusLabel(

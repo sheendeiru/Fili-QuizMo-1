@@ -8,12 +8,15 @@ export async function logoutAndRedirect(
     replace: (href: string) => void;
     refresh: () => void;
   },
+  navigate: (action: () => void) => void,
 ): Promise<void> {
   await signOutAndReset(createClient(), {
     scope: "global",
     broadcast: true,
     redirect: false,
   });
-  router.replace("/");
-  router.refresh();
+  navigate(() => {
+    router.replace("/");
+    router.refresh();
+  });
 }

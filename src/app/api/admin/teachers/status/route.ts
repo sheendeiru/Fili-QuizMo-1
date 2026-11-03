@@ -7,8 +7,6 @@ import {
 import { isInvalidSession } from "@/lib/auth/session-errors";
 import { parseTeacherStatusUpdate } from "@/lib/auth/teacher-status";
 
-export const dynamic = "force-dynamic";
-
 function errorResponse(
   status: number,
   code: string,

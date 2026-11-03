@@ -9,6 +9,8 @@ type ProfileRow = {
   username: string | null;
   email: string | null;
   username_key: string | null;
+  consent_accepted_at: string | null;
+  consent_policy_version: string | null;
 };
 
 type TeacherRow = {
@@ -73,6 +75,8 @@ class FakeDatabase {
           role: string;
           username?: string | null;
           email?: string | null;
+          consent_accepted_at?: string | null;
+          consent_policy_version?: string | null;
         }) => {
           if (this.profiles.has(row.user_id)) {
             return { error: this.uniqueError("duplicate profile") };
@@ -90,6 +94,8 @@ class FakeDatabase {
             username,
             email: row.email ?? null,
             username_key: username ? username.toLowerCase() : null,
+            consent_accepted_at: row.consent_accepted_at ?? null,
+            consent_policy_version: row.consent_policy_version ?? null,
           });
 
           return { error: null };
@@ -177,9 +183,15 @@ function user(metadata: Record<string, unknown>): User {
 describe("ensureAccountProfile", () => {
   it("creates a student profile and routes to the student dashboard", async () => {
     const db = new FakeDatabase();
+    const acceptedAt = "2026-11-03T00:00:00.000Z";
     const result = await ensureAccountProfile(
       db.client(),
-      user({ account_role: "student", username: "juan_dela_cruz" }),
+      user({
+        account_role: "student",
+        username: "juan_dela_cruz",
+        consent_accepted_at: acceptedAt,
+        consent_policy_version: "v1",
+      }),
     );
 
     expect(result).toMatchObject({
@@ -189,6 +201,8 @@ describe("ensureAccountProfile", () => {
     expect(db.profiles.get("auth-user-id")).toMatchObject({
       role: "student",
       username: "juan_dela_cruz",
+      consent_accepted_at: acceptedAt,
+      consent_policy_version: "v1",
     });
     expect(db.teachers.size).toBe(0);
   });
@@ -234,6 +248,8 @@ describe("ensureAccountProfile", () => {
       username: "juan_dela_cruz",
       email: "user@example.test",
       username_key: "juan_dela_cruz",
+      consent_accepted_at: null,
+      consent_policy_version: null,
     });
 
     const result = await ensureAccountProfile(

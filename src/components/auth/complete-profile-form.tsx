@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { useNavigation } from "@/components/pixel";
 import type { FormEvent } from "react";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -41,6 +42,7 @@ export function CompleteProfileForm({
   initialError?: string;
 }) {
   const router = useRouter();
+  const { navigate } = useNavigation();
   const [role, setRole] =
     useState<CompleteProfileRole>(initialRole);
   const [errorMessage, setErrorMessage] = useState(initialError);
@@ -88,8 +90,11 @@ export function CompleteProfileForm({
       }
 
       if (response.ok && result.destination) {
-        router.replace(result.destination);
-        router.refresh();
+        const destination = result.destination;
+        navigate(() => {
+          router.replace(destination);
+          router.refresh();
+        });
         return;
       }
 
@@ -113,7 +118,7 @@ export function CompleteProfileForm({
   }
 
   return (
-    <form className="space-y-5" onSubmit={handleSubmit}>
+    <form className="space-y-3" onSubmit={handleSubmit}>
       {email ? (
         <p className="text-sm text-neutral-500">
           Signed in as <strong className="text-foreground">{email}</strong>
@@ -147,7 +152,7 @@ export function CompleteProfileForm({
             </Button>
             <Button
               type="button"
-              variant={role === "teacher" ? "primary" : "outline"}
+              variant={role === "teacher" ? "accent" : "outline"}
               aria-pressed={role === "teacher"}
               onClick={() => setRole("teacher")}
             >

@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import { NavLink } from "@/components/pixel";
 import { Suspense } from "react";
 import { AuthShell } from "@/components/auth/auth-shell";
 import { SignupForm } from "@/components/auth/signup-form";
@@ -39,20 +39,20 @@ export default function SignupPage({ searchParams }: SignupPageProps) {
       footer={
         <>
           Already have an account?{" "}
-          <Link
+          <NavLink
             href="/student-login"
             className="font-semibold text-secondary hover:underline focus-visible:outline"
           >
             Student login
-          </Link>
+          </NavLink>
           <span className="block pt-3">
             Teacher?{" "}
-            <Link
+            <NavLink
               href="/teacher-login"
               className="font-semibold text-primary hover:underline"
             >
               Teacher login
-            </Link>
+            </NavLink>
           </span>
         </>
       }

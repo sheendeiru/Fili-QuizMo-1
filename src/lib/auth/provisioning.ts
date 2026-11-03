@@ -39,6 +39,24 @@ function metadataOf(user: User): Record<string, unknown> {
   return (user.user_metadata ?? {}) as Record<string, unknown>;
 }
 
+function policyConsent(
+  metadata: Record<string, unknown>,
+): { acceptedAt: string; version: string } | null {
+  const acceptedAt = metadata.consent_accepted_at;
+  const version = metadata.consent_policy_version;
+
+  if (
+    typeof acceptedAt !== "string" ||
+    Number.isNaN(Date.parse(acceptedAt)) ||
+    typeof version !== "string" ||
+    !version.trim()
+  ) {
+    return null;
+  }
+
+  return { acceptedAt, version };
+}
+
 function isUniqueViolation(error: { code?: string } | null): boolean {
   return error?.code === "23505";
 }
@@ -108,6 +126,7 @@ export async function ensureAccountProfile(
     usernameFromMetadata(metadata) ??
     ""
   ).trim();
+  const consent = policyConsent(metadata);
 
   const { data: profile, error: profileErrorResult } = await supabase
     .from("account_profiles")
@@ -218,6 +237,8 @@ export async function ensureAccountProfile(
       role: requestedRole,
       username: requestedUsername,
       email: user.email ?? null,
+      consent_accepted_at: consent?.acceptedAt ?? null,
+      consent_policy_version: consent?.version ?? null,
     });
 
   if (isUniqueViolation(insertError)) {

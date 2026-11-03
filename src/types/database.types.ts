@@ -42,6 +42,8 @@ export type Database = {
       account_profiles: {
         Row: {
           created_at: string
+          consent_accepted_at: string | null
+          consent_policy_version: string | null
           email: string | null
           managed_by_teacher_id: number | null
           role: string
@@ -51,6 +53,8 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          consent_accepted_at?: string | null
+          consent_policy_version?: string | null
           email?: string | null
           managed_by_teacher_id?: number | null
           role: string
@@ -60,6 +64,8 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          consent_accepted_at?: string | null
+          consent_policy_version?: string | null
           email?: string | null
           managed_by_teacher_id?: number | null
           role?: string

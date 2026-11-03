@@ -1,20 +1,23 @@
 import { Suspense } from "react";
 import AdminDashboardContent from "@/components/dashboard/admin-dashboard-content";
+import { DashboardSkeleton } from "@/components/dashboard/dashboard-skeleton";
 import { requireAdminAccess } from "@/lib/auth/require-dashboard-access";
 import { loadAdminDashboardData } from "@/lib/dashboard/data";
 import { createClient } from "@/lib/supabase/server";
-import { PixelLoader } from "@/components/ui/pixel-loader";
+
+async function AdminDashboardData() {
+  const supabase = await createClient();
+  const data = await loadAdminDashboardData(supabase);
+  return <AdminDashboardContent data={data} />;
+}
 
 export default async function AdminDashboardPage() {
   await requireAdminAccess();
-  const supabase = await createClient();
-  const data = await loadAdminDashboardData(supabase);
-
   return (
     <Suspense
-      fallback={<PixelLoader label="Loading admin dashboard..." variant="screen" />}
+      fallback={<DashboardSkeleton label="Loading admin dashboard..." />}
     >
-      <AdminDashboardContent data={data} />
+      <AdminDashboardData />
     </Suspense>
   );
 }

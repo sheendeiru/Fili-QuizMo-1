@@ -1,5 +1,5 @@
 import Image from "next/image";
-import Link from "next/link";
+import { NavLink } from "@/components/pixel";
 
 type BrandLogoProps = {
   className?: string;
@@ -23,7 +23,7 @@ export function BrandLogo({
         draggable={false}
         className="h-10 w-10 shrink-0 select-none object-contain"
       />
-      <span className="hidden min-w-0 font-pixel text-[0.5rem] leading-relaxed text-secondary min-[380px]:inline sm:text-[0.625rem]">
+      <span className="min-w-0 font-pixel text-[0.5rem] leading-relaxed text-secondary sm:text-[0.625rem]">
         Fili-QuizMo
       </span>
     </>
@@ -32,9 +32,9 @@ export function BrandLogo({
   const classNames = `inline-flex min-w-0 items-center gap-2 text-primary-foreground ${className}`;
 
   return linked ? (
-    <Link href="/" aria-label="Fili-QuizMo home" className={classNames}>
+    <NavLink href="/" aria-label="Fili-QuizMo home" className={classNames}>
       {content}
-    </Link>
+    </NavLink>
   ) : (
     <div className={classNames}>{content}</div>
   );

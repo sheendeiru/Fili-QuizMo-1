@@ -4,6 +4,8 @@ import { ButtonLink } from "@/components/ui/button-link";
 import { Carousel } from "@/components/ui/carousel";
 import { Footer } from "@/components/layout/footer";
 import { Navbar } from "@/components/layout/navbar";
+import { TeamCard } from "@/components/layout/team-card";
+import { PixelCard } from "@/components/pixel";
 
 const carouselItems = [
   {
@@ -61,12 +63,12 @@ const developers = [
     role: "Leader",
   },
   {
-    src: "/assets/web-dev.jpg",
+    src: "/assets/web-dev.jpeg",
     name: "John Carl Rubio",
     role: "Web Developer",
   },
   {
-    src: "/assets/Default_pfp.jpg",
+    src: null,
     name: "Sheen Agustin",
     role: "Mobile App Developer",
   },
@@ -75,15 +77,17 @@ const developers = [
 function SectionLabel({
   children,
   centered = false,
+  tone = "light",
 }: {
   children: ReactNode;
   centered?: boolean;
+  tone?: "light" | "dark";
 }) {
   return (
     <p
-      className={`text-xs font-semibold uppercase tracking-[0.2em] text-primary/60 ${
-        centered ? "text-center" : ""
-      }`}
+      className={`pixel-text text-xs font-semibold uppercase tracking-[0.2em] ${
+        tone === "dark" ? "text-px-muted" : "text-px-indigo"
+      } ${centered ? "text-center" : ""}`}
     >
       {children}
     </p>
@@ -96,60 +100,59 @@ export default function Home() {
       <Navbar />
 
       <main className="flex-1">
-        <section className="relative overflow-hidden bg-primary text-white">
+        <section className="landing-skyline relative overflow-hidden bg-sky-top text-ink">
           <div aria-hidden="true" className="hero-grid absolute inset-0" />
           <div
             aria-hidden="true"
-            className="absolute -left-24 top-10 h-72 w-72 rounded-full bg-sky-400/20 blur-3xl"
+            className="absolute left-8 top-12 h-3 w-3 bg-sky-400/40"
           />
           <div
             aria-hidden="true"
-            className="absolute -right-16 top-1/4 h-80 w-80 rounded-full bg-emerald-400/15 blur-3xl"
+            className="absolute right-12 top-1/4 h-4 w-4 bg-emerald-400/40"
           />
           <div
             aria-hidden="true"
-            className="absolute bottom-0 left-1/3 h-64 w-64 rounded-full bg-amber-300/10 blur-3xl"
+            className="absolute bottom-8 left-1/3 h-2 w-2 bg-amber-300/50"
           />
 
-          <div className="relative mx-auto grid max-w-7xl gap-14 px-4 py-20 sm:px-6 lg:grid-cols-[1.05fr_0.95fr] lg:items-center lg:px-8 lg:py-28">
+          <div className="relative mx-auto grid max-w-5xl gap-8 px-4 py-8 sm:px-6 lg:grid-cols-[1.05fr_0.95fr] lg:items-center lg:py-12">
             <div>
-              <span className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-white/80">
-                <span className="h-1.5 w-1.5 rounded-full bg-emerald-300" />
+              <span className="inline-flex items-center gap-2 border-2 border-ink bg-surface px-3 py-1 text-xs font-semibold uppercase tracking-[0.12em] text-ink">
+                <span className="h-2 w-2 bg-primary" />
                 Interactive Filipino quiz platform
               </span>
 
-              <h1 className="mt-6 text-4xl font-bold tracking-tight sm:text-5xl lg:text-6xl">
+              <h1 className="mt-3 text-3xl font-bold tracking-tight sm:text-4xl lg:text-5xl">
                 Learn. Quiz.{" "}
-                <span className="bg-gradient-to-r from-sky-300 via-emerald-300 to-amber-200 bg-clip-text text-transparent">
+                <span className="text-px-gold">
                   Master.
                 </span>
+                <span aria-hidden="true" className="pixel-cursor text-px-gold">▮</span>
               </h1>
 
-              <p className="mt-6 max-w-xl text-lg leading-8 text-white/75">
+              <p className="mt-3 max-w-xl text-sm leading-6 text-ink">
                 Fili-QuizMo turns learning into an interactive quiz experience.
                 Built for students who want a fun and engaging way to answer
                 quizzes, and for teachers who want to see progress at a glance.
               </p>
 
-              <div className="mt-9 flex flex-col gap-3 sm:flex-row">
+              <div className="mt-4 flex flex-col gap-2 sm:flex-row">
                 <ButtonLink
                   href="/signup"
-                  variant="secondary"
-                  className="bg-white text-primary hover:bg-sky-50 focus:ring-white/70"
+                  variant="primary"
                 >
                   Create an Account
                 </ButtonLink>
                 <ButtonLink
                   href="/assets/Fili-QuizMo-1.0.0.apk"
                   download
-                  variant="outline"
-                  className="border-white/40 text-white hover:bg-white/10 focus:ring-white/70"
+                  variant="neutral"
                 >
                   Download APK
                 </ButtonLink>
               </div>
 
-              <div className="mt-10 flex flex-wrap items-center gap-x-6 gap-y-3 text-sm text-white/65">
+              <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-ink">
                 <span className="inline-flex items-center gap-2">
                   <span className="h-1.5 w-1.5 rounded-full bg-sky-300" />
                   Student-friendly
@@ -165,13 +168,13 @@ export default function Home() {
               </div>
             </div>
 
-            <div className="relative mx-auto w-full max-w-[19rem] lg:max-w-[20rem]">
+            <div className="relative mx-auto w-full max-w-[15rem]">
               <div
                 aria-hidden="true"
-                className="absolute -inset-6 rounded-[2.75rem] bg-gradient-to-br from-sky-400/30 via-emerald-400/20 to-amber-300/25 blur-2xl"
+                className="absolute -inset-3 bg-px-gold/20"
               />
-              <div className="relative rounded-[2.2rem] border border-white/15 bg-white/10 p-2 shadow-2xl backdrop-blur">
-                <div className="overflow-hidden rounded-[1.7rem] bg-primary">
+              <div className="pixel-border relative border-2 border-ink bg-surface p-2 shadow-[4px_4px_0_var(--color-ink)]">
+                <div className="overflow-hidden bg-sky-bottom">
                   <Image
                     src="/assets/home_screen.jpg"
                     alt="Fili-QuizMo home screen"
@@ -204,15 +207,15 @@ export default function Home() {
           </div>
         </section>
 
-        <section id="about-app" className="bg-white py-20">
-          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-            <div className="flex flex-col gap-8 md:flex-row md:items-end md:justify-between">
+        <section id="about-app" className="bg-white py-8">
+          <div className="mx-auto max-w-5xl px-4 sm:px-6">
+            <div className="max-w-3xl">
               <div className="max-w-2xl">
                 <SectionLabel>About the App</SectionLabel>
                 <h2 className="mt-3 text-3xl font-bold tracking-tight sm:text-4xl">
                   A quiz experience built for real classrooms.
                 </h2>
-                <p className="mt-5 text-lg leading-8 text-neutral-600">
+                <p className="mt-3 text-sm leading-6 text-px-text-dark">
                   Fili-QuizMo is a quiz-based learning platform that helps users
                   practice with interactive quizzes, track performance, and
                   prepare effectively. It is designed for learners who want
@@ -220,16 +223,17 @@ export default function Home() {
                   quizzes and student progress.
                 </p>
               </div>
-              <ButtonLink href="/signup" className="shrink-0">
+              <ButtonLink href="/signup" className="mt-6 w-full sm:w-auto">
                 Create an Account
               </ButtonLink>
             </div>
 
-            <div className="mt-12 grid gap-5 md:grid-cols-3">
+            <div className="mt-5 grid gap-3 md:grid-cols-3">
               {features.map((feature) => (
-                <article
+                <PixelCard
+                  as="article"
                   key={feature.title}
-                  className="group rounded-2xl border border-neutral-200 bg-neutral-50/80 p-6 transition-all duration-300 hover:-translate-y-1 hover:border-primary/20 hover:bg-white hover:shadow-xl hover:shadow-primary/5"
+                  className="group flex h-full flex-col bg-neutral-50/80 p-6 text-px-text-dark transition-[background-color,color,transform] duration-100 ease-[steps(2,end)] hover:-translate-y-1 hover:bg-px-cream hover:text-px-text-dark focus-within:bg-px-cream focus-within:text-px-text-dark active:bg-px-cream active:text-px-text-dark"
                 >
                   <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary text-white shadow-sm transition-colors group-hover:bg-primary/90">
                     <svg
@@ -251,20 +255,20 @@ export default function Home() {
                   <p className="mt-2 text-sm leading-6 text-neutral-600">
                     {feature.description}
                   </p>
-                </article>
+                </PixelCard>
               ))}
             </div>
           </div>
         </section>
 
-        <section id="tour" className="bg-background py-20">
-          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-            <div className="mx-auto mb-10 max-w-2xl text-center">
-              <SectionLabel centered>App Tour</SectionLabel>
+        <section id="tour" className="bg-background py-8">
+          <div className="mx-auto max-w-5xl px-4 sm:px-6">
+            <div className="mx-auto mb-5 max-w-2xl text-center">
+              <SectionLabel centered tone="dark">App Tour</SectionLabel>
               <h2 className="mt-3 text-3xl font-bold tracking-tight sm:text-4xl">
                 See the App in Action
               </h2>
-              <p className="mt-3 text-neutral-600">
+              <p className="mt-3 text-px-muted">
                 Take a quick tour through the quiz experience, from choosing a
                 mode to answering your first question.
               </p>
@@ -273,12 +277,12 @@ export default function Home() {
           </div>
         </section>
 
-        <section id="about" className="bg-white py-20">
-          <div className="mx-auto grid max-w-7xl gap-12 px-4 sm:px-6 lg:grid-cols-2 lg:items-center lg:px-8">
+        <section id="about" className="bg-white py-8">
+          <div className="mx-auto grid max-w-5xl gap-6 px-4 sm:px-6 lg:grid-cols-2 lg:items-center">
             <div className="relative">
               <div
                 aria-hidden="true"
-                className="absolute -inset-4 rounded-[2.5rem] bg-gradient-to-br from-sky-100 via-emerald-50 to-amber-100 blur-2xl"
+                className="absolute -inset-3 bg-px-gold/20"
               />
               <Image
                 src="/assets/DocumentationwthClient.jpg"
@@ -321,69 +325,54 @@ export default function Home() {
               <h2 className="mt-3 text-3xl font-bold tracking-tight sm:text-4xl">
                 Built by a small team that loves learning.
               </h2>
-              <p className="mt-5 text-lg leading-8 text-neutral-600">
+              <p className="mt-3 text-sm leading-6 text-neutral-600">
                 Fili-QuizMo was created by a small team of developers who wanted
                 to make learning more interactive, accessible, and fun.
               </p>
 
-              <div className="mt-8 grid gap-4 sm:grid-cols-2">
-                <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-5">
+              <div className="mt-4 grid items-stretch gap-3 sm:grid-cols-2">
+                <PixelCard as="article" className="flex h-full flex-col bg-neutral-50">
                   <h3 className="text-base font-semibold">Our Story</h3>
-                  <p className="mt-2 text-sm leading-6 text-neutral-600">
+                  <p className="mt-2 flex-1 text-sm leading-7 text-px-text-dark">
                     What began as a simple quiz concept grew into Fili-QuizMo, a
                     platform designed to help learners practice through
                     interactive quizzes while giving educators tools to manage
                     content and track progress.
                   </p>
-                </div>
-                <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-5">
+                </PixelCard>
+                <PixelCard as="article" className="flex h-full flex-col bg-neutral-50">
                   <h3 className="text-base font-semibold">Our Mission</h3>
-                  <p className="mt-2 text-sm leading-6 text-neutral-600">
+                  <p className="mt-2 flex-1 text-sm leading-7 text-px-text-dark">
                     To make learning engaging, measurable, and accessible through
                     interactive quizzes that adapt to the needs of students and
                     teachers.
                   </p>
-                </div>
+                </PixelCard>
               </div>
             </div>
           </div>
         </section>
 
-        <section id="developers" className="bg-background py-20">
-          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <section id="developers" className="bg-background py-8">
+          <div className="mx-auto max-w-5xl px-4 sm:px-6">
             <div className="mx-auto max-w-2xl text-center">
-              <SectionLabel centered>The Team</SectionLabel>
+              <SectionLabel centered tone="dark">The Team</SectionLabel>
               <h2 className="mt-3 text-3xl font-bold tracking-tight sm:text-4xl">
                 About the Developers
               </h2>
-              <p className="mt-3 text-neutral-600">
+              <p className="mt-3 text-px-muted">
                 The people behind the quizzes, the app, and the experience.
               </p>
             </div>
 
-            <div className="mt-12 grid grid-cols-2 gap-4 sm:gap-6 lg:grid-cols-4">
+            <div className="mt-5 grid grid-cols-2 items-stretch gap-3 lg:grid-cols-4">
               {developers.map((developer) => (
-                <article
+                <TeamCard
                   key={developer.name}
-                  className="group overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-primary/5"
-                >
-                  <div className="aspect-[4/3] overflow-hidden bg-neutral-100">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={developer.src}
-                      alt={developer.name}
-                      className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-                    />
-                  </div>
-                  <div className="p-4 sm:p-5">
-                    <h3 className="text-sm font-semibold sm:text-base">
-                      {developer.name}
-                    </h3>
-                    <p className="mt-2 inline-flex rounded-full bg-primary/5 px-2.5 py-1 text-[0.65rem] font-semibold text-primary/70 sm:px-3 sm:text-xs">
-                      {developer.role}
-                    </p>
-                  </div>
-                </article>
+                  image={developer.src}
+                  name={developer.name}
+                  role={developer.role}
+                />
               ))}
             </div>
           </div>
@@ -391,42 +380,40 @@ export default function Home() {
 
         <section
           id="signup"
-          className="relative overflow-hidden bg-primary py-20 text-white"
+          className="landing-skyline relative overflow-hidden bg-sky-top py-8 text-ink"
         >
           <div aria-hidden="true" className="hero-grid absolute inset-0" />
           <div
             aria-hidden="true"
-            className="absolute -left-20 top-0 h-64 w-64 rounded-full bg-sky-400/15 blur-3xl"
+            className="absolute left-10 top-8 h-3 w-3 bg-sky-400/40"
           />
           <div
             aria-hidden="true"
-            className="absolute -right-20 bottom-0 h-72 w-72 rounded-full bg-emerald-400/10 blur-3xl"
+            className="absolute right-10 bottom-8 h-4 w-4 bg-emerald-400/40"
           />
 
-          <div className="relative mx-auto max-w-3xl px-4 text-center sm:px-6 lg:px-8">
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-white/60">
+          <div className="relative mx-auto max-w-3xl px-4 text-center sm:px-6">
+            <p className="pixel-text text-xs font-semibold uppercase tracking-[0.2em] text-px-muted">
               Get Started
             </p>
             <h2 className="mt-3 text-3xl font-bold tracking-tight sm:text-4xl">
               Make every quiz a step forward.
             </h2>
-            <p className="mx-auto mt-5 max-w-2xl text-lg leading-8 text-white/75">
+            <p className="mx-auto mt-3 max-w-2xl text-sm leading-6 text-ink">
               Create an account to start building quizzes, tracking progress,
               and making learning feel a little more like play.
             </p>
-            <div className="mt-9 flex flex-col justify-center gap-3 sm:flex-row">
+            <div className="mt-4 flex flex-col justify-center gap-2 sm:flex-row">
               <ButtonLink
                 href="/signup"
-                variant="secondary"
-                className="bg-white text-primary hover:bg-sky-50 focus:ring-white/70"
+                variant="primary"
               >
                 Create an Account
               </ButtonLink>
               <ButtonLink
                 href="/assets/Fili-QuizMo-1.0.0.apk"
                 download
-                variant="outline"
-                className="border-white/40 text-white hover:bg-white/10 focus:ring-white/70"
+                variant="neutral"
               >
                 Download APK
               </ButtonLink>

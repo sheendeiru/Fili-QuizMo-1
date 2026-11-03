@@ -1,11 +1,13 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { useNavigation } from "@/components/pixel";
 import type { FormEvent } from "react";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { FormField } from "@/components/ui/form-field";
 import { Spinner } from "@/components/ui/spinner";
+import { PolicyConsent } from "@/components/auth/policy-consent";
 import {
   USERNAME_REQUIREMENTS,
   isValidUsername,
@@ -19,6 +21,7 @@ import {
   releaseSessionRequestController,
   SESSION_ENDED_EVENT,
 } from "@/lib/auth/session-state";
+import { POLICY_VERSION } from "@/lib/legal/policy-version";
 
 type SignupRole = "student" | "teacher";
 
@@ -49,10 +52,12 @@ function friendlySignupError(message: string): string {
 
 export function SignupForm() {
   const router = useRouter();
+  const { navigate, beginActivity } = useNavigation();
   const [role, setRole] = useState<SignupRole>("student");
   const [errorMessage, setErrorMessage] = useState("");
   const [statusMessage, setStatusMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [consentAccepted, setConsentAccepted] = useState(false);
 
   useEffect(() => {
     function clearSignupState() {
@@ -69,6 +74,7 @@ export function SignupForm() {
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (isLoading || !consentAccepted) return;
     const form = event.currentTarget;
     setErrorMessage("");
     setStatusMessage("");
@@ -97,7 +103,9 @@ export function SignupForm() {
     }
 
     setIsLoading(true);
+    const finishActivity = beginActivity();
     const controller = createSessionRequestController();
+    const consentAcceptedAt = new Date().toISOString();
 
     try {
       const supabase = createClient();
@@ -108,6 +116,8 @@ export function SignupForm() {
           data: {
             account_role: role,
             username,
+            consent_accepted_at: consentAcceptedAt,
+            consent_policy_version: POLICY_VERSION,
           },
           emailRedirectTo: new URL(
             "/auth/confirm",
@@ -156,19 +166,26 @@ export function SignupForm() {
       }
 
       if (profileResponse.ok && profileResult.destination) {
-        router.replace(profileResult.destination);
-        router.refresh();
+        const destination = profileResult.destination;
+        navigate(() => {
+          router.replace(destination);
+          router.refresh();
+        });
         return;
       }
 
       if (profileResponse.status === 409) {
-        router.replace("/complete-profile?reason=username_taken");
-        router.refresh();
+        navigate(() => {
+          router.replace("/complete-profile?reason=username_taken");
+          router.refresh();
+        });
         return;
       }
 
-      router.replace("/complete-profile?reason=profile_error");
-      router.refresh();
+      navigate(() => {
+        router.replace("/complete-profile?reason=profile_error");
+        router.refresh();
+      });
     } catch (error) {
       if (controller.signal.aborted) {
         return;
@@ -180,13 +197,14 @@ export function SignupForm() {
           : "Unable to create your account.",
       );
     } finally {
+      finishActivity();
       releaseSessionRequestController(controller);
       setIsLoading(false);
     }
   }
 
   return (
-    <form className="space-y-5" onSubmit={handleSubmit}>
+    <form className="space-y-3" onSubmit={handleSubmit}>
       <div>
         <p className="text-sm font-medium text-foreground">Account type</p>
         <div
@@ -204,7 +222,7 @@ export function SignupForm() {
           </Button>
           <Button
             type="button"
-            variant={role === "teacher" ? "primary" : "outline"}
+            variant={role === "teacher" ? "accent" : "outline"}
             aria-pressed={role === "teacher"}
             onClick={() => setRole("teacher")}
           >
@@ -269,8 +287,14 @@ export function SignupForm() {
         required
       />
 
+      <PolicyConsent
+        id="signup-consent"
+        checked={consentAccepted}
+        onChange={setConsentAccepted}
+      />
+
       {statusMessage ? (
-        <p role="status" className="text-sm text-success">
+        <p role="status" className="text-sm text-px-grass-text">
           {statusMessage}
         </p>
       ) : null}
@@ -281,7 +305,11 @@ export function SignupForm() {
         </p>
       ) : null}
 
-      <Button type="submit" className="w-full" disabled={isLoading}>
+      <Button
+        type="submit"
+        className="w-full"
+        disabled={isLoading || !consentAccepted}
+      >
         {isLoading ? (
           <span className="inline-flex items-center gap-2">
             <Spinner className="h-4 w-4" />

@@ -1,12 +1,15 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
+import { useNavigation } from "@/components/pixel";
 import type { FormEvent } from "react";
 import { useEffect, useState } from "react";
-import Link from "next/link";
+import { NavLink } from "@/components/pixel";
 import { Button } from "@/components/ui/button";
 import { FormField } from "@/components/ui/form-field";
 import { Spinner } from "@/components/ui/spinner";
+import { PolicyConsent } from "@/components/auth/policy-consent";
 import {
   createAccountRoleLookup,
   resolveAccountAccess,
@@ -49,6 +52,8 @@ export function AdminLoginForm({
   mfaRequired?: boolean;
 }) {
   const router = useRouter();
+  const { navigate, beginActivity } = useNavigation();
+  const pathname = usePathname();
   const [step, setStep] = useState<"credentials" | "enroll" | "verify">(
     "credentials",
   );
@@ -64,6 +69,7 @@ export function AdminLoginForm({
       : "",
   );
   const [isLoading, setIsLoading] = useState(false);
+  const [consentAccepted, setConsentAccepted] = useState(false);
 
   useEffect(() => {
     function clearMfaState() {
@@ -83,6 +89,9 @@ export function AdminLoginForm({
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (isLoading) return;
+    if (step === "credentials" && !consentAccepted) return;
+    const finishActivity = beginActivity();
     const form = event.currentTarget;
     setErrorMessage("");
     setNoticeMessage("");
@@ -149,8 +158,10 @@ export function AdminLoginForm({
 
         if (assurance.currentLevel === "aal2") {
           clearSensitiveFormFields(form);
-          router.replace("/admin-dashboard");
-          router.refresh();
+          navigate(() => {
+            router.replace("/admin-dashboard");
+            router.refresh();
+          });
           return;
         }
 
@@ -257,8 +268,10 @@ export function AdminLoginForm({
       }
 
       clearSensitiveFormFields(form);
-      router.replace("/admin-dashboard");
-      router.refresh();
+      navigate(() => {
+        router.replace("/admin-dashboard");
+        router.refresh();
+      });
     } catch (error) {
       if (sessionEstablished && supabase) {
         await signOutAndReset(supabase);
@@ -270,6 +283,7 @@ export function AdminLoginForm({
           : "Unable to sign in securely.",
       );
     } finally {
+      finishActivity();
       setIsLoading(false);
     }
   }
@@ -296,13 +310,18 @@ export function AdminLoginForm({
             autoComplete="current-password"
             required
           />
+          <PolicyConsent
+            id="admin-login-consent"
+            checked={consentAccepted}
+            onChange={setConsentAccepted}
+          />
           <div className="-mt-2 text-right">
-            <Link
-              href="/change-password"
-              className="text-xs font-semibold text-secondary hover:underline focus-visible:outline"
+            <NavLink
+              href={`/change-password?returnTo=${encodeURIComponent(pathname)}`}
+              className="text-xs font-semibold text-px-gold-text hover:underline focus-visible:outline"
             >
               Forgot password?
-            </Link>
+            </NavLink>
           </div>
         </>
       ) : (
@@ -357,7 +376,12 @@ export function AdminLoginForm({
         </p>
       ) : null}
 
-      <Button type="submit" className="w-full" disabled={isLoading}>
+      <Button
+        type="submit"
+        className="w-full"
+        disabled={isLoading || (step === "credentials" && !consentAccepted)}
+        aria-busy={isLoading}
+      >
         {isLoading ? (
           <span className="inline-flex items-center gap-2">
             <Spinner className="h-4 w-4" />

@@ -7,7 +7,6 @@ import { parseSearchQuery } from "./validation";
 describe("buildSearchPlan", () => {
   it("adds a trusted teacher scope before user filters", () => {
     const query = defaultSearchQuery("teacher", "students");
-    query.status = "active";
     query.page = 3;
     query.pageSize = 10;
 
@@ -41,9 +40,9 @@ describe("buildSearchPlan", () => {
     );
   });
 
-  it("keeps a teacher username filter inside the teacher's own scope", () => {
+  it("scopes participants by the quiz owner", () => {
     const query = parseSearchQuery(
-      new URLSearchParams("entity=participants&teacher=msantos"),
+      new URLSearchParams("entity=participants&status=completed"),
       "teacher",
     );
     const plan = buildSearchPlan(
@@ -52,21 +51,33 @@ describe("buildSearchPlan", () => {
     );
 
     expect(plan.filters[0]).toEqual({
-      column: "student_teacher_id",
+      column: "teacher_id",
       operator: "eq",
       value: "teacher-auth-id",
     });
-    expect(plan.filters[1]).toEqual({
+  });
+
+  it("allows an admin to narrow participants by teacher username", () => {
+    const query = parseSearchQuery(
+      new URLSearchParams("entity=participants&teacher=msantos"),
+      "admin",
+    );
+    const plan = buildSearchPlan(
+      query,
+      createSearchScope({ role: "admin", userId: "admin-id" }),
+    );
+
+    expect(plan.filters[0]).toEqual({
       column: "teacher_username",
       operator: "ilike",
       value: "%msantos%",
     });
   });
 
-  it("rejects teacher use of the admin-only account status filter", () => {
+  it("rejects the admin-only teacher filter for teachers", () => {
     expect(() =>
       parseSearchQuery(
-        new URLSearchParams("entity=students&accountStatus=inactive"),
+        new URLSearchParams("entity=participants&teacher=msantos"),
         "teacher",
       ),
     ).toThrowError(
@@ -97,6 +108,17 @@ describe("buildSearchPlan", () => {
     expect(() =>
       parseSearchQuery(
         new URLSearchParams("entity=quizzes&sort=teacher_id"),
+        "admin",
+      ),
+    ).toThrowError(
+      expect.objectContaining({ code: "INVALID_SORT" }),
+    );
+  });
+
+  it("rejects a sort field the entity does not support", () => {
+    expect(() =>
+      parseSearchQuery(
+        new URLSearchParams("entity=students&sort=status"),
         "admin",
       ),
     ).toThrowError(

@@ -1,4 +1,5 @@
 import type { InputHTMLAttributes } from "react";
+import { PixelInput } from "@/components/pixel/primitives";
 
 type FormFieldProps = {
   label: string;
@@ -20,9 +21,9 @@ export function FormField({
       >
         {label}
       </label>
-      <input
+      <PixelInput
         id={id}
-        className={`mt-2 w-full rounded-lg border border-neutral-300 bg-white px-4 py-3 text-sm text-foreground placeholder:text-neutral-600 outline-none transition focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 ${className}`}
+        className={`mt-1 h-10 px-3 text-sm ${className}`}
         {...props}
       />
     </div>

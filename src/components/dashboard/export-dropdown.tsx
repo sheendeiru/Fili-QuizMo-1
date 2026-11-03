@@ -337,7 +337,7 @@ export function ExportDropdown({ role }: { role: SearchRole }) {
           disabled={exportDisabled}
           title={exportDisabled ? disabledLabel : "Download the current dataset as an Excel workbook"}
           onClick={() => void download("xlsx")}
-          className="inline-flex items-center gap-2 border-2 border-emerald-900 bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-500 active:bg-emerald-700 focus-visible:ring-2 focus-visible:ring-emerald-300 disabled:cursor-not-allowed disabled:bg-emerald-900/40 disabled:text-emerald-200/50"
+          className="inline-flex items-center gap-2 border-2 border-emerald-900 bg-emerald-600 px-3 py-2 text-xs font-semibold text-px-text-dark hover:bg-emerald-500 active:bg-emerald-700 focus-visible:ring-2 focus-visible:ring-emerald-300 disabled:cursor-not-allowed disabled:bg-emerald-900/40 disabled:text-emerald-200/50"
         >
           {isExporting ? <Spinner className="h-4 w-4" /> : null}
           Download as Excel
@@ -358,7 +358,7 @@ export function ExportDropdown({ role }: { role: SearchRole }) {
               setMenuOpen(true);
             }
           }}
-          className="border-2 border-l-2 border-l-emerald-800 border-emerald-900 bg-emerald-600 px-3 py-2 text-white hover:bg-emerald-500 active:bg-emerald-700 focus-visible:ring-2 focus-visible:ring-emerald-300 disabled:cursor-not-allowed disabled:bg-emerald-900/40 disabled:text-emerald-200/50"
+          className="border-2 border-l-2 border-l-emerald-800 border-emerald-900 bg-emerald-600 px-3 py-2 text-px-text-dark hover:bg-emerald-500 active:bg-emerald-700 focus-visible:ring-2 focus-visible:ring-emerald-300 disabled:cursor-not-allowed disabled:bg-emerald-900/40 disabled:text-emerald-200/50"
         >
           <span aria-hidden="true">▾</span>
         </button>

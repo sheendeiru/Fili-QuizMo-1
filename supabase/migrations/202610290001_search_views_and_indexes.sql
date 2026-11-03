@@ -1,132 +1,175 @@
-CREATE EXTENSION IF NOT EXISTS pg_trgm;
+-- Live-schema search views and indexes for the admin/teacher dashboards.
+--
+-- The views are security_invoker, so the existing RLS policies on the
+-- underlying tables still decide which rows each role can see. They only
+-- reshape rows into the columns the search API expects.
 
-CREATE INDEX IF NOT EXISTS student_teacher_id_idx
-  ON public.student (teacher_id);
-CREATE INDEX IF NOT EXISTS student_status_created_at_idx
-  ON public.student (enrollment_status, created_at DESC);
-CREATE INDEX IF NOT EXISTS student_account_status_idx
-  ON public.student (account_status);
-CREATE INDEX IF NOT EXISTS student_name_trgm_idx
-  ON public.student USING gin (name gin_trgm_ops);
-CREATE INDEX IF NOT EXISTS student_school_id_trgm_idx
-  ON public.student USING gin (school_id gin_trgm_ops);
-CREATE INDEX IF NOT EXISTS student_email_trgm_idx
-  ON public.student USING gin (email gin_trgm_ops);
-CREATE INDEX IF NOT EXISTS student_enrollment_status_trgm_idx
-  ON public.student USING gin (enrollment_status gin_trgm_ops);
-CREATE INDEX IF NOT EXISTS student_account_status_trgm_idx
-  ON public.student USING gin (account_status gin_trgm_ops);
+create extension if not exists pg_trgm;
 
-CREATE INDEX IF NOT EXISTS quiz_teacher_id_idx
-  ON public.quiz (teacher_id);
-CREATE INDEX IF NOT EXISTS quiz_status_created_at_idx
-  ON public.quiz (status, created_at DESC);
-CREATE INDEX IF NOT EXISTS quiz_title_trgm_idx
-  ON public.quiz USING gin (title gin_trgm_ops);
-CREATE INDEX IF NOT EXISTS quiz_status_trgm_idx
-  ON public.quiz USING gin (status gin_trgm_ops);
+-- Teacher-owned quizzes -------------------------------------------------------
+create index if not exists quizzes_teacher_id_idx
+  on public.quizzes (teacher_id);
+create index if not exists quizzes_status_created_at_idx
+  on public.quizzes (status, created_at desc);
+create index if not exists quizzes_title_trgm_idx
+  on public.quizzes using gin (title gin_trgm_ops);
+create index if not exists quizzes_share_code_trgm_idx
+  on public.quizzes using gin (share_code gin_trgm_ops);
 
-CREATE INDEX IF NOT EXISTS quiz_session_quiz_id_idx
-  ON public.quiz_session (quiz_id);
-CREATE INDEX IF NOT EXISTS quiz_session_code_trgm_idx
-  ON public.quiz_session USING gin (session_code gin_trgm_ops);
+-- Teacher accounts ------------------------------------------------------------
+create index if not exists teachers_status_created_at_idx
+  on public.teachers (status, created_at desc);
+create index if not exists teachers_username_trgm_idx
+  on public.teachers using gin (username gin_trgm_ops);
+create index if not exists teachers_email_trgm_idx
+  on public.teachers using gin (email gin_trgm_ops);
 
-CREATE INDEX IF NOT EXISTS participant_session_id_idx
-  ON public.participant (session_id);
-CREATE INDEX IF NOT EXISTS participant_student_id_idx
-  ON public.participant (student_id);
-CREATE INDEX IF NOT EXISTS participant_status_joined_at_idx
-  ON public.participant (status, joined_at DESC);
-CREATE INDEX IF NOT EXISTS participant_username_trgm_idx
-  ON public.participant USING gin (username gin_trgm_ops);
-CREATE INDEX IF NOT EXISTS participant_status_trgm_idx
-  ON public.participant USING gin (status gin_trgm_ops);
+-- Student accounts ------------------------------------------------------------
+create index if not exists account_profiles_role_teacher_idx
+  on public.account_profiles (role, managed_by_teacher_id);
+create index if not exists account_profiles_username_key_idx
+  on public.account_profiles (username_key);
+create index if not exists account_profiles_username_trgm_idx
+  on public.account_profiles using gin (username gin_trgm_ops);
+create index if not exists account_profiles_email_trgm_idx
+  on public.account_profiles using gin (email gin_trgm_ops);
 
-CREATE INDEX IF NOT EXISTS teacher_account_status_created_at_idx
-  ON public.teacher (account_status, created_at DESC);
-CREATE INDEX IF NOT EXISTS teacher_username_trgm_idx
-  ON public.teacher USING gin (username gin_trgm_ops);
-CREATE INDEX IF NOT EXISTS teacher_email_trgm_idx
-  ON public.teacher USING gin (email gin_trgm_ops);
-CREATE INDEX IF NOT EXISTS teacher_account_status_trgm_idx
-  ON public.teacher USING gin (account_status gin_trgm_ops);
+-- Participants ----------------------------------------------------------------
+create index if not exists students_session_id_idx
+  on public.students (session_id);
+create index if not exists students_username_trgm_idx
+  on public.students using gin (username gin_trgm_ops);
+create index if not exists quiz_questions_session_id_idx
+  on public.quiz_questions (session_id);
+create index if not exists quiz_results_session_participant_completed_idx
+  on public.quiz_results (
+    session_id,
+    participant_username,
+    completed_at desc
+  );
+create index if not exists quiz_attempts_session_participant_created_idx
+  on public.quiz_attempts (
+    session_id,
+    participant_username,
+    created_at desc
+  );
 
-CREATE OR REPLACE VIEW public.search_students
-WITH (security_invoker = true)
-AS
-SELECT
-  s.student_id,
-  s.teacher_id,
-  COALESCE(t.username, '') AS teacher_username,
-  s.name,
-  s.school_id,
-  s.email,
-  s.enrollment_status,
-  s.account_status,
-  s.created_at
-FROM public.student AS s
-LEFT JOIN public.teacher AS t ON t.teacher_id = s.teacher_id;
+-- Students --------------------------------------------------------------------
+drop view if exists public.search_students;
+create view public.search_students
+with (security_invoker = true)
+as
+select
+  p.user_id::text as student_id,
+  p.managed_by_teacher_id::text as teacher_id,
+  coalesce(t.username, t.email, '')::text as teacher_username,
+  coalesce(p.username, '')::text as username,
+  coalesce(p.email, '')::text as email,
+  p.created_at
+from public.account_profiles p
+left join public.teachers t on t.id = p.managed_by_teacher_id
+where p.role = 'student';
 
-CREATE OR REPLACE VIEW public.search_quizzes
-WITH (security_invoker = true)
-AS
-SELECT
-  q.quiz_id,
-  q.teacher_id,
-  COALESCE(t.username, '') AS teacher_username,
-  q.title,
-  q.status,
-  q.question_count,
+revoke all on public.search_students from anon;
+grant select on public.search_students to authenticated;
+
+-- Quizzes ---------------------------------------------------------------------
+drop view if exists public.search_quizzes;
+create view public.search_quizzes
+with (security_invoker = true)
+as
+select
+  q.session_id::text as quiz_id,
+  coalesce(q.teacher_id::text, '')::text as teacher_id,
+  coalesce(t.username, t.email, '')::text as teacher_username,
+  coalesce(q.title, 'Untitled quiz')::text as title,
+  q.status::text as status,
+  coalesce(question_count.total, 0)::integer as question_count,
   q.created_at
-FROM public.quiz AS q
-LEFT JOIN public.teacher AS t ON t.teacher_id = q.teacher_id;
+from public.quizzes q
+left join public.teachers t on t.id = q.teacher_id
+left join lateral (
+  select count(*)::integer as total
+  from public.quiz_questions qq
+  where qq.session_id = q.session_id
+) question_count on true;
 
-CREATE OR REPLACE VIEW public.search_participants
-WITH (security_invoker = true)
-AS
-SELECT
-  p.participant_id,
-  s.session_id,
-  s.session_code,
-  q.quiz_id,
-  q.title AS quiz_title,
-  p.username,
-  p.status,
-  p.score,
-  p.joined_at,
-  st.school_id AS student_school_id,
-  st.email AS student_email,
-  st.teacher_id AS student_teacher_id,
-  q.teacher_id,
-  COALESCE(t.username, '') AS teacher_username
-FROM public.participant AS p
-JOIN public.quiz_session AS s ON s.session_id = p.session_id
-JOIN public.quiz AS q ON q.quiz_id = s.quiz_id
-LEFT JOIN public.student AS st ON st.student_id = p.student_id
-LEFT JOIN public.teacher AS t ON t.teacher_id = q.teacher_id;
+revoke all on public.search_quizzes from anon;
+grant select on public.search_quizzes to authenticated;
 
-CREATE OR REPLACE VIEW public.search_teachers
-WITH (security_invoker = true)
-AS
-SELECT
-  t.teacher_id,
-  t.username,
-  t.email,
-  t.account_status,
-  COUNT(q.quiz_id)::integer AS quiz_count,
+-- Participants ----------------------------------------------------------------
+drop view if exists public.search_participants;
+create view public.search_participants
+with (security_invoker = true)
+as
+select
+  s.id::text as participant_id,
+  s.session_id::text as session_id,
+  coalesce(q.share_code, '')::text as session_code,
+  coalesce(q.session_id, s.session_id)::text as quiz_id,
+  coalesce(q.title, 'Untitled quiz')::text as quiz_title,
+  s.username::text as username,
+  case
+    when latest_result.attempt_id is not null then 'completed'
+    when latest_attempt.attempt_id is not null then 'in_progress'
+    else 'not_started'
+  end::text as status,
+  latest_result.percentage as score,
+  s.created_at as joined_at,
+  coalesce(student.email, '')::text as student_email,
+  coalesce(q.teacher_id::text, '')::text as teacher_id,
+  coalesce(t.username, t.email, '')::text as teacher_username
+from public.students s
+left join public.quizzes q on q.session_id = s.session_id
+left join public.teachers t on t.id = q.teacher_id
+left join lateral (
+  select r.attempt_id, r.percentage
+  from public.quiz_results r
+  where r.session_id = s.session_id
+    and r.participant_username = s.username
+  order by r.completed_at desc
+  limit 1
+) latest_result on true
+left join lateral (
+  select a.attempt_id
+  from public.quiz_attempts a
+  where a.session_id = s.session_id
+    and a.participant_username = s.username
+  order by a.created_at desc
+  limit 1
+) latest_attempt on true
+left join lateral (
+  select p.email
+  from public.account_profiles p
+  where p.role = 'student'
+    and (
+      p.username_key = lower(s.username)
+      or lower(p.username) = lower(s.username)
+    )
+  order by p.created_at
+  limit 1
+) student on true;
+
+revoke all on public.search_participants from anon;
+grant select on public.search_participants to authenticated;
+
+-- Teacher accounts ------------------------------------------------------------
+drop view if exists public.search_teachers;
+create view public.search_teachers
+with (security_invoker = true)
+as
+select
+  t.id::text as teacher_id,
+  coalesce(t.username, t.email, '')::text as username,
+  coalesce(t.email, '')::text as email,
+  t.status::text as status,
+  (
+    select count(*)::integer
+    from public.quizzes q
+    where q.teacher_id = t.id
+  ) as quiz_count,
   t.created_at
-FROM public.teacher AS t
-LEFT JOIN public.quiz AS q ON q.teacher_id = t.teacher_id
-GROUP BY
-  t.teacher_id,
-  t.username,
-  t.email,
-  t.account_status,
-  t.created_at;
+from public.teachers t;
 
-GRANT SELECT ON
-  public.search_students,
-  public.search_quizzes,
-  public.search_participants,
-  public.search_teachers
-TO authenticated;
+revoke all on public.search_teachers from anon;
+grant select on public.search_teachers to authenticated;

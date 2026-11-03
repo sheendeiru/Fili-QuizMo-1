@@ -162,6 +162,9 @@ async function resetTeacherPassword(ctx: Context, body: Body): Promise<Response>
 async function deleteTeacher(ctx: Context, body: Body): Promise<Response> {
   const { caller, adminClient } = ctx;
   const userId = requireUuid(body, "user_id");
+  if (userId === caller.id) {
+    throw new HttpError(403, "You cannot delete your own account");
+  }
   const teacherId = await assertTeacher(ctx, userId);
  
   const force = body.force === true;
@@ -240,4 +243,3 @@ async function deleteTeacher(ctx: Context, body: Body): Promise<Response> {
   });
 }
  
-

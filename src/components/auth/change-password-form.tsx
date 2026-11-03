@@ -4,6 +4,7 @@ import type { FormEvent } from "react";
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { FormField } from "@/components/ui/form-field";
+import { useNavigation } from "@/components/pixel";
 import { createClient } from "@/lib/supabase/client";
 import { isInvalidSession } from "@/lib/auth/session-errors";
 import {
@@ -12,7 +13,12 @@ import {
   SESSION_ENDED_EVENT,
 } from "@/lib/auth/session-state";
 
-export function ChangePasswordForm() {
+export function ChangePasswordForm({
+  returnTo,
+}: {
+  returnTo: string | null;
+}) {
+  const { beginActivity } = useNavigation();
   const [hasRecoverySession, setHasRecoverySession] = useState(false);
   const [isCheckingSession, setIsCheckingSession] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
@@ -80,6 +86,7 @@ export function ChangePasswordForm() {
 
   async function handleResetRequest(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    const finishActivity = beginActivity();
     setErrorMessage("");
     setStatusMessage("");
     setIsSubmitting(true);
@@ -89,7 +96,10 @@ export function ChangePasswordForm() {
       const email = String(formData.get("email") ?? "").trim();
       const supabase = createClient();
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: new URL("/change-password", window.location.origin).toString(),
+        redirectTo: new URL(
+          `/change-password${returnTo ? `?returnTo=${encodeURIComponent(returnTo)}` : ""}`,
+          window.location.origin,
+        ).toString(),
       });
 
       if (sessionEndedRef.current) {
@@ -117,12 +127,14 @@ export function ChangePasswordForm() {
           : "Unable to request a password reset.",
       );
     } finally {
+      finishActivity();
       setIsSubmitting(false);
     }
   }
 
   async function handlePasswordUpdate(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    const finishActivity = beginActivity();
     const form = event.currentTarget;
     setErrorMessage("");
     setStatusMessage("");
@@ -166,6 +178,7 @@ export function ChangePasswordForm() {
         error instanceof Error ? error.message : "Unable to update password.",
       );
     } finally {
+      finishActivity();
       setIsSubmitting(false);
     }
   }
@@ -182,7 +195,7 @@ export function ChangePasswordForm() {
         </p>
       ) : null}
       {statusMessage ? (
-        <p role="status" className="text-sm text-success">
+        <p role="status" className="text-sm text-px-grass-text">
           {statusMessage}
         </p>
       ) : null}

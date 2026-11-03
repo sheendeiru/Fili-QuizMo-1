@@ -1,10 +1,18 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useCallback, useEffect } from "react";
+import {
+  usePathname,
+  useRouter,
+  useSearchParams,
+} from "next/navigation";
 import { DashboardShell } from "@/components/dashboard/dashboard-shell";
 import type { DashboardNavItem } from "@/components/dashboard/dashboard-shell";
 import { logoutAndRedirect } from "@/lib/auth/logout";
+import { useNavigation } from "@/components/pixel";
+import { Button } from "@/components/ui/button";
+import { PaginatedTable } from "@/components/ui/paginated-table";
+import { PixelCard } from "@/components/ui/pixel-primitives";
 
 export type StudentHistoryRow = {
   attempt_id: string | null;
@@ -28,6 +36,10 @@ type StudentDashboardContentProps = {
     createdAt: string | null;
   };
   history: StudentHistoryRow[];
+  summaryHistory: StudentHistoryRow[];
+  historyTotal: number;
+  historyPage: number;
+  historyTotalPages: number;
 };
 
 const navItems: DashboardNavItem[] = [
@@ -79,95 +91,97 @@ function StatCard({
   hint: string;
 }) {
   return (
-    <article className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm">
+    <PixelCard as="article">
       <p className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
         {label}
       </p>
-      <p className="mt-2 text-3xl font-bold text-foreground">{value}</p>
+      <p className="mt-1 text-xl font-bold text-foreground">{value}</p>
       <p className="mt-1 text-sm text-neutral-500">{hint}</p>
-    </article>
+    </PixelCard>
   );
 }
 
 function HistoryTable({
   rows,
   emptyMessage,
+  page,
+  totalPages,
+  onPageChange,
 }: {
   rows: StudentHistoryRow[];
   emptyMessage: string;
+  page: number;
+  totalPages: number;
+  onPageChange: (page: number) => void;
 }) {
-  if (rows.length === 0) {
-    return (
-      <div className="rounded-2xl border border-dashed border-neutral-300 bg-neutral-50 p-8 text-center text-sm text-neutral-500">
-        {emptyMessage}
-      </div>
-    );
-  }
-
   return (
-    <div className="overflow-x-auto rounded-2xl border border-neutral-200 bg-white shadow-sm">
-      <table className="min-w-full divide-y divide-neutral-200 text-left text-sm">
-        <thead className="bg-neutral-50 text-xs uppercase tracking-wide text-neutral-500">
-          <tr>
-            <th scope="col" className="px-4 py-3 font-semibold">
-              Quiz
-            </th>
-            <th scope="col" className="px-4 py-3 font-semibold">
-              Attempt
-            </th>
-            <th scope="col" className="px-4 py-3 font-semibold">
-              Score
-            </th>
-            <th scope="col" className="px-4 py-3 font-semibold">
-              Percentage
-            </th>
-            <th scope="col" className="px-4 py-3 font-semibold">
-              Completed
-            </th>
-            <th scope="col" className="px-4 py-3 font-semibold">
-              Duration
-            </th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-neutral-100">
-          {rows.map((row) => (
-            <tr
-              key={`${row.attempt_id ?? row.session_id}-${row.attempt_number ?? 0}`}
-              className="hover:bg-neutral-50"
-            >
-              <td className="px-4 py-3 font-medium text-foreground">
-                {row.quiz_title ?? "Untitled quiz"}
-              </td>
-              <td className="px-4 py-3 text-neutral-600">
-                {row.attempt_number ?? "—"}
-              </td>
-              <td className="px-4 py-3 text-neutral-600">
-                {row.correct_count ?? 0}/{row.total_questions ?? 0}
-              </td>
-              <td className="px-4 py-3 font-semibold text-primary">
-                {formatPercent(row.percentage)}
-              </td>
-              <td className="px-4 py-3 text-neutral-600">
-                {formatDate(row.completed_at)}
-              </td>
-              <td className="px-4 py-3 text-neutral-600">
-                {formatDuration(row.duration_seconds)}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+    <PaginatedTable
+      caption="Quiz history"
+      columns={[
+        {
+          key: "quiz",
+          label: "Quiz",
+          render: (row) => row.quiz_title ?? "Untitled quiz",
+        },
+        {
+          key: "attempt",
+          label: "Attempt",
+          render: (row) => row.attempt_number ?? "—",
+        },
+        {
+          key: "score",
+          label: "Score",
+          render: (row) =>
+            `${row.correct_count ?? 0}/${row.total_questions ?? 0}`,
+        },
+        {
+          key: "percentage",
+          label: "Percentage",
+          render: (row) => formatPercent(row.percentage),
+        },
+        {
+          key: "completed",
+          label: "Completed",
+          render: (row) => formatDate(row.completed_at),
+        },
+        {
+          key: "duration",
+          label: "Duration",
+          render: (row) => formatDuration(row.duration_seconds),
+        },
+      ]}
+      rows={rows}
+      rowKey={(row) =>
+        `${row.attempt_id ?? row.session_id}-${row.attempt_number ?? 0}`
+      }
+      page={page}
+      totalPages={totalPages}
+      onPageChange={onPageChange}
+      emptyMessage={emptyMessage}
+    />
   );
 }
 
 export default function StudentDashboardContent({
   profile,
   history,
+  summaryHistory,
+  historyTotal,
+  historyPage,
+  historyTotalPages,
 }: StudentDashboardContentProps) {
-  const [activeKey, setActiveKey] = useState("overview");
   const router = useRouter();
-  const percentages = history
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const { navigate } = useNavigation();
+  const search = searchParams.toString();
+  const activeKey =
+    searchParams.get("tab") === "history"
+      ? "history"
+      : searchParams.get("tab") === "profile"
+        ? "profile"
+        : "overview";
+  const percentages = summaryHistory
     .map((row) => row.percentage)
     .filter(
       (value): value is number =>
@@ -181,40 +195,86 @@ export default function StudentDashboardContent({
   const best =
     percentages.length > 0 ? Math.max(...percentages) : null;
 
+  function navigateToSection(tab: string) {
+    const params = new URLSearchParams(searchParams.toString());
+    if (tab === "overview") {
+      params.delete("tab");
+    } else {
+      params.set("tab", tab);
+    }
+    if (tab !== "history") {
+      params.delete("page");
+    }
+    const query = params.toString();
+    navigate(() =>
+      router.push(query ? `${pathname}?${query}` : pathname, {
+        scroll: false,
+      }),
+    );
+  }
+
+  const navigateToPage = useCallback(
+    (page: number, replace = false) => {
+      const params = new URLSearchParams(search);
+      params.set("tab", "history");
+      if (page === 1) {
+        params.delete("page");
+      } else {
+        params.set("page", String(page));
+      }
+      navigate(() =>
+        replace
+          ? router.replace(`${pathname}?${params.toString()}`, {
+              scroll: false,
+            })
+          : router.push(`${pathname}?${params.toString()}`, {
+              scroll: false,
+            }),
+      );
+    },
+    [navigate, pathname, router, search],
+  );
+
+  useEffect(() => {
+    if (activeKey === "history" && historyPage > historyTotalPages) {
+      navigateToPage(historyTotalPages, true);
+    }
+  }, [activeKey, historyPage, historyTotalPages, navigateToPage]);
+
   return (
     <DashboardShell
       role="Student"
       navItems={navItems}
       activeKey={activeKey}
-      onNavigate={setActiveKey}
-      onLogout={() => logoutAndRedirect(router)}
+      onNavigate={navigateToSection}
+      onLogout={() => logoutAndRedirect(router, navigate)}
     >
       {activeKey === "overview" ? (
-        <div className="space-y-6">
+        <div className="space-y-3">
           <section>
-            <h2 className="text-2xl font-bold text-foreground">
+            <h2 className="text-xl font-bold text-foreground">
               Welcome back, {profile.username ?? "Student"}!
             </h2>
-            <p className="mt-1 text-sm text-neutral-500">
+            <p className="mt-1 text-sm text-px-muted">
               Here is a summary of your quiz activity.
             </p>
           </section>
 
-          <section className="grid gap-4 sm:grid-cols-3">
+          <section className="grid gap-3 sm:grid-cols-3">
             <StatCard
               label="Recorded attempts"
-              value={String(history.length)}
-              hint="Latest 100 attempts"
+              value={String(historyTotal)}
+              hint={`Showing the latest ${summaryHistory.length} in the score summary`}
             />
             <StatCard
               label="Average score"
               value={formatPercent(average)}
-              hint="Across all attempts"
+              hint={`Latest ${summaryHistory.length} attempts`}
             />
             <StatCard
               label="Best score"
               value={formatPercent(best)}
-              hint="Your highest percentage"
+              hint="Highest in latest results"
             />
           </section>
 
@@ -223,18 +283,22 @@ export default function StudentDashboardContent({
               <h3 className="text-lg font-semibold text-foreground">
                 Recent quiz history
               </h3>
-              {history.length > 5 ? (
-                <button
+              {historyTotal > 5 ? (
+                <Button
                   type="button"
-                  onClick={() => setActiveKey("history")}
-                  className="text-sm font-semibold text-secondary hover:underline focus-visible:outline"
+                  variant="accent"
+                  size="sm"
+                  onClick={() => navigateToSection("history")}
                 >
                   View all
-                </button>
+                </Button>
               ) : null}
             </div>
             <HistoryTable
-              rows={history.slice(0, 5)}
+              rows={summaryHistory.slice(0, 5)}
+              page={1}
+              totalPages={1}
+              onPageChange={() => undefined}
               emptyMessage="No quiz results yet. Your completed quizzes will appear here."
             />
           </section>
@@ -242,46 +306,51 @@ export default function StudentDashboardContent({
       ) : null}
 
       {activeKey === "history" ? (
-        <div className="space-y-4">
+        <div className="space-y-3">
           <div>
-            <h2 className="text-2xl font-bold text-foreground">
+            <h2 className="text-xl font-bold text-foreground">
               Quiz History
             </h2>
-            <p className="mt-1 text-sm text-neutral-500">
-              Your latest {history.length} recorded attempt
-              {history.length === 1 ? "" : "s"}.
+            <p className="mt-1 text-sm text-px-muted">
+              {historyTotal} recorded attempt
+              {historyTotal === 1 ? "" : "s"}.
             </p>
           </div>
           <HistoryTable
             rows={history}
+            page={historyPage}
+            totalPages={historyTotalPages}
+            onPageChange={navigateToPage}
             emptyMessage="No quiz results yet. Your completed quizzes will appear here."
           />
         </div>
       ) : null}
 
       {activeKey === "profile" ? (
-        <div className="max-w-xl space-y-4">
-          <h2 className="text-2xl font-bold text-foreground">Profile</h2>
-          <dl className="divide-y divide-neutral-100 rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm">
-            <div className="flex justify-between gap-4 py-3 first:pt-0 last:pb-0">
-              <dt className="text-sm text-neutral-500">Username</dt>
-              <dd className="text-sm font-semibold text-foreground">
-                {profile.username ?? "—"}
-              </dd>
-            </div>
-            <div className="flex justify-between gap-4 py-3 first:pt-0 last:pb-0">
-              <dt className="text-sm text-neutral-500">Email</dt>
-              <dd className="text-sm font-semibold text-foreground">
-                {profile.email ?? "—"}
-              </dd>
-            </div>
-            <div className="flex justify-between gap-4 py-3 first:pt-0 last:pb-0">
-              <dt className="text-sm text-neutral-500">Member since</dt>
-              <dd className="text-sm font-semibold text-foreground">
-                {formatDate(profile.createdAt)}
-              </dd>
-            </div>
-          </dl>
+        <div className="max-w-xl space-y-3">
+          <h2 className="text-xl font-bold text-foreground">Profile</h2>
+          <PixelCard as="article" className="divide-y divide-neutral-200">
+            <dl>
+              <div className="flex justify-between gap-4 py-3 first:pt-0 last:pb-0">
+                <dt className="text-sm text-neutral-500">Username</dt>
+                <dd className="text-sm font-semibold text-foreground">
+                  {profile.username ?? "—"}
+                </dd>
+              </div>
+              <div className="flex justify-between gap-4 py-3 first:pt-0 last:pb-0">
+                <dt className="text-sm text-neutral-500">Email</dt>
+                <dd className="text-sm font-semibold text-foreground">
+                  {profile.email ?? "—"}
+                </dd>
+              </div>
+              <div className="flex justify-between gap-4 py-3 first:pt-0 last:pb-0">
+                <dt className="text-sm text-neutral-500">Member since</dt>
+                <dd className="text-sm font-semibold text-foreground">
+                  {formatDate(profile.createdAt)}
+                </dd>
+              </div>
+            </dl>
+          </PixelCard>
         </div>
       ) : null}
     </DashboardShell>

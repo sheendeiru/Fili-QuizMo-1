@@ -1,6 +1,6 @@
 # Fili-QuizMo
 
-Fili-QuizMo is a responsive quiz platform website built with Next.js, React, and Tailwind CSS. Admin and teacher authentication use separate Supabase roles; admin access also requires TOTP multi-factor authentication. Dashboard summary cards and charts remain demo data; the search lists use demo rows in development and the Supabase search views in production.
+Fili-QuizMo is a responsive quiz platform website built with Next.js, React, and Tailwind CSS. Admin, teacher, and student access use live Supabase membership tables; admin access also requires TOTP multi-factor authentication. Dashboard summary cards, recent activity, and score charts read live Supabase data. The search lists use demo rows in development and the Supabase search views in production.
 
 ## Getting Started
 
@@ -29,12 +29,19 @@ The project is built with Webpack because the Turbopack native bindings are unav
 | `/`                  | Home page with app overview, carousel, and team      |
 | `/about`             | About Us                                             |
 | `/about-app`         | About the App with the APK download                  |
-| `/signup`            | Account sign-up with school ID                       |
+| `/signup`            | Student or pending-teacher account sign-up           |
+| `/complete-profile`  | One-time username setup for confirmed accounts       |
+| `/login`             | Shared login chooser                                 |
+| `/student-login`     | Student login                                        |
 | `/teacher-login`     | Teacher login                                        |
-| `/admin-login`       | Admin login                                          |
+| `/admin-login`       | Admin login with TOTP multi-factor authentication    |
+| `/change-password`   | Authenticated password change                        |
+| `/student-dashboard` | Student profile and personal quiz history            |
 | `/teacher-dashboard` | Teacher dashboard with quizzes, students, and scores |
 | `/admin-dashboard`   | Admin dashboard for quizzes and teacher management   |
-| `/api/export`       | Authenticated, role-scoped CSV and Excel exports     |
+| `/api/search`        | Authenticated, role-scoped dashboard search          |
+| `/api/export`        | Authenticated, role-scoped CSV and Excel exports     |
+| `/api/admin/teachers/status` | Admin-only teacher approval mutation        |
 
 ## Supabase authentication setup
 
@@ -46,13 +53,23 @@ The project is built with Webpack because the Turbopack native bindings are unav
    NEXT_PUBLIC_SITE_URL=http://localhost:3000
    ```
 
-   Set `NEXT_PUBLIC_SITE_URL` to the deployed app origin in production; it is used to resolve social metadata images.
+   Set `NEXT_PUBLIC_SITE_URL` to the deployed app origin in production; it is used for auth redirects and social metadata images. In the Supabase dashboard, set the Auth Site URL to the same origin and add `/auth/confirm` and `/change-password` to the allowed redirect URLs.
 
-2. Create admin and teacher users through Supabase Auth or another trusted provisioning process. Set each user's trusted `app_metadata.role` to exactly `admin` or `teacher`, respectively. The admin login rejects teacher accounts, and the teacher login rejects admin accounts. Role values in user-editable `user_metadata` are not used for authorization.
-3. Do not allow public sign-up to assign roles. Only a trusted administrator or server-side process should set `app_metadata.role`; never expose a Supabase service-role/secret key in browser code.
-4. On an admin's first password sign-in, the admin is prompted to enroll an authenticator app and verify its current TOTP code. Subsequent admin sign-ins require that code. The `/admin-dashboard` server route independently verifies the authenticated user, `admin` role, and AAL2 before rendering.
-5. The `/teacher-dashboard` server route independently verifies the authenticated user and `teacher` role. Both dashboard routes enforce authorization on the server; the proxy refreshes Supabase cookies but is not the authorization boundary.
-6. Keep database access protected with Row Level Security. Policies for admin-only data should validate trusted admin metadata and `auth.jwt()->>'aal' = 'aal2'`; teacher policies should validate the trusted teacher role. Route protection does not replace database authorization.
+2. Role membership lives in the live database, not in user-editable metadata:
+
+   - `admins.user_id` grants admin access.
+   - `teachers.user_id` with `teachers.status = 'approved'` grants teacher access.
+   - `account_profiles.user_id` with `role = 'student'` grants student access.
+
+3. Public sign-up creates only a student profile. Teacher sign-up is allowed but creates a `teachers` row with `status = 'pending'`; an admin must approve it before the teacher can sign in. Admin rows are never created by public sign-up. Provision admins through a trusted server-side process.
+
+4. Email confirmation is required before a new account can sign in. `/auth/confirm` exchanges the confirmation link for a session and sends the user to `/complete-profile` when a username is still missing.
+
+5. On an admin's first password sign-in, the admin is prompted to enroll an authenticator app and verify its current TOTP code. Subsequent admin sign-ins require that code. The `/admin-dashboard` server route independently verifies the authenticated user, admin membership, active state, and AAL2 before rendering.
+
+6. The `/teacher-dashboard` and `/student-dashboard` server routes independently verify membership and active state. The proxy refreshes Supabase cookies but is not the authorization boundary.
+
+7. Keep database access protected with Row Level Security. Admin policies use `is_admin()`; teacher policies use `current_teacher_id()` and `owns_quiz()`. Route protection does not replace database authorization.
 
 The Supabase anon/publishable key is intended for browser use and does not bypass Row Level Security. Never expose a Supabase service-role/secret key in a `NEXT_PUBLIC_*` variable or client-side code.
 
@@ -67,10 +84,10 @@ The reusable dashboard search UI calls `GET /api/search`. The server derives the
 Example:
 
 ```http
-GET /api/search?entity=participants&q=maria&status=completed&session=SESS-1042&from=2026-09-01&to=2026-10-01&sort=date&dir=desc&page=1&pageSize=20
+GET /api/search?entity=participants&q=maria&status=completed&session=FMBFE4&from=2026-09-01&to=2026-10-01&sort=date&dir=desc&page=1&pageSize=20
 ```
 
-Supported query fields are `entity` (`students`, `quizzes`, `participants`, or admin-only `teachers`), `q`, `status`, teacher username, admin-only `accountStatus`, participant `quiz` and `session`, `from`, `to`, `sort` (`name`, `date`, `status`), `dir`, `page`, and `pageSize` (capped at 100). The response contains `items`, server-side `pagination`, and role/scope metadata. Errors use `{ "error": { "code": "...", "message": "..." } }`. Search/filter/sort/page state is reflected in the dashboard URL. Passwords are never searched or returned.
+Supported query fields are `entity` (`students`, `quizzes`, `participants`, or admin-only `teachers`), `q`, `status`, admin-only `teacher` username, participant `quiz` and `session` (share code), `from`, `to`, `sort` (`name`, `date`, or `status` when the entity supports it), `dir`, `page`, and `pageSize` (capped at 100). The response contains `items`, server-side `pagination`, and role/scope metadata. Errors use `{ "error": { "code": "...", "message": "..." } }`. Search/filter/sort/page state is reflected in the dashboard URL. Passwords are never searched or returned.
 
 Example success response:
 
@@ -86,8 +103,7 @@ Example success response:
       "quizId": "quiz-id",
       "quizTitle": "Science Fundamentals",
       "sessionId": "session-id",
-      "sessionCode": "SESS-SCI-2081",
-      "studentSchoolId": "LES-2026-001",
+      "sessionCode": "FMBFE4",
       "studentEmail": "maria@example.test",
       "teacherId": "teacher-id",
       "teacherUsername": "msantos",
@@ -103,10 +119,9 @@ Example success response:
     "filters": {
       "q": "maria",
       "status": "completed",
-      "accountStatus": null,
       "teacher": "",
       "quiz": "",
-      "session": "SESS-1042",
+      "session": "FMBFE4",
       "from": "2026-09-01",
       "to": "2026-10-01"
     },
@@ -116,16 +131,16 @@ Example success response:
       "Participant username",
       "Participant status",
       "Quiz title",
-      "School ID",
+      "Session code",
       "Email"
     ]
   }
 }
 ```
 
-For local development, the endpoint defaults to deterministic mock data; use `SEARCH_DATA_SOURCE=mock` or `SEARCH_DATA_SOURCE=supabase` to choose explicitly. Production defaults to Supabase. Apply `supabase/migrations/202610290001_search_views_and_indexes.sql` before enabling the Supabase source. That migration assumes `public.student`, `public.teacher`, `public.quiz`, `public.quiz_session`, and `public.participant` with the columns used by the search views. Adapt those view definitions and indexes if the deployed schema differs. The views use `security_invoker`; existing table grants and RLS policies must allow teachers only their own rows and admins only their permitted rows (including the existing AAL2 requirement). The API also applies a trusted teacher scope before all user filters; participant rows are scoped by the linked student's `teacher_id`, so unlinked/guest participants and another teacher's students are not exposed to teachers.
+For local development, the endpoint defaults to deterministic mock data; use `SEARCH_DATA_SOURCE=mock` or `SEARCH_DATA_SOURCE=supabase` to choose explicitly. Production defaults to Supabase. Apply `supabase/migrations/202610290001_search_views_and_indexes.sql` before enabling the Supabase source. The migration builds four `security_invoker` views on the live schema: `search_students` from `account_profiles` joined to managing teachers, `search_quizzes` from `quizzes`, `search_participants` from the `students` roster with the latest attempt/result, and `search_teachers` from `teachers`. The views expose only the columns listed in `src/lib/search/config.ts`. The API applies a trusted teacher scope before all user filters; participant rows are scoped by the quiz owner (`quizzes.teacher_id`), so another teacher's rows are not exposed.
 
-The migration adds B-tree indexes for teacher/status/date/join columns and `pg_trgm` GIN indexes for substring-matched text columns. Trigram indexes support the `%term%` `ILIKE` searches without requiring a separate full-text search language configuration. Password columns are intentionally absent from views and indexes.
+The migration adds B-tree indexes for teacher/status/date/join columns and `pg_trgm` GIN indexes for substring-matched text columns. Trigram indexes support the `%term%` `ILIKE` searches without requiring a separate full-text search language configuration. Password columns are intentionally absent from views and indexes. `supabase/migrations/202611030001_guard_teacher_status.sql` optionally closes a pre-existing RLS gap that lets a teacher update their own `teachers.status`; apply it with the search migration or replace it with an equivalent policy change.
 
 To add a filter field, add its key to `SearchFilterKey`, define role/entity visibility in `FILTER_DEFINITIONS`, expose the field in the corresponding `entityConfigs` view/select/filter configuration, parse and validate it in `validation.ts`, apply it in `query-builder.ts`, then add its control/chip in `SearchFilter` and any required view/index changes to a migration. Add query-builder and role-scope tests for the new field.
 
@@ -142,6 +157,6 @@ Exports include all matching rows, not just the current dashboard page, and are 
 
 ## Notes
 
-- Both login forms use Supabase Auth. Account registration and dashboard summary data remain mock implementations; provision roles in trusted `app_metadata` before the account can enter its role's dashboard.
+- Both login forms use Supabase Auth. Public sign-up creates student profiles or pending teacher accounts; admin access is provisioned in the `admins` table. Dashboard summary cards, recent activity, and score charts read the live tables allowed by RLS.
 - The Android package is available at `public/assets/Fili-QuizMo-1.0.0.apk`.
 - The app favicon is generated from `Fili-QuizMo Logo.png`.

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { useNavigation } from "@/components/pixel";
 import { getStatusLabel } from "@/lib/search/config";
 import type { DashboardTeacher } from "@/lib/dashboard/data";
 import type { TeacherStatusUpdate } from "@/lib/auth/teacher-status";
@@ -36,6 +37,7 @@ export function TeacherApprovalList({
   teachers,
 }: TeacherApprovalListProps) {
   const router = useRouter();
+  const { navigate } = useNavigation();
   const [overrides, setOverrides] = useState<
     Record<string, TeacherStatusUpdate>
   >({});
@@ -87,7 +89,7 @@ export function TeacherApprovalList({
         ...current,
         [teacherId]: status,
       }));
-      router.refresh();
+      navigate(() => router.refresh());
     } catch (caught) {
       setError(
         caught instanceof Error

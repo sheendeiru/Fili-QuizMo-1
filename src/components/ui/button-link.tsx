@@ -1,8 +1,13 @@
 import type { AnchorHTMLAttributes, ReactNode } from "react";
-import Link from "next/link";
+import { NavLink } from "@/components/pixel";
+import {
+  pixelButtonVariants,
+  type PixelButtonVariant,
+} from "@/components/ui/pixel-primitives";
 
 type ButtonLinkProps = {
-  variant?: "primary" | "secondary" | "outline";
+  variant?: PixelButtonVariant;
+  size?: "sm" | "md";
   className?: string;
   children: ReactNode;
   href: string;
@@ -10,27 +15,19 @@ type ButtonLinkProps = {
 
 export function ButtonLink({
   variant = "primary",
+  size = "md",
   className = "",
   children,
   href,
   ...props
 }: ButtonLinkProps) {
-  const baseStyles =
-    "inline-flex items-center justify-center rounded-lg px-5 py-3 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2";
-
-  const variantStyles = {
-    primary: "bg-primary text-primary-foreground hover:bg-primary/90",
-    secondary: "bg-secondary text-secondary-foreground border border-secondary-foreground/20 hover:bg-secondary/80",
-    outline: "border border-primary text-primary hover:bg-primary/5",
-  };
-
   return (
-    <Link
+    <NavLink
       href={href}
-      className={`${baseStyles} ${variantStyles[variant]} ${className}`}
+      className={`pixel-button inline-flex items-center justify-center border-2 font-semibold transition-[background-color,color,transform,box-shadow] duration-100 ease-[steps(2,end)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent ${size === "sm" ? "h-9 px-3 text-xs" : "h-10 px-4 text-sm"} ${pixelButtonVariants[variant]} ${className}`}
       {...props}
     >
       {children}
-    </Link>
+    </NavLink>
   );
 }

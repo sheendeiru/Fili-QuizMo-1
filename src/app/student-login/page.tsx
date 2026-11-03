@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import { NavLink } from "@/components/pixel";
 import { Suspense } from "react";
 import { AuthShell } from "@/components/auth/auth-shell";
 import { StudentLoginForm } from "@/components/auth/student-login-form";
@@ -43,7 +43,7 @@ async function LoginStatusContent({
   return (
     <p
       role={confirmed ? "status" : "alert"}
-      className={`mb-5 text-sm ${confirmed ? "text-success" : "text-danger"}`}
+      className={`mb-5 text-sm ${confirmed ? "text-px-grass-text" : "text-danger"}`}
     >
       {message}
     </p>
@@ -60,20 +60,20 @@ export default function StudentLoginPage({
       footer={
         <>
           Need an account?{" "}
-          <Link
+          <NavLink
             href="/signup"
-            className="font-semibold text-secondary hover:underline focus-visible:outline"
+            className="font-semibold text-px-gold-text hover:underline focus-visible:outline"
           >
             Sign up
-          </Link>
+          </NavLink>
           <span className="block pt-3">
             Teacher?{" "}
-            <Link
+            <NavLink
               href="/teacher-login"
-              className="font-semibold text-secondary hover:underline focus-visible:outline"
+              className="font-semibold text-px-gold-text hover:underline focus-visible:outline"
             >
               Teacher Log In
-            </Link>
+            </NavLink>
           </span>
         </>
       }

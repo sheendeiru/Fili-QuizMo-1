@@ -1,12 +1,14 @@
 "use client";
 
-import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { NavLink } from "@/components/pixel";
+import { usePathname, useRouter } from "next/navigation";
+import { useNavigation } from "@/components/pixel";
 import type { FormEvent } from "react";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { FormField } from "@/components/ui/form-field";
 import { Spinner } from "@/components/ui/spinner";
+import { PolicyConsent } from "@/components/auth/policy-consent";
 import {
   createAccountRoleLookup,
   resolveAccountAccess,
@@ -46,6 +48,8 @@ function initialErrorMessage(status?: string): string {
 
 export function StudentLoginForm({ status }: { status?: string }) {
   const router = useRouter();
+  const { navigate, beginActivity } = useNavigation();
+  const pathname = usePathname();
   const [errorMessage, setErrorMessage] = useState(
     initialErrorMessage(status),
   );
@@ -55,6 +59,7 @@ export function StudentLoginForm({ status }: { status?: string }) {
       : "",
   );
   const [isLoading, setIsLoading] = useState(false);
+  const [consentAccepted, setConsentAccepted] = useState(false);
 
   useEffect(() => {
     function clearMessages() {
@@ -70,6 +75,9 @@ export function StudentLoginForm({ status }: { status?: string }) {
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (isLoading) return;
+    if (!consentAccepted) return;
+    const finishActivity = beginActivity();
     const form = event.currentTarget;
     setErrorMessage("");
     setNoticeMessage("");
@@ -111,15 +119,19 @@ export function StudentLoginForm({ status }: { status?: string }) {
 
       if (access.state === "unregistered") {
         clearSensitiveFormFields(form);
-        router.replace("/complete-profile");
-        router.refresh();
+        navigate(() => {
+          router.replace("/complete-profile");
+          router.refresh();
+        });
         return;
       }
 
       if (access.role === "student" && access.state === "active") {
         clearSensitiveFormFields(form);
-        router.replace("/student-dashboard");
-        router.refresh();
+        navigate(() => {
+          router.replace("/student-dashboard");
+          router.refresh();
+        });
         return;
       }
 
@@ -162,6 +174,7 @@ export function StudentLoginForm({ status }: { status?: string }) {
           : "Unable to sign in securely.",
       );
     } finally {
+      finishActivity();
       setIsLoading(false);
     }
   }
@@ -186,16 +199,21 @@ export function StudentLoginForm({ status }: { status?: string }) {
         autoComplete="current-password"
         required
       />
+      <PolicyConsent
+        id="student-login-consent"
+        checked={consentAccepted}
+        onChange={setConsentAccepted}
+      />
       <div className="-mt-2 text-right">
-        <Link
-          href="/change-password"
-          className="text-xs font-semibold text-secondary hover:underline focus-visible:outline"
+        <NavLink
+          href={`/change-password?returnTo=${encodeURIComponent(pathname)}`}
+          className="text-xs font-semibold text-px-gold-text hover:underline focus-visible:outline"
         >
           Forgot password?
-        </Link>
+        </NavLink>
       </div>
       {noticeMessage ? (
-        <p role="status" className="text-sm text-success">
+        <p role="status" className="text-sm text-px-grass-text">
           {noticeMessage}
         </p>
       ) : null}
@@ -204,7 +222,12 @@ export function StudentLoginForm({ status }: { status?: string }) {
           {errorMessage}
         </p>
       ) : null}
-      <Button type="submit" className="w-full" disabled={isLoading}>
+      <Button
+        type="submit"
+        className="w-full"
+        disabled={isLoading || !consentAccepted}
+        aria-busy={isLoading}
+      >
         {isLoading ? (
           <span className="inline-flex items-center gap-2">
             <Spinner className="h-4 w-4" />

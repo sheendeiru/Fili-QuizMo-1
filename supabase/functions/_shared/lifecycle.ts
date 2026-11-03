@@ -110,6 +110,16 @@ export async function requireAdmin(userClient: SupabaseClient): Promise<void> {
     throw new HttpError(500, "Authorization check failed");
   }
   if (data !== true) throw new HttpError(403, "Admins only");
+
+  const { data: assurance, error: assuranceError } =
+    await userClient.auth.mfa.getAuthenticatorAssuranceLevel();
+  if (assuranceError) {
+    console.error("Admin security level lookup failed:", assuranceError.message);
+    throw new HttpError(503, "Security level check failed");
+  }
+  if (assurance.currentLevel !== "aal2") {
+    throw new HttpError(403, "Admin account management requires MFA");
+  }
 }
 
 // ---------------------------------------------------------------------

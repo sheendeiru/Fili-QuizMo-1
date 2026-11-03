@@ -2,9 +2,10 @@
 
 import Image from "next/image";
 import { useState } from "react";
+import { PixelAvatar, PixelCard } from "@/components/pixel";
 
 type TeamCardProps = {
-  image: string;
+  image?: string | null;
   name: string;
   role: string;
 };
@@ -13,25 +14,32 @@ export function TeamCard({ image, name, role }: TeamCardProps) {
   const [imageFailed, setImageFailed] = useState(false);
 
   return (
-    <article className="group flex h-full flex-col overflow-hidden border border-neutral-200 bg-surface shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-primary/5">
-      <div className="relative aspect-[4/5] w-full overflow-hidden bg-neutral-100">
-        <Image
-          src={imageFailed ? "/assets/Default_pfp.jpg" : image}
-          alt={name}
-          fill
-          sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
-          onError={() => setImageFailed(true)}
-          className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-        />
+    <PixelCard
+      as="article"
+      className="group flex h-full flex-col overflow-hidden p-0 transition-transform duration-100 ease-[steps(2,end)] hover:-translate-y-1"
+    >
+      <div className="relative flex aspect-[4/5] w-full items-center justify-center overflow-hidden bg-px-night">
+        {image && !imageFailed ? (
+          <Image
+            src={image}
+            alt={name}
+            fill
+            sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+            onError={() => setImageFailed(true)}
+            className="pixel-sprite object-cover"
+          />
+        ) : (
+          <PixelAvatar name={name} className="w-2/3" />
+        )}
       </div>
-      <div className="flex-1 p-4 sm:p-5">
-        <h3 className="text-sm font-semibold text-foreground sm:text-base">
+      <div className="flex flex-1 flex-col items-start p-4 sm:p-5">
+        <h3 className="text-sm font-semibold text-px-text-dark sm:text-base">
           {name}
         </h3>
-        <p className="mt-2 inline-flex bg-primary px-2.5 py-1 text-[0.65rem] font-semibold text-indigo-100 sm:px-3 sm:text-xs">
+        <p className="pixel-border mt-3 inline-flex border border-px-gold-dk bg-px-gold px-2.5 py-1 text-xs font-semibold text-px-text-dark sm:px-3">
           {role}
         </p>
       </div>
-    </article>
+    </PixelCard>
   );
 }
