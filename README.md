@@ -84,10 +84,10 @@ The reusable dashboard search UI calls `GET /api/search`. The server derives the
 Example:
 
 ```http
-GET /api/search?entity=participants&q=maria&status=completed&session=FMBFE4&from=2026-09-01&to=2026-10-01&sort=date&dir=desc&page=1&pageSize=20
+GET /api/search?entity=participants&q=maria&status=completed&session=FMBFE4&from=2026-09-01&to=2026-10-01&sort=date&dir=desc&page=1&pageSize=5
 ```
 
-Supported query fields are `entity` (`students`, `quizzes`, `participants`, or admin-only `teachers`), `q`, `status`, admin-only `teacher` username, participant `quiz` and `session` (share code), `from`, `to`, `sort` (`name`, `date`, or `status` when the entity supports it), `dir`, `page`, and `pageSize` (capped at 100). The response contains `items`, server-side `pagination`, and role/scope metadata. Errors use `{ "error": { "code": "...", "message": "..." } }`. Search/filter/sort/page state is reflected in the dashboard URL. Passwords are never searched or returned.
+Supported query fields are `entity` (`students`, `quizzes`, `participants`, or admin-only `teachers`), `q`, `status`, admin-only `teacher` username, participant `quiz` and `session` (share code), `from`, `to`, `sort` (`name`, `date`, or `status` when the entity supports it), `dir`, `page`, and `pageSize` (capped at 5). The response contains `items`, server-side `pagination`, and role/scope metadata. Errors use `{ "error": { "code": "...", "message": "..." } }`. Search/filter/sort/page state is reflected in the dashboard URL. Passwords are never searched or returned.
 
 Example success response:
 
@@ -110,7 +110,7 @@ Example success response:
       "joinedAt": "2026-09-10T09:00:00.000Z"
     }
   ],
-  "pagination": { "page": 1, "pageSize": 20, "total": 1, "totalPages": 1 },
+  "pagination": { "page": 1, "pageSize": 5, "total": 1, "totalPages": 1 },
   "meta": {
     "entity": "participants",
     "role": "teacher",

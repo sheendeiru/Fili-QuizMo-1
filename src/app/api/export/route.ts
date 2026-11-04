@@ -149,13 +149,14 @@ async function excelStream(
     stream: output,
     useStyles: true,
   });
-  const worksheet = workbook.addWorksheet("Fili-QuizMo export");
+  const worksheet = workbook.addWorksheet("Fili-QuizMo export", {
+    views: [{ state: "frozen", ySplit: 1 }],
+  });
 
   worksheet.columns = columns.map((column) => ({
     key: column.key,
     width: Math.min(Math.max(column.label.length + 4, 14), 36),
   }));
-  worksheet.views = [{ state: "frozen", ySplit: 1 }];
   const header = worksheet.addRow(columns.map((column) => column.label));
   header.font = { bold: true };
   header.commit();

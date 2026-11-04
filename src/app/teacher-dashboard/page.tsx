@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import { connection } from "next/server";
 import { forbidden } from "next/navigation";
 import TeacherDashboardContent from "@/components/dashboard/teacher-dashboard-content";
 import { DashboardSkeleton } from "@/components/dashboard/dashboard-skeleton";
@@ -13,6 +14,7 @@ async function TeacherDashboardData({ teacherId }: { teacherId: number }) {
 }
 
 export default async function TeacherDashboardPage() {
+  await connection();
   const { access } = await requireTeacherAccess();
   if (access.teacherId === null) {
     forbidden();

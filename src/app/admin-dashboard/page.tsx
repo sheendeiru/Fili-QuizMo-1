@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import { connection } from "next/server";
 import AdminDashboardContent from "@/components/dashboard/admin-dashboard-content";
 import { DashboardSkeleton } from "@/components/dashboard/dashboard-skeleton";
 import { requireAdminAccess } from "@/lib/auth/require-dashboard-access";
@@ -12,6 +13,7 @@ async function AdminDashboardData() {
 }
 
 export default async function AdminDashboardPage() {
+  await connection();
   await requireAdminAccess();
   return (
     <Suspense
