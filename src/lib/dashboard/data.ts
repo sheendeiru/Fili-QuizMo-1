@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/database.types";
+import { buildLeaderboards, type LeaderboardData } from "./leaderboard";
 import {
   buildScoreDistribution,
   scoreStatusLabel,
@@ -70,6 +71,7 @@ export type TeacherDashboardData = {
   recentQuizzes: DashboardQuiz[];
   recentScores: DashboardScore[];
   distributions: ScoreDistribution[];
+  leaderboards: LeaderboardData;
 };
 
 type QuizRow = {
@@ -333,6 +335,7 @@ export async function loadTeacherDashboardData(
   const results = (resultsResult.data ?? []) as ResultRow[];
 
   return {
+    leaderboards: buildLeaderboards(results),
     quizzes: quizSummary(quizzes),
     studentCount: uniqueStudents.size,
     results: resultSummary(results),

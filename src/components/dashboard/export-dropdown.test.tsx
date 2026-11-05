@@ -33,27 +33,38 @@ describe("export dropdown", () => {
 
   it("preserves applicable URL filters and resets pagination for export checks", () => {
     const params = createExportSearchParams(
-      "entity=participants&q=maria&session=SESS-1&from=2026-09-01&page=4&pageSize=20",
+      "entity=students&q=maria&session=SESS-1&from=2026-09-01&page=4&pageSize=20",
       "teacher",
-      "participants",
+      "students",
     );
 
     expect(params.get("q")).toBe("maria");
     expect(params.get("session")).toBe("SESS-1");
     expect(params.get("from")).toBe("2026-09-01");
     expect(params.get("page")).toBe("1");
-    expect(params.get("pageSize")).toBe("1");
+    expect(params.get("pageSize")).toBe("5");
   });
 
   it("does not copy incompatible filters when a different dataset is selected", () => {
     const params = createExportSearchParams(
-      "entity=students&status=active&from=2026-09-01",
+      "entity=students&status=completed&from=2026-09-01",
       "admin",
-      "participants",
+      "quizzes",
     );
 
-    expect(params.get("entity")).toBe("participants");
+    expect(params.get("entity")).toBe("quizzes");
     expect(params.has("status")).toBe(false);
     expect(params.has("from")).toBe(false);
+  });
+
+  it("does not offer participants as an export dataset", () => {
+    for (const role of ["teacher", "admin"] as const) {
+      const markup = renderToStaticMarkup(
+        createElement(ExportDropdown, { role }),
+      );
+
+      expect(markup).not.toContain('value="participants"');
+      expect(markup).toContain('value="students"');
+    }
   });
 });

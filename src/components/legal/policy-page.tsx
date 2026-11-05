@@ -28,7 +28,7 @@ export function PolicyPage({
 
         <header className="pixel-border border-2 border-ink bg-surface p-3 text-ink shadow-[3px_3px_0_var(--color-ink)] sm:p-4">
           <p className="text-xs font-semibold text-ink">
-            Last updated: [EFFECTIVE DATE]
+            Last updated: November 5, 2026
           </p>
           <h1 className="mt-2 text-xl font-bold sm:text-2xl">{title}</h1>
           <p className="mt-2 text-sm">{description}</p>

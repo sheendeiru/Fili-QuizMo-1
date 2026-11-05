@@ -43,14 +43,14 @@ export function CompleteProfileForm({
 }) {
   const router = useRouter();
   const { navigate } = useNavigation();
-  const [role, setRole] =
-    useState<CompleteProfileRole>(initialRole);
+  // Locked accounts (e.g. students created by a teacher) keep their role.
+  // Anyone else completing a profile here can only become a teacher.
+  const role: CompleteProfileRole = roleLocked ? initialRole : "teacher";
   const [errorMessage, setErrorMessage] = useState(initialError);
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     function clearProfileState() {
-      setRole(initialRole);
       setErrorMessage("");
       setIsLoading(false);
     }
@@ -58,7 +58,7 @@ export function CompleteProfileForm({
     window.addEventListener(SESSION_ENDED_EVENT, clearProfileState);
     return () =>
       window.removeEventListener(SESSION_ENDED_EVENT, clearProfileState);
-  }, [initialRole]);
+  }, []);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -125,47 +125,20 @@ export function CompleteProfileForm({
         </p>
       ) : null}
 
-      {roleLocked ? (
+      <div>
         <p className="text-sm text-neutral-600">
           Account type:{" "}
           <strong className="text-foreground">
             {role === "teacher" ? "Teacher" : "Student"}
           </strong>
         </p>
-      ) : (
-        <div>
-          <p className="text-sm font-medium text-foreground">
-            Account type
-          </p>
-          <div
-            role="group"
-            aria-label="Account type"
-            className="mt-2 grid grid-cols-2 gap-2"
-          >
-            <Button
-              type="button"
-              variant={role === "student" ? "primary" : "outline"}
-              aria-pressed={role === "student"}
-              onClick={() => setRole("student")}
-            >
-              Student
-            </Button>
-            <Button
-              type="button"
-              variant={role === "teacher" ? "accent" : "outline"}
-              aria-pressed={role === "teacher"}
-              onClick={() => setRole("teacher")}
-            >
-              Teacher
-            </Button>
-          </div>
+        {role === "teacher" ? (
           <p className="mt-2 text-xs text-neutral-500">
-            {role === "student"
-              ? "Student accounts can track quiz history and scores."
-              : "Teacher accounts are created as pending and need administrator approval before sign-in."}
+            Teacher accounts are created as pending and need administrator
+            approval before sign-in.
           </p>
-        </div>
-      )}
+        ) : null}
+      </div>
 
       <div>
         <FormField

@@ -78,9 +78,6 @@ export default function StudentLoginPage({
         </>
       }
     >
-      <Suspense fallback={null}>
-        <LoginStatusContent searchParams={searchParams} />
-      </Suspense>
       <StudentLoginForm status={undefined} />
     </AuthShell>
   );

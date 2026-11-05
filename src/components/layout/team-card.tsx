@@ -32,14 +32,15 @@ export function TeamCard({ image, name, role }: TeamCardProps) {
           <PixelAvatar name={name} className="w-2/3" />
         )}
       </div>
-      <div className="flex flex-1 flex-col items-start p-4 sm:p-5">
-        <h3 className="text-sm font-semibold text-px-text-dark sm:text-base">
+      <div className="flex flex-1 flex-col p-4 sm:p-5">
+        <h3 className="flex-1 text-center text-sm font-semibold leading-tight text-px-text-dark sm:text-base">
           {name}
         </h3>
-        <p className="pixel-border mt-3 inline-flex border border-px-gold-dk bg-px-gold px-2.5 py-1 text-xs font-semibold text-px-text-dark sm:px-3">
+        <p className="pixel-border mt-3 flex min-h-11 w-full items-center justify-center border border-px-gold-dk bg-px-gold px-2.5 py-1 text-center text-sm font-semibold leading-5 text-px-text-dark sm:px-3">
           {role}
         </p>
       </div>
+
     </PixelCard>
   );
 }

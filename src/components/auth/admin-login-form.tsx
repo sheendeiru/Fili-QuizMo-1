@@ -9,7 +9,6 @@ import { NavLink } from "@/components/pixel";
 import { Button } from "@/components/ui/button";
 import { FormField } from "@/components/ui/form-field";
 import { Spinner } from "@/components/ui/spinner";
-import { PolicyConsent } from "@/components/auth/policy-consent";
 import {
   createAccountRoleLookup,
   resolveAccountAccess,
@@ -69,7 +68,6 @@ export function AdminLoginForm({
       : "",
   );
   const [isLoading, setIsLoading] = useState(false);
-  const [consentAccepted, setConsentAccepted] = useState(false);
 
   useEffect(() => {
     function clearMfaState() {
@@ -90,7 +88,6 @@ export function AdminLoginForm({
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (isLoading) return;
-    if (step === "credentials" && !consentAccepted) return;
     const finishActivity = beginActivity();
     const form = event.currentTarget;
     setErrorMessage("");
@@ -310,11 +307,7 @@ export function AdminLoginForm({
             autoComplete="current-password"
             required
           />
-          <PolicyConsent
-            id="admin-login-consent"
-            checked={consentAccepted}
-            onChange={setConsentAccepted}
-          />
+          
           <div className="-mt-2 text-right">
             <NavLink
               href={`/change-password?returnTo=${encodeURIComponent(pathname)}`}
@@ -379,7 +372,6 @@ export function AdminLoginForm({
       <Button
         type="submit"
         className="w-full"
-        disabled={isLoading || (step === "credentials" && !consentAccepted)}
         aria-busy={isLoading}
       >
         {isLoading ? (

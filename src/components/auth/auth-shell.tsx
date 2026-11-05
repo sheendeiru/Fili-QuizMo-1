@@ -25,7 +25,7 @@ export function AuthShell({
         <div className="w-full max-w-md border-2 border-ink bg-surface p-4 text-ink shadow-[4px_4px_0_var(--color-ink)] sm:p-5">
           <div className="mb-3 flex justify-center">
             <Image
-              src="/assets/role_select.jpg"
+              src="/assets/Fili-QuizMo Logo.png"
               alt=""
               aria-hidden="true"
               width={940}

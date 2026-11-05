@@ -23,7 +23,8 @@ import {
 } from "@/lib/auth/session-state";
 import { POLICY_VERSION } from "@/lib/legal/policy-version";
 
-type SignupRole = "student" | "teacher";
+// Only teachers can self-register. Students get accounts created by their teacher.
+type SignupRole = "teacher";
 
 type ProfileResponse = {
   destination?: string;
@@ -53,7 +54,7 @@ function friendlySignupError(message: string): string {
 export function SignupForm() {
   const router = useRouter();
   const { navigate, beginActivity } = useNavigation();
-  const [role, setRole] = useState<SignupRole>("student");
+  const role: SignupRole = "teacher";
   const [errorMessage, setErrorMessage] = useState("");
   const [statusMessage, setStatusMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -61,7 +62,6 @@ export function SignupForm() {
 
   useEffect(() => {
     function clearSignupState() {
-      setRole("student");
       setErrorMessage("");
       setStatusMessage("");
       setIsLoading(false);
@@ -207,32 +207,13 @@ export function SignupForm() {
     <form className="space-y-3" onSubmit={handleSubmit}>
       <div>
         <p className="text-sm font-medium text-foreground">Account type</p>
-        <div
-          role="group"
-          aria-label="Account type"
-          className="mt-2 grid grid-cols-2 gap-2"
-        >
-          <Button
-            type="button"
-            variant={role === "student" ? "primary" : "outline"}
-            aria-pressed={role === "student"}
-            onClick={() => setRole("student")}
-          >
-            Student
-          </Button>
-          <Button
-            type="button"
-            variant={role === "teacher" ? "accent" : "outline"}
-            aria-pressed={role === "teacher"}
-            onClick={() => setRole("teacher")}
-          >
-            Teacher
-          </Button>
-        </div>
+        <p className="mt-2 border-2 border-ink bg-surface px-3 py-2 text-sm font-semibold text-ink">
+          Teacher
+        </p>
         <p className="mt-2 text-xs text-neutral-500">
-          {role === "student"
-            ? "Student accounts can track quiz history and scores."
-            : "Teacher accounts are created as pending and need administrator approval before sign-in."}
+          Teacher accounts are created as pending and need administrator
+          approval before sign-in. Students do not register here. Their
+          teacher creates their account.
         </p>
       </div>
 

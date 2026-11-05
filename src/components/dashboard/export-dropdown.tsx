@@ -14,8 +14,8 @@ import {
 } from "@/lib/auth/session-state";
 
 const EXPORT_ENTITIES: Record<SearchRole, readonly SearchEntity[]> = {
-  teacher: ["quizzes", "students", "participants"],
-  admin: ["quizzes", "students", "participants", "teachers"],
+  teacher: ["quizzes", "students"],
+  admin: ["quizzes", "students", "teachers"],
 };
 
 export const EXPORT_FORMAT_OPTIONS = [
@@ -61,7 +61,7 @@ export function createExportSearchParams(
   }
 
   params.set("page", "1");
-  params.set("pageSize", "1");
+  params.set("pageSize", "5");
   return params;
 }
 

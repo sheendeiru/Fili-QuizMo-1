@@ -228,7 +228,6 @@ export function createDemoRows(input: {
   return {
     students,
     quizzes,
-    participants,
     teachers: teacherRows(),
   };
 }

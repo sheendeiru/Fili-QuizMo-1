@@ -223,26 +223,30 @@ body {
 .landing-skyline {
   background-image: url("/assets/pixel_pinte.png");
   background-position: bottom right;
-  background-repeat: no-repeat;
+  background-repeat: repeat;
   background-size: auto 100%;
 }
 
 .auth-page {
-  background-image: url("/assets/pixel_pinte.png"), linear-gradient(180deg, var(--color-sky-top), var(--color-sky-bottom));
-  background-position: bottom right, center;
-  background-repeat: no-repeat;
-  background-size: 150px auto, cover;
+  background-image: url("/assets/pixel_pinte.png");
+  background-position: center;
+  background-repeat: repeat;
+  background-size: auto 25%;
 }
 
 .pixel-button {
   border: 2px solid var(--color-ink);
   border-top-color: color-mix(in srgb, var(--pixel-button-bg) 65%, var(--color-surface));
   background-color: var(--pixel-button-bg);
-  box-shadow: 3px 3px 0 var(--pixel-button-shadow);
+  box-shadow: 3px 3px 0 var(--color-ink);
+  /* only animate colors; the press itself snaps so the button and its shadow move in the same frame */
+  transition:
+    background-color 100ms steps(2, end),
+    color 100ms steps(2, end);
 }
 
 .pixel-button:active:not(:disabled) {
-  box-shadow: 1px 1px 0 var(--pixel-button-shadow);
+  box-shadow: 1px 1px 0 var(--color-ink);
   transform: translate(2px, 2px);
 }
 
@@ -253,10 +257,51 @@ body {
   transform: none;
 }
 
+/* loading: stay in the pressed position instead of popping back up and losing the shadow */
+.pixel-button[aria-busy="true"]:disabled {
+  cursor: progress;
+  opacity: 1;
+  box-shadow: 1px 1px 0 var(--color-ink);
+  transform: translate(2px, 2px);
+}
+
+/* navbar buttons: bottom-only shadow so no navy strip shows between neighbouring buttons */
+header .pixel-button {
+  box-shadow: 0 3px 0 var(--color-ink) !important;
+}
+
+header .pixel-button:active:not(:disabled),
+header .pixel-button[aria-busy="true"]:disabled {
+  box-shadow: 0 1px 0 var(--color-ink) !important;
+  transform: translateY(2px);
+}
+
 .pixel-input {
   border: 2px solid var(--color-ink) !important;
   background-color: var(--color-surface) !important;
   color: var(--color-ink) !important;
+}
+
+
+.pixel-text-outline {
+  text-shadow:
+    -2px 0 0 var(--color-ink),
+    2px 0 0 var(--color-ink),
+    0 -2px 0 var(--color-ink),
+    0 2px 0 var(--color-ink),
+    3px 3px 0 var(--color-ink);
+}
+
+.pixel-text-border {
+  text-shadow:
+    -2px -2px 0 var(--color-ink),
+     0   -2px 0 var(--color-ink),
+     2px -2px 0 var(--color-ink),
+    -2px  0   0 var(--color-ink),
+     2px  0   0 var(--color-ink),
+    -2px  2px 0 var(--color-ink),
+     0    2px 0 var(--color-ink),
+     2px  2px 0 var(--color-ink);
 }
 
 button,
@@ -281,8 +326,8 @@ h4,
   border-radius: 0 !important;
 }
 
-button,
-a[class*="bg-"],
+button:not(.pixel-button),
+a[class*="bg-"]:not(.pixel-button),
 [role="tab"] {
   transition:
     background-color 120ms steps(2, end),
@@ -291,8 +336,8 @@ a[class*="bg-"],
     box-shadow 80ms steps(2, end);
 }
 
-button:active,
-a[class*="bg-"]:active,
+button:not(.pixel-button):active,
+a[class*="bg-"]:not(.pixel-button):active,
 [role="tab"]:active {
   box-shadow: 1px 1px 0 var(--color-pixel-shadow);
   transform: translate(2px, 2px);
@@ -301,6 +346,12 @@ a[class*="bg-"]:active,
 :focus-visible {
   outline: 3px solid var(--color-secondary) !important;
   outline-offset: 3px;
+}
+header a.pixel-button {
+  font-family: var(--font-pixel);
+  -webkit-font-smoothing: none;
+  -moz-osx-font-smoothing: auto;
+  font-smooth: never;
 }
 
 input,
@@ -357,7 +408,7 @@ input[type="radio"] {
   vertical-align: middle;
 }
 
-[class*="shadow-"] {
+[class*="shadow-"]:not(.pixel-button) {
   box-shadow: 3px 3px 0 var(--color-pixel-shadow) !important;
 }
 
@@ -411,16 +462,6 @@ input[type="radio"] {
   -webkit-font-smoothing: none;
   -moz-osx-font-smoothing: auto;
   font-smooth: never;
-}
-
-.pixel-cursor {
-  display: inline-block;
-  margin-left: 0.25em;
-  animation: pixel-cursor-blink 900ms steps(2, end) infinite;
-}
-
-@keyframes pixel-cursor-blink {
-  50% { visibility: hidden; }
 }
 
 table {
@@ -518,6 +559,34 @@ progress::-moz-progress-bar {
   animation-delay: 300ms;
 }
 
+.pixel-progress-segment:nth-child(5) {
+  animation-delay: 400ms;
+}
+
+.pixel-progress-segment:nth-child(6) {
+  animation-delay: 500ms;
+}
+
+.pixel-progress-segment:nth-child(7) {
+  animation-delay: 600ms;
+}
+
+.pixel-progress-segment:nth-child(8) {
+  animation-delay: 700ms;
+}
+
+.pixel-progress-segment:nth-child(9) {
+  animation-delay: 800ms;
+}
+
+.pixel-progress-segment:nth-child(10) {
+  animation-delay: 900ms;
+}
+
+.pixel-progress-segment:nth-child(11) {
+  animation-delay: 1000ms;
+}
+
 .pixel-spinner {
   display: inline-grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -596,6 +665,22 @@ h4 {
   background-size: 24px 24px;
 }
 
+.landing-skyline, 
+.auth-page
+{
+  background-image: url("/assets/pixel_pinte.png");
+  background-position: 0 bottom;
+  background-repeat: repeat-x;
+  background-size: 480px auto;     
+  image-rendering: pixelated;
+  animation: skyline-scroll 35s linear infinite;
+}
+
+@keyframes skyline-scroll {
+  from { background-position-x: 480px; }
+  to   { background-position-x: 0px; }   
+}
+
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;
@@ -615,7 +700,15 @@ h4 {
   .pixel-loading-dots > span,
   .pixel-progress-segment,
   .pixel-spinner,
-  .pixel-cursor {
+  .landing-skyline {
     animation: none !important;
+  }
+
+  
+  
+}
+@media (min-width: 641px) {
+  #navbar-actions-menu {
+    box-shadow: none !important;
   }
 }

@@ -7,7 +7,7 @@ const quickLinks = [
   { href: "/#about", label: "About Us" },
   { href: "/#developers", label: "Developers" },
   { href: "/terms", label: "Terms and Conditions" },
-  { href: "/privacy", label: "Privacy Notice" },
+  { href: "/privacy" , label: "Privacy Notice" },
   { href: "/cookies", label: "Cookie Policy" },
 ];
 
@@ -31,8 +31,7 @@ export function Footer() {
               <BrandLogo className="h-12 w-56" />
             </div>
             <p className="mt-2 text-sm leading-5 text-surface/80">
-              An interactive quiz platform built for learners, teachers, and
-              admins.
+              An interactive quiz platform built for learners, and teachers.
             </p>
           </div>
 

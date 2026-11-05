@@ -1,15 +1,19 @@
-import type { ReactNode } from "react";
 import Image from "next/image";
 import { ButtonLink } from "@/components/ui/button-link";
+import { Bubble } from "@/components/ui/bubble";
 import { Carousel } from "@/components/ui/carousel";
+import { SectionLabel } from "@/components/ui/section-label";
 import { Footer } from "@/components/layout/footer";
+import { AndroidOnlyNote, InstallGuide } from "@/components/layout/install-guide";
 import { Navbar } from "@/components/layout/navbar";
 import { TeamCard } from "@/components/layout/team-card";
 import { PixelCard } from "@/components/pixel";
 
+const APK_HREF = "/assets/Fili-QuizMo-1.0.0.apk";
+
 const carouselItems = [
   {
-    src: "/assets/home_screen.jpg",
+    src: "/assets/home_screen2.jpg",
     alt: "Fili-QuizMo home screen",
     caption: "Create or join quizzes with generated code",
   },
@@ -19,7 +23,7 @@ const carouselItems = [
     caption: "Fill in the blanks with your filipino knowledge",
   },
   {
-    src: "/assets/true_false_quiz.jpg",
+    src: "/assets/true_false_quiz2.jpg",
     alt: "Fili-QuizMo true or false quiz",
     caption: "Test your knowledge with true or false questions",
   },
@@ -60,12 +64,12 @@ const developers = [
   {
     src: "/assets/leader.jpg",
     name: "Allen Joseph Cabatingan",
-    role: "Leader",
+    role: "Web Developer",
   },
   {
     src: "/assets/web-dev.jpeg",
     name: "John Carl Rubio",
-    role: "Web Developer",
+    role: "Documentation",
   },
   {
     src: null,
@@ -73,26 +77,6 @@ const developers = [
     role: "Mobile App Developer",
   },
 ];
-
-function SectionLabel({
-  children,
-  centered = false,
-  tone = "light",
-}: {
-  children: ReactNode;
-  centered?: boolean;
-  tone?: "light" | "dark";
-}) {
-  return (
-    <p
-      className={`pixel-text text-xs font-semibold uppercase tracking-[0.2em] ${
-        tone === "dark" ? "text-px-muted" : "text-px-indigo"
-      } ${centered ? "text-center" : ""}`}
-    >
-      {children}
-    </p>
-  );
-}
 
 export default function Home() {
   return (
@@ -122,49 +106,58 @@ export default function Home() {
                 Interactive Filipino quiz platform
               </span>
 
-              <h1 className="mt-3 text-3xl font-bold tracking-tight sm:text-4xl lg:text-5xl">
-                Learn. Quiz.{" "}
-                <span className="text-px-gold">
-                  Master.
-                </span>
-                <span aria-hidden="true" className="pixel-cursor text-px-gold">▮</span>
-              </h1>
+            <h1 className="mt-2 text-2xl font-bold tracking-tight sm:text-3xl lg:text-4xl">
+              Learn. Quiz.{" "}
+              <Bubble as="span" tone="gold" shape="pill" size="inherit" className="whitespace-nowrap leading-none">
+                Master<span className="-mr-[0.3em]">.</span>
+              </Bubble>
+            </h1>
 
-              <p className="mt-3 max-w-xl text-sm leading-6 text-ink">
+              <Bubble as="p" className="mt-3 max-w-xl px-4 py-3 text-sm leading-6">
                 Fili-QuizMo turns learning into an interactive quiz experience.
                 Built for students who want a fun and engaging way to answer
                 quizzes, and for teachers who want to see progress at a glance.
-              </p>
+              </Bubble>
 
-              <div className="mt-4 flex flex-col gap-2 sm:flex-row">
-                <ButtonLink
-                  href="/signup"
-                  variant="primary"
-                >
-                  Create an Account
-                </ButtonLink>
-                <ButtonLink
-                  href="/assets/Fili-QuizMo-1.0.0.apk"
-                  download
-                  variant="neutral"
-                >
-                  Download APK
-                </ButtonLink>
-              </div>
+              <div className="mt-4 flex w-fit max-w-full flex-col gap-3">
+                <div className="flex flex-col gap-3 sm:flex-row">
+                  <ButtonLink
+                    href="/signup"
+                    variant="neutral"
+                    className="sm:flex-1"
+                  >
+                    Create an Account
+                  </ButtonLink>
+                  <ButtonLink
+                    href={APK_HREF}
+                    download
+                    variant="primary"
+                    className="sm:flex-1"
+                  >
+                    Download APK
+                  </ButtonLink>
+                </div>
 
-              <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-ink">
-                <span className="inline-flex items-center gap-2">
-                  <span className="h-1.5 w-1.5 rounded-full bg-sky-300" />
-                  Student-friendly
-                </span>
-                <span className="inline-flex items-center gap-2">
-                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-300" />
-                  Teacher-ready
-                </span>
-                <span className="inline-flex items-center gap-2">
-                  <span className="h-1.5 w-1.5 rounded-full bg-amber-300" />
-                  Free on the web
-                </span>
+                <AndroidOnlyNote
+                  compact
+                  installHref="#install"
+                  className="self-start"
+                />
+
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-2 border-px-ink bg-px-cream px-2 py-1 text-sm">
+                  <span className="inline-flex items-center gap-2">
+                    <span className="h-1.5 w-1.5 rounded-full bg-sky-300" />
+                    Student-friendly
+                  </span>
+                  <span className="inline-flex items-center gap-2">
+                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-300" />
+                    Teacher-ready
+                  </span>
+                  <span className="inline-flex items-center gap-2">
+                    <span className="h-1.5 w-1.5 rounded-full bg-amber-300" />
+                    Free on the web
+                  </span>
+                </div>
               </div>
             </div>
 
@@ -176,7 +169,7 @@ export default function Home() {
               <div className="pixel-border relative border-2 border-ink bg-surface p-2 shadow-[4px_4px_0_var(--color-ink)]">
                 <div className="overflow-hidden bg-sky-bottom">
                   <Image
-                    src="/assets/home_screen.jpg"
+                    src="/assets/home_screen2.jpg"
                     alt="Fili-QuizMo home screen"
                     width={450}
                     height={950}
@@ -186,23 +179,34 @@ export default function Home() {
                   />
                 </div>
               </div>
+             <Bubble
+              as="div"
+              className="absolute z-10 bottom-0 -left-6 max-w-[48%] text-left
+                        sm:-bottom-2 sm:-left-12 sm:max-w-[14rem]
+                        md:-left-20"
+            >
+              <p className="text-[0.6rem] font-semibold uppercase tracking-wide text-neutral-700 sm:text-[0.7rem]">
+                Instant feedback
+              </p>
+              <p className="mt-0.5 text-xs font-bold text-primary sm:mt-1 sm:text-sm">
+                Learn from every answer
+              </p>
+            </Bubble>
 
-              <div className="absolute -left-8 bottom-16 hidden rounded-2xl border border-white/10 bg-white/95 px-4 py-3 text-left shadow-xl lg:block">
-                <p className="text-[0.65rem] font-semibold uppercase tracking-wide text-neutral-500">
-                  Instant feedback
-                </p>
-                <p className="mt-1 text-sm font-bold text-primary">
-                  Learn from every answer
-                </p>
-              </div>
-              <div className="absolute -right-4 top-16 hidden rounded-2xl border border-white/10 bg-white/95 px-4 py-3 shadow-xl lg:block">
-                <p className="text-[0.65rem] font-semibold uppercase tracking-wide text-neutral-500">
-                  Quiz modes
-                </p>
-                <p className="mt-1 text-sm font-bold text-primary">
-                  3 ways to play
-                </p>
-              </div>
+            <Bubble
+              as="div"
+              className="absolute z-10 top-3 -right-6 max-w-[48%] text-left
+                         sm:top-6 sm:-right-12 sm:max-w-[14rem]
+                         md:top-12 md:-right-20
+                         lg:top-16 lg:-right-24"
+            >
+              <p className="text-[0.6rem] font-semibold uppercase tracking-wide text-neutral-700 sm:text-[0.7rem]">
+                Quiz modes
+              </p>
+              <p className="mt-0.5 text-xs font-bold text-primary sm:mt-1 sm:text-sm">
+                3 ways to play
+              </p>
+            </Bubble>
             </div>
           </div>
         </section>
@@ -277,6 +281,8 @@ export default function Home() {
           </div>
         </section>
 
+        <InstallGuide apkHref={APK_HREF} />
+
         <section id="about" className="bg-white py-8">
           <div className="mx-auto grid max-w-5xl gap-6 px-4 sm:px-6 lg:grid-cols-2 lg:items-center">
             <div className="relative">
@@ -292,7 +298,10 @@ export default function Home() {
                 sizes="(max-width: 1024px) 100vw, 50vw"
                 className="relative aspect-[4/3] w-full rounded-3xl object-cover shadow-xl ring-1 ring-black/5"
               />
-              <div className="relative mx-auto -mt-8 w-[calc(100%-2rem)] rounded-2xl bg-white p-4 shadow-lg ring-1 ring-black/5 sm:absolute sm:-bottom-6 sm:left-6 sm:mt-0 sm:w-auto">
+              <Bubble
+                as="div"
+                className="relative mx-auto -mt-8 w-[calc(100%-2rem)] p-4 sm:absolute sm:-bottom-4 sm:left-2 sm:mt-0 sm:w-auto"
+              >
                 <div className="flex items-center gap-3">
                   <span className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/5 text-primary">
                     <svg
@@ -309,7 +318,7 @@ export default function Home() {
                     </svg>
                   </span>
                   <div>
-                    <p className="text-[0.65rem] font-semibold uppercase tracking-wide text-neutral-500">
+                    <p className="text-[0.7rem] font-semibold uppercase tracking-wide text-neutral-700">
                       Built for the classroom
                     </p>
                     <p className="text-sm font-semibold text-primary">
@@ -317,7 +326,7 @@ export default function Home() {
                     </p>
                   </div>
                 </div>
-              </div>
+              </Bubble>
             </div>
 
             <div className="lg:pl-4">
@@ -393,31 +402,26 @@ export default function Home() {
           />
 
           <div className="relative mx-auto max-w-3xl px-4 text-center sm:px-6">
-            <p className="pixel-text text-xs font-semibold uppercase tracking-[0.2em] text-px-muted">
-              Get Started
-            </p>
+            <SectionLabel centered tone="dark">Get Started</SectionLabel>
             <h2 className="mt-3 text-3xl font-bold tracking-tight sm:text-4xl">
               Make every quiz a step forward.
             </h2>
-            <p className="mx-auto mt-3 max-w-2xl text-sm leading-6 text-ink">
+            <Bubble
+              as="p"
+              className="mx-auto mt-3 max-w-2xl px-4 py-3 text-sm leading-6"
+            >
               Create an account to start building quizzes, tracking progress,
               and making learning feel a little more like play.
-            </p>
+            </Bubble>
             <div className="mt-4 flex flex-col justify-center gap-2 sm:flex-row">
-              <ButtonLink
-                href="/signup"
-                variant="primary"
-              >
+              <ButtonLink href="/signup" variant="neutral">
                 Create an Account
               </ButtonLink>
-              <ButtonLink
-                href="/assets/Fili-QuizMo-1.0.0.apk"
-                download
-                variant="neutral"
-              >
+              <ButtonLink href={APK_HREF} download variant="primary">
                 Download APK
               </ButtonLink>
             </div>
+            <AndroidOnlyNote compact installHref="#install" className="mt-3" />
           </div>
         </section>
       </main>

@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import { connection } from "next/server";
 import { forbidden } from "next/navigation";
 import TeacherDashboardContent from "@/components/dashboard/teacher-dashboard-content";
+import { DashboardRealtime } from "@/components/dashboard/dashboard-realtime";
 import { DashboardSkeleton } from "@/components/dashboard/dashboard-skeleton";
 import { requireTeacherAccess } from "@/lib/auth/require-dashboard-access";
 import { loadTeacherDashboardData } from "@/lib/dashboard/data";
@@ -21,10 +22,13 @@ export default async function TeacherDashboardPage() {
   }
 
   return (
-    <Suspense
-      fallback={<DashboardSkeleton label="Loading teacher dashboard..." />}
-    >
-      <TeacherDashboardData teacherId={access.teacherId} />
-    </Suspense>
+    <>
+      <DashboardRealtime role="teacher" teacherId={access.teacherId} />
+      <Suspense
+        fallback={<DashboardSkeleton variant="teacher" label="Loading teacher dashboard..." />}
+      >
+        <TeacherDashboardData teacherId={access.teacherId} />
+      </Suspense>
+    </>
   );
 }

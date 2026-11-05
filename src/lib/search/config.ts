@@ -65,21 +65,21 @@ export const FILTER_DEFINITIONS: Record<
     label: "Teacher username",
     type: "text",
     roles: ["admin"],
-    entities: ["students", "quizzes", "participants"],
+    entities: ["students", "quizzes"],
     maxLength: 100,
     placeholder: "e.g. msantos",
   },
   quiz: {
     label: "Quiz title",
     type: "text",
-    entities: ["participants"],
+    entities: ["quizzes"],
     maxLength: 200,
     placeholder: "e.g. Science Fundamentals",
   },
   session: {
     label: "Session code",
     type: "text",
-    entities: ["participants"],
+    entities: ["quizzes"],
     maxLength: 100,
     placeholder: "e.g. FMBFE4",
   },
@@ -94,39 +94,6 @@ export const FILTER_DEFINITIONS: Record<
 };
 
 export const entityConfigs: Record<SearchEntity, SearchEntityConfig> = {
-  students: {
-    label: "Student",
-    pluralLabel: "Students",
-    description:
-      "Search students by username, email, or managing teacher.",
-    searchPlaceholder: "Search username, email, or teacher",
-    searchHint:
-      "Searches student username, email, and managing teacher. Passwords are never searchable.",
-    view: "search_students",
-    idColumn: "student_id",
-    scopeColumn: "teacher_id",
-    dateColumn: "created_at",
-    statusColumn: null,
-    statusLabel: "Status",
-    statusOptions: [],
-    searchColumns: ["username", "email", "teacher_username"],
-    searchableFields: ["Username", "Email", "Teacher"],
-    sortColumns: {
-      name: "username",
-      date: "created_at",
-      status: "username",
-    },
-    sortFields: ["name", "date"],
-    select: [
-      "student_id",
-      "teacher_id",
-      "teacher_username",
-      "username",
-      "email",
-      "created_at",
-    ],
-    filters: ["teacher", "from", "to"],
-  },
   quizzes: {
     label: "Quiz",
     pluralLabel: "Quizzes",
@@ -165,11 +132,11 @@ export const entityConfigs: Record<SearchEntity, SearchEntityConfig> = {
     ],
     filters: ["status", "teacher", "from", "to"],
   },
-  participants: {
-    label: "Participant",
-    pluralLabel: "Participants",
+  students: {
+    label: "Student",
+    pluralLabel: "Students",
     description:
-      "Search participant usernames, quiz titles, status, session code, or email.",
+      "Search student usernames, quiz titles, status, session code, or email.",
     searchPlaceholder: "Search username, quiz, session, or email",
     searchHint:
       "Searches participant username, status, quiz title, session code, and email. Session and quiz filters are also available.",
@@ -270,12 +237,12 @@ export const ROLE_CONFIG: Record<SearchRole, RoleSearchConfig> = {
   teacher: {
     label: "Teacher",
     defaultEntity: "quizzes",
-    entities: ["students", "quizzes", "participants"],
+    entities: ["students", "quizzes"],
   },
   admin: {
     label: "Admin",
     defaultEntity: "quizzes",
-    entities: ["students", "quizzes", "participants", "teachers"],
+    entities: ["students", "quizzes", "teachers"],
   },
 };
 

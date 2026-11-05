@@ -1,5 +1,6 @@
 "use client";
 
+import { IN_APP_NAV_KEY } from "@/components/layout/nav-tracker";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { Spinner } from "@/components/ui/spinner";
@@ -7,6 +8,7 @@ import { useNavigation } from "@/components/pixel";
 import { createAccountRoleLookup, resolveAccountAccess } from "@/lib/auth/roles";
 import { createClient } from "@/lib/supabase/client";
 import { safeInternalPath } from "@/lib/safe-redirect";
+
 
 const loginPaths = new Set([
   "/login",
@@ -55,10 +57,26 @@ export function SafeReturnLink({
         }
       }
 
-      if (window.history.length > 1 && isSameOrigin) {
+      let hasInAppHistory = false;
+      try {
+        hasInAppHistory = sessionStorage.getItem(IN_APP_NAV_KEY) === "1";
+      } catch {
+        hasInAppHistory = false;
+      }
+
+      if (window.history.length > 1 && (isSameOrigin || hasInAppHistory)) {
         startTransition(() => navigate(() => router.back()));
         return;
       }
+
+      if (
+        !hasReturnTo &&
+        new URLSearchParams(window.location.search).get("src") === "consent"
+      ) {
+        window.close();
+        await new Promise((resolve) => setTimeout(resolve, 150));
+      }
+
 
       const supabase = createClient();
       const {
@@ -66,7 +84,10 @@ export function SafeReturnLink({
         error,
       } = await supabase.auth.getUser();
 
-      if (error) throw error;
+      const sessionMissing = 
+        error?.name === "AuthSessionMissingError" ||
+        error?.message === "Auth session missing!";
+      if (error && !sessionMissing) throw error;
 
       let fallback = "/login";
       if (user) {

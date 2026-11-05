@@ -99,7 +99,7 @@ export function NavigationProvider({ children }: { children: ReactNode }) {
               <span
                 key={index}
                 className={`h-full min-w-0 flex-1 ${
-                  index < 4
+                  index < 12
                     ? "pixel-progress-segment bg-px-gold"
                     : "bg-px-indigo-lt"
                 }`}

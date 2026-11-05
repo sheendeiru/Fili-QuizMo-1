@@ -7,7 +7,7 @@ import {
 } from "next/navigation";
 import dynamic from "next/dynamic";
 import { useEffect, useState } from "react";
-import type { FormEvent } from "react";
+import type { FormEvent, ReactNode } from "react";
 import {
   DashboardShell,
   type DashboardNavItem,
@@ -36,9 +36,21 @@ const PieChart = dynamic(
 const navItems: DashboardNavItem[] = [
   { key: "quizzes", label: "View Quizzes" },
   { key: "students", label: "Manage Student Info" },
-  { key: "participants", label: "Manage Participants & Scores" },
+  { key: "scores", label: "View Scores" },
+  { key: "leaderboard", label: "Leaderboard" },
   { key: "settings", label: "Settings" },
 ];
+
+const dateFormatter = new Intl.DateTimeFormat("en-PH", {
+  dateStyle: "medium",
+  timeZone: "Asia/Manila",
+});
+
+function formatDate(value: string): string {
+  const date = new Date(value);
+
+  return Number.isNaN(date.getTime()) ? "—" : dateFormatter.format(date);
+}
 
 export default function TeacherDashboardContent({
   data,
@@ -47,20 +59,18 @@ export default function TeacherDashboardContent({
 }) {
   const searchParams = useSearchParams();
   const entity = searchParams.get("entity");
-  const searchActiveKey =
-    entity === "students"
-      ? "students"
-      : entity === "participants"
-        ? "participants"
-        : "quizzes";
+  const urlActiveKey = entity === "students" ? "students" : "quizzes";
+  // The section the teacher last clicked. It wins over the URL so the sidebar
+  // highlight and the content switch together, instantly, on every click.
   const [manualActiveKey, setManualActiveKey] = useState<string | null>(null);
-  const activeKey = manualActiveKey ?? searchActiveKey;
+  const activeKey = manualActiveKey ?? urlActiveKey;
   const [logoutError, setLogoutError] = useState("");
   const router = useRouter();
   const { navigate } = useNavigation();
   const pathname = usePathname();
 
   useEffect(() => {
+    // Browser back/forward: fall back to whatever the URL says.
     function clearManualSection() {
       setManualActiveKey(null);
     }
@@ -70,24 +80,25 @@ export default function TeacherDashboardContent({
   }, []);
 
   function navigateToSection(key: string) {
-    setManualActiveKey(
-      key === "students" || key === "participants" || key === "quizzes"
-        ? null
-        : key,
-    );
-    if (key !== "students" && key !== "participants" && key !== "quizzes") {
+    // Always select the clicked section first. Before, clicking Students or
+    // Quizzes cleared this and fell back to the *old* URL, so the sidebar and
+    // content flashed the wrong section until the route finished changing.
+    setManualActiveKey(key);
+
+    if (key !== "students" && key !== "quizzes") {
       return;
     }
 
-    const entity =
-      key === "students"
-        ? "students"
-        : key === "participants"
-          ? "participants"
-          : "quizzes";
+    const target = key === "students" ? "students" : "quizzes";
     const params = new URLSearchParams();
-    const query = defaultSearchQuery("teacher", entity);
+    const query = defaultSearchQuery("teacher", target);
     params.set("entity", query.entity);
+
+    // Already on this exact URL: don't stack duplicate history entries.
+    if (params.toString() === searchParams.toString()) {
+      return;
+    }
+
     navigate(() =>
       router.push(`${pathname}?${params.toString()}`, { scroll: false }),
     );
@@ -123,7 +134,8 @@ export default function TeacherDashboardContent({
       ) : null}
       {activeKey === "quizzes" && <QuizzesSection data={data} />}
       {activeKey === "students" && <StudentsSection />}
-      {activeKey === "participants" && <ParticipantsSection data={data} />}
+      {activeKey === "scores" && <ScoresSection data={data} />}
+      {activeKey === "leaderboard" && <LeaderboardSection data={data} />}
       {activeKey === "settings" && <SettingsSection />}
     </DashboardShell>
   );
@@ -147,21 +159,42 @@ function SectionHeading({
 function StatCard({ label, value }: { label: string; value: string }) {
   return (
     <PixelCard as="article">
-      <p className="text-sm text-neutral-500">{label}</p>
+      <p className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
+        {label}
+      </p>
       <p className="mt-1 text-xl font-bold text-foreground">{value}</p>
+    </PixelCard>
+  );
+}
+
+/** One card style for every chart so the sections look the same. */
+function ChartPanel({
+  title,
+  caption,
+  children,
+}: {
+  title: string;
+  caption: string;
+  children: ReactNode;
+}) {
+  return (
+    <PixelCard as="article">
+      <h3 className="text-base font-semibold text-foreground">{title}</h3>
+      <p className="mt-1 text-sm text-neutral-500">{caption}</p>
+      <div className="mt-3">{children}</div>
     </PixelCard>
   );
 }
 
 function QuizzesSection({ data }: { data: TeacherDashboardData }) {
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
       <SectionHeading
         title="View Quizzes"
         description="Review your quiz library and overall class performance."
       />
 
-      <div className="grid gap-3 sm:grid-cols-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <StatCard
           label="Total Quizzes"
           value={String(data.quizzes.total)}
@@ -178,24 +211,19 @@ function QuizzesSection({ data }: { data: TeacherDashboardData }) {
 
       <SearchFilter role="teacher" entity="quizzes" />
 
-      <PixelCard>
-        <h3 className="text-lg font-semibold text-foreground">
-          Student Score Distribution
-        </h3>
-        <p className="mt-1 text-sm text-neutral-500">
-          Latest quiz performance across score bands.
-        </p>
-        <div className="mt-3">
-          <PieChart distributions={data.distributions} />
-        </div>
-      </PixelCard>
+      <ChartPanel
+        title="Student Score Distribution"
+        caption="Latest quiz performance across score bands."
+      >
+        <PieChart distributions={data.distributions} />
+      </ChartPanel>
     </div>
   );
 }
 
 function StudentsSection() {
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
       <SectionHeading
         title="Manage Student Info"
         description="Search students assigned to your classes."
@@ -206,25 +234,176 @@ function StudentsSection() {
   );
 }
 
-function ParticipantsSection({ data }: { data: TeacherDashboardData }) {
+function ScoresSection({ data }: { data: TeacherDashboardData }) {
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
       <SectionHeading
-        title="Participants & Scores"
-        description="Search quiz participants and review class performance."
+        title="Students & Scores"
+        description="Search students and review their quiz performances."
       />
-      <SearchFilter role="teacher" entity="participants" />
-      <PixelCard>
-        <h3 className="text-base font-semibold text-foreground">
-          Score Distribution
-        </h3>
-        <p className="mt-1 text-sm text-neutral-500">
-          Student score distribution per quiz.
-        </p>
-        <div className="mt-3">
-          <PieChart distributions={data.distributions} />
-        </div>
-      </PixelCard>
+      <SearchFilter role="teacher" entity="students" />
+      <ChartPanel
+        title="Score Distribution"
+        caption="Student score distribution per quiz."
+      >
+        <PieChart distributions={data.distributions} />
+      </ChartPanel>
+    </div>
+  );
+}
+
+function ordinal(rank: number): string {
+  if (rank % 100 >= 11 && rank % 100 <= 13) return `${rank}th`;
+  if (rank % 10 === 1) return `${rank}st`;
+  if (rank % 10 === 2) return `${rank}nd`;
+  if (rank % 10 === 3) return `${rank}rd`;
+  return `${rank}th`;
+}
+
+const medalClass: Record<number, string> = {
+  1: "bg-accent text-ink",
+  2: "bg-neutral-300 text-ink",
+  3: "bg-accent-dark text-ink",
+};
+
+function RankChip({ rank }: { rank: number }) {
+  return (
+    <span
+      className={`inline-block min-w-12 border-2 border-ink px-2 py-0.5 text-center text-xs font-bold ${
+        medalClass[rank] ?? "bg-surface text-ink"
+      }`}
+    >
+      {ordinal(rank)}
+    </span>
+  );
+}
+
+function ScoreBar({ value }: { value: number }) {
+  const width = Math.min(100, Math.max(0, value));
+  const tone =
+    value >= 75 ? "bg-primary" : value >= 50 ? "bg-accent" : "bg-danger";
+
+  return (
+    <div className="flex items-center gap-2">
+      <div
+        aria-hidden="true"
+        className="h-3 w-20 shrink-0 border-2 border-ink bg-surface"
+      >
+        <div className={`h-full ${tone}`} style={{ width: `${width}%` }} />
+      </div>
+      <span className="font-semibold text-foreground">
+        {Math.round(value * 10) / 10}%
+      </span>
+    </div>
+  );
+}
+
+function LeaderboardSection({ data }: { data: TeacherDashboardData }) {
+  const { overall, byQuiz } = data.leaderboards;
+  const boards = [overall, ...byQuiz];
+  const [selected, setSelected] = useState(0);
+  const board = boards[selected] ?? overall;
+  const primaryLabel = board.rankedBy === "best" ? "Best score" : "Average";
+  const secondaryLabel = board.rankedBy === "best" ? "Average" : "Best score";
+
+  return (
+    <div className="space-y-4">
+      <SectionHeading
+        title="Leaderboard"
+        description="See which students are scoring highest across your quizzes."
+      />
+
+      {overall.entries.length === 0 ? (
+        <PixelCard>
+          <p className="text-sm text-neutral-600">
+            No quiz results yet. Student rankings will appear here once
+            quizzes are completed.
+          </p>
+        </PixelCard>
+      ) : (
+        <>
+          <div>
+            <label
+              htmlFor="leaderboard-quiz"
+              className="block text-sm font-medium text-foreground"
+            >
+              Show ranking for
+            </label>
+            <select
+              id="leaderboard-quiz"
+              value={selected}
+              onChange={(event) => setSelected(Number(event.target.value))}
+              className="mt-1 h-10 w-full max-w-xs px-3 text-sm"
+            >
+              {boards.map((option, index) => (
+                <option key={option.quiz ?? "overall"} value={index}>
+                  {option.quiz ?? "Overall (all quizzes)"}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <ChartPanel
+            title={board.quiz ?? "Overall ranking"}
+            caption={
+              board.rankedBy === "best"
+                ? "Ranked by best score on this quiz. Top 10 students."
+                : "Ranked by average score across all quizzes. Top 10 students."
+            }
+          >
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[34rem] text-left text-sm">
+                <caption className="sr-only">
+                  {board.quiz ?? "Overall"} leaderboard
+                </caption>
+                <thead>
+                  <tr>
+                    <th scope="col" className="py-2 pr-3">Rank</th>
+                    <th scope="col" className="py-2 pr-3">Student</th>
+                    <th scope="col" className="py-2 pr-3">{primaryLabel}</th>
+                    <th scope="col" className="py-2 pr-3">{secondaryLabel}</th>
+                    <th scope="col" className="py-2 pr-3">Attempts</th>
+                    <th scope="col" className="py-2">Last active</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {board.entries.map((entry) => (
+                    <tr key={entry.student}>
+                      <td className="py-2 pr-3">
+                        <RankChip rank={entry.rank} />
+                      </td>
+                      <td className="py-2 pr-3 font-semibold text-foreground">
+                        {entry.student}
+                      </td>
+                      <td className="py-2 pr-3">
+                        <ScoreBar
+                          value={
+                            board.rankedBy === "best"
+                              ? entry.best
+                              : entry.average
+                          }
+                        />
+                      </td>
+                      <td className="py-2 pr-3">
+                        {Math.round(
+                          (board.rankedBy === "best"
+                            ? entry.average
+                            : entry.best) * 10,
+                        ) / 10}
+                        %
+                      </td>
+                      <td className="py-2 pr-3">{entry.attempts}</td>
+                      <td className="py-2">
+                        {formatDate(entry.lastCompletedAt)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </ChartPanel>
+        </>
+      )}
     </div>
   );
 }
@@ -240,7 +419,7 @@ function SettingsSection() {
   }
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
       <SectionHeading
         title="Settings"
         description="Update your teacher profile and notification preferences."

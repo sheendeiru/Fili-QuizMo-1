@@ -4,6 +4,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigation } from "@/components/pixel";
 import { fetchSearchResults } from "./api-client";
+import { DASHBOARD_DATA_CHANGED_EVENT } from "@/lib/dashboard/realtime-events";
 import {
   defaultSearchQuery,
   parseSearchState,
@@ -63,6 +64,17 @@ export function useSearchFilters(
     loading: false,
     error: "",
   });
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  useEffect(() => {
+    function handleDataChanged() {
+      setRefreshKey((key) => key + 1);
+    }
+
+    window.addEventListener(DASHBOARD_DATA_CHANGED_EVENT, handleDataChanged);
+    return () =>
+      window.removeEventListener(DASHBOARD_DATA_CHANGED_EVENT, handleDataChanged);
+  }, []);
 
   const updateQuery = useCallback(
     (patch: Partial<SearchQuery>, addHistoryEntry = false) => {
@@ -137,7 +149,7 @@ export function useSearchFilters(
       controller.abort();
       releaseSessionRequestController(controller);
     };
-  }, [parsedState.error, query, queryKey]);
+  }, [parsedState.error, query, queryKey, refreshKey]);
 
   const requestMatchesQuery = request.key === queryKey;
 

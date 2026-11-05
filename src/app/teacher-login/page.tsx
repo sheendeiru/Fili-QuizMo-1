@@ -62,7 +62,7 @@ export default function TeacherLoginPage({
           Are you new here?{" "}
           <NavLink
             href="/signup"
-            className="font-semibold text-primary hover:underline"
+            className="font-semibold text-px-gold-text hover:underline"
           >
             Request an account
           </NavLink>

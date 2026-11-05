@@ -448,7 +448,7 @@ export function SearchFilter({
           </PixelButton>
         </div>
 
-        <div className="hidden md:block">
+            <div className="hidden md:block">
           <FilterFields
             role={role}
             entity={entity}
@@ -456,9 +456,8 @@ export function SearchFilter({
             updateQuery={updateQuery}
             idPrefix={`${entity}-desktop`}
           />
-          </div>
-        </PixelCard>
-      </section>
+        </div>
+      </PixelCard>
 
       {mobileFiltersOpen ? (
         <div

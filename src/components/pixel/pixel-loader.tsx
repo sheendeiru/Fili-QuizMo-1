@@ -81,7 +81,6 @@ export function PixelLoader({
               <span>.</span>
             </span>
           ) : null}
-          <span className="pixel-cursor" aria-hidden="true">▮</span>
         </p>
         <div
           aria-hidden="true"

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 import {
   usePathname,
   useRouter,
@@ -8,6 +8,16 @@ import {
 } from "next/navigation";
 import { DashboardShell } from "@/components/dashboard/dashboard-shell";
 import type { DashboardNavItem } from "@/components/dashboard/dashboard-shell";
+import {
+  AverageByQuiz,
+  ChartCard,
+  LatestBreakdown,
+  PercentChip,
+  RetakeProgress,
+  ScoreBands,
+  ScoreTrendChart,
+} from "@/components/dashboard/student-charts";
+import { buildStudentAnalytics } from "@/lib/dashboard/student-analytics";
 import { logoutAndRedirect } from "@/lib/auth/logout";
 import { useNavigation } from "@/components/pixel";
 import { Button } from "@/components/ui/button";
@@ -137,7 +147,7 @@ function HistoryTable({
         {
           key: "percentage",
           label: "Percentage",
-          render: (row) => formatPercent(row.percentage),
+          render: (row) => <PercentChip value={row.percentage} />,
         },
         {
           key: "completed",
@@ -181,19 +191,10 @@ export default function StudentDashboardContent({
       : searchParams.get("tab") === "profile"
         ? "profile"
         : "overview";
-  const percentages = summaryHistory
-    .map((row) => row.percentage)
-    .filter(
-      (value): value is number =>
-        value !== null && Number.isFinite(value),
-    );
-  const average =
-    percentages.length > 0
-      ? percentages.reduce((total, value) => total + value, 0) /
-        percentages.length
-      : null;
-  const best =
-    percentages.length > 0 ? Math.max(...percentages) : null;
+  const analytics = useMemo(
+    () => buildStudentAnalytics(summaryHistory),
+    [summaryHistory],
+  );
 
   function navigateToSection(tab: string) {
     const params = new URLSearchParams(searchParams.toString());
@@ -250,7 +251,7 @@ export default function StudentDashboardContent({
       onLogout={() => logoutAndRedirect(router, navigate)}
     >
       {activeKey === "overview" ? (
-        <div className="space-y-3">
+        <div className="space-y-4">
           <section>
             <h2 className="text-xl font-bold text-foreground">
               Welcome back, {profile.username ?? "Student"}!
@@ -260,7 +261,10 @@ export default function StudentDashboardContent({
             </p>
           </section>
 
-          <section className="grid gap-3 sm:grid-cols-3">
+          <section
+            aria-label="Score summary"
+            className="grid grid-cols-2 gap-3 lg:grid-cols-4"
+          >
             <StatCard
               label="Recorded attempts"
               value={String(historyTotal)}
@@ -268,15 +272,69 @@ export default function StudentDashboardContent({
             />
             <StatCard
               label="Average score"
-              value={formatPercent(average)}
+              value={formatPercent(analytics?.kpis.average ?? null)}
               hint={`Latest ${summaryHistory.length} attempts`}
             />
             <StatCard
               label="Best score"
-              value={formatPercent(best)}
+              value={formatPercent(analytics?.kpis.best ?? null)}
               hint="Highest in latest results"
             />
+            <StatCard
+              label="Latest score"
+              value={formatPercent(analytics?.kpis.latest ?? null)}
+              hint={analytics?.kpis.latestQuiz ?? "No completed quiz yet"}
+            />
           </section>
+
+          {analytics ? (
+            <section aria-label="Performance charts" className="space-y-3">
+              <div className="grid gap-3 lg:grid-cols-3">
+                <ChartCard
+                  title="Score trend"
+                  caption={`Your last ${analytics.trend.length} completed quiz${analytics.trend.length === 1 ? "" : "zes"}`}
+                  className={
+                    analytics.latestBreakdown ? "lg:col-span-2" : "lg:col-span-3"
+                  }
+                >
+                  <ScoreTrendChart points={analytics.trend} />
+                </ChartCard>
+
+                {analytics.latestBreakdown ? (
+                  <ChartCard
+                    title="Latest quiz"
+                    caption="How your most recent answers added up"
+                  >
+                    <LatestBreakdown data={analytics.latestBreakdown} />
+                  </ChartCard>
+                ) : null}
+              </div>
+
+              <div className="grid gap-3 lg:grid-cols-2">
+                <ChartCard
+                  title="Average by quiz"
+                  caption="Your strongest quizzes first"
+                >
+                  <AverageByQuiz rows={analytics.byQuiz} />
+                </ChartCard>
+                <ChartCard
+                  title="Score bands"
+                  caption="How many quizzes landed in each range"
+                >
+                  <ScoreBands bands={analytics.bands} />
+                </ChartCard>
+              </div>
+
+              {analytics.retakes.length > 0 ? (
+                <ChartCard
+                  title="Retake progress"
+                  caption="First attempt compared with your latest"
+                >
+                  <RetakeProgress rows={analytics.retakes} />
+                </ChartCard>
+              ) : null}
+            </section>
+          ) : null}
 
           <section>
             <div className="mb-3 flex items-center justify-between gap-3">

@@ -100,7 +100,7 @@ describe("search service role scoping", () => {
   it("coerces PostgREST numeric strings in participant scores", async () => {
     const response = await executeSearch({
       context: createSearchScope({ role: "admin", userId: "admin-id" }),
-      query: defaultSearchQuery("admin", "participants"),
+      query: defaultSearchQuery("admin", "students"),
       repository: new MockSearchRepository(rows),
     });
 

@@ -9,7 +9,6 @@ import { NavLink } from "@/components/pixel";
 import { Button } from "@/components/ui/button";
 import { FormField } from "@/components/ui/form-field";
 import { Spinner } from "@/components/ui/spinner";
-import { PolicyConsent } from "@/components/auth/policy-consent";
 import {
   createAccountRoleLookup,
   resolveAccountAccess,
@@ -60,7 +59,6 @@ export function TeacherLoginForm({ status }: { status?: string }) {
       : "",
   );
   const [isLoading, setIsLoading] = useState(false);
-  const [consentAccepted, setConsentAccepted] = useState(false);
 
   useEffect(() => {
     function clearMessages() {
@@ -77,7 +75,6 @@ export function TeacherLoginForm({ status }: { status?: string }) {
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (isLoading) return;
-    if (!consentAccepted) return;
     const finishActivity = beginActivity();
     const form = event.currentTarget;
     setErrorMessage("");
@@ -200,11 +197,6 @@ export function TeacherLoginForm({ status }: { status?: string }) {
         autoComplete="current-password"
         required
       />
-      <PolicyConsent
-        id="teacher-login-consent"
-        checked={consentAccepted}
-        onChange={setConsentAccepted}
-      />
       <div className="-mt-2 text-right">
         <NavLink
           href={`/change-password?returnTo=${encodeURIComponent(pathname)}`}
@@ -226,7 +218,6 @@ export function TeacherLoginForm({ status }: { status?: string }) {
       <Button
         type="submit"
         className="w-full"
-        disabled={isLoading || !consentAccepted}
         aria-busy={isLoading}
       >
         {isLoading ? (

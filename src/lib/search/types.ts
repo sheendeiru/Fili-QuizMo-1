@@ -1,7 +1,6 @@
 export const SEARCH_ENTITIES = [
   "students",
   "quizzes",
-  "participants",
   "teachers",
 ] as const;
 
@@ -87,16 +86,6 @@ export type SearchRepository = {
   ): Promise<{ rows: SearchRow[]; total: number }>;
 };
 
-export type StudentSearchItem = {
-  entity: "students";
-  id: string;
-  username: string;
-  email: string;
-  teacherId: string;
-  teacherUsername: string;
-  createdAt: string;
-};
-
 export type QuizSearchItem = {
   entity: "quizzes";
   id: string;
@@ -108,8 +97,8 @@ export type QuizSearchItem = {
   createdAt: string;
 };
 
-export type ParticipantSearchItem = {
-  entity: "participants";
+export type StudentSearchItem = {
+  entity: "students";
   id: string;
   username: string;
   status: string;
@@ -122,6 +111,7 @@ export type ParticipantSearchItem = {
   teacherId: string;
   teacherUsername: string;
   joinedAt: string;
+  createdAt: string;
 };
 
 export type TeacherSearchItem = {
@@ -137,7 +127,6 @@ export type TeacherSearchItem = {
 export type SearchItem =
   | StudentSearchItem
   | QuizSearchItem
-  | ParticipantSearchItem
   | TeacherSearchItem;
 
 export type SearchAppliedFilters = {

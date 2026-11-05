@@ -98,7 +98,7 @@ export default async function StudentDashboardPage({
   const page = parsePage(params.page);
   return (
     <Suspense
-      fallback={<DashboardSkeleton label="Loading student dashboard..." />}
+      fallback={<DashboardSkeleton variant="student" label="Loading student dashboard..." />}
     >
       <StudentDashboardData
         userId={user.id}

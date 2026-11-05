@@ -34,7 +34,7 @@ export function PolicyConsent({
           </label>
           <a
             id={termsId}
-            href="/terms"
+            href="/terms?src=consent"
             target="_blank"
             rel="noopener noreferrer"
             className="font-semibold text-px-indigo underline decoration-2 underline-offset-2 hover:text-px-indigo-lt focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-px-indigo"
@@ -44,7 +44,7 @@ export function PolicyConsent({
           <span className="mx-1">and the</span>
           <a
             id={privacyId}
-            href="/privacy"
+            href="/privacy?src=consent"
             target="_blank"
             rel="noopener noreferrer"
             className="font-semibold text-px-indigo underline decoration-2 underline-offset-2 hover:text-px-indigo-lt focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-px-indigo"

@@ -3,6 +3,7 @@ import localFont from "next/font/local";
 import { SessionBoundary } from "@/components/auth/session-boundary";
 import { NavigationProvider } from "@/components/pixel";
 import { CookieNotice } from "@/components/legal/cookie-notice";
+import { NavTracker } from "@/components/layout/nav-tracker";
 import "./globals.css";
 
 const pressStart = localFont({
@@ -47,11 +48,12 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       className={`${pressStart.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
-        <NavigationProvider>
-          <SessionBoundary />
-          {children}
-          <CookieNotice />
-        </NavigationProvider>
+        <NavTracker />
+          <NavigationProvider>
+            <SessionBoundary />
+            {children}
+            <CookieNotice />
+          </NavigationProvider>
       </body>
     </html>
   );
