@@ -280,13 +280,12 @@ export function DashboardShell({
         <main className="mx-auto w-full max-w-5xl flex-1 p-3 sm:p-4">
           {role !== "Student" &&
           ((role === "Teacher" &&
-            ["quizzes", "students", "participants"].includes(activeKey)) ||
+            ["quizzes", "students"].includes(activeKey)) ||
             (role === "Admin" &&
               [
                 "quizzes",
                 "teacher-accounts",
                 "students",
-                "participants",
               ].includes(activeKey))) ? (
             <div className="mb-3 flex justify-end">
               <ExportDropdown role={role === "Teacher" ? "teacher" : "admin"} />

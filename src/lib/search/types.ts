@@ -1,5 +1,6 @@
 export const SEARCH_ENTITIES = [
   "students",
+  "student_accounts",
   "quizzes",
   "teachers",
 ] as const;
@@ -111,6 +112,15 @@ export type StudentSearchItem = {
   teacherId: string;
   teacherUsername: string;
   joinedAt: string;
+};
+
+export type StudentAccountSearchItem = {
+  entity: "student_accounts";
+  id: string;
+  username: string;
+  email: string;
+  teacherId: string;
+  teacherUsername: string;
   createdAt: string;
 };
 
@@ -126,6 +136,7 @@ export type TeacherSearchItem = {
 
 export type SearchItem =
   | StudentSearchItem
+  | StudentAccountSearchItem
   | QuizSearchItem
   | TeacherSearchItem;
 

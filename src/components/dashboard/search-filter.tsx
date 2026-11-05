@@ -111,6 +111,21 @@ function itemValues(item: SearchItem): string[] {
   if (item.entity === "students") {
     return [
       item.username,
+      item.quizTitle,
+      item.sessionCode,
+      item.studentEmail,
+      getStatusLabel("students", item.status),
+      item.score === null ? "—" : `${item.score}%`,
+      new Date(item.joinedAt).toLocaleDateString("en-PH", {
+        dateStyle: "medium",
+        timeZone: "Asia/Manila",
+      }),
+    ];
+  }
+
+  if (item.entity === "student_accounts") {
+    return [
+      item.username,
       item.email,
       item.teacherUsername,
       new Date(item.createdAt).toLocaleDateString("en-PH", {
@@ -127,21 +142,6 @@ function itemValues(item: SearchItem): string[] {
       String(item.questionCount),
       item.teacherUsername,
       new Date(item.createdAt).toLocaleDateString("en-PH", {
-        dateStyle: "medium",
-        timeZone: "Asia/Manila",
-      }),
-    ];
-  }
-
-  if (item.entity === "participants") {
-    return [
-      item.username,
-      item.quizTitle,
-      item.sessionCode,
-      item.studentEmail,
-      getStatusLabel("participants", item.status),
-      item.score === null ? "—" : `${item.score}%`,
-      new Date(item.joinedAt).toLocaleDateString("en-PH", {
         dateStyle: "medium",
         timeZone: "Asia/Manila",
       }),
@@ -586,13 +586,13 @@ export function SearchFilter({
 
 function resultHeaders(entity: SearchEntity): string[] {
   if (entity === "students") {
+    return ["Username", "Quiz", "Session", "Email", "Status", "Score", "Joined"];
+  }
+  if (entity === "student_accounts") {
     return ["Student", "Email", "Teacher", "Created"];
   }
   if (entity === "quizzes") {
     return ["Quiz", "Status", "Questions", "Teacher", "Created"];
-  }
-  if (entity === "participants") {
-    return ["Username", "Quiz", "Session", "Email", "Status", "Score", "Joined"];
   }
   return ["Teacher", "Email", "Status", "Quizzes", "Created"];
 }

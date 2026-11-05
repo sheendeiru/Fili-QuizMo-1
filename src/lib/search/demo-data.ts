@@ -169,7 +169,7 @@ export function createDemoRows(input: {
   const teacherIdFor = (teacherId: string) =>
     teacherId === "101" ? activeTeacherId : teacherId;
 
-  const students: SearchRow[] = STUDENT_SEEDS.map((student) => ({
+  const studentAccounts: SearchRow[] = STUDENT_SEEDS.map((student) => ({
     student_id: student.id,
     teacher_id: teacherIdFor(student.teacherId),
     teacher_username: teacherNameById.get(student.teacherId) ?? "",
@@ -226,7 +226,8 @@ export function createDemoRows(input: {
   );
 
   return {
-    students,
+    students: participants,
+    student_accounts: studentAccounts,
     quizzes,
     teachers: teacherRows(),
   };

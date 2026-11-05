@@ -64,7 +64,7 @@ export function ManageAccountsTable({
     "success" | "error" | null
   >(null);
 
-  const pageEntity = accountRole === "teacher" ? "teachers" : "students";
+  const pageEntity = accountRole === "teacher" ? "teachers" : "student_accounts";
   const approvedTeachers = teachers.filter(
     (teacher) => teacher.status === "approved",
   );

@@ -84,10 +84,10 @@ The reusable dashboard search UI calls `GET /api/search`. The server derives the
 Example:
 
 ```http
-GET /api/search?entity=participants&q=maria&status=completed&session=FMBFE4&from=2026-09-01&to=2026-10-01&sort=date&dir=desc&page=1&pageSize=5
+GET /api/search?entity=students&q=maria&status=completed&session=FMBFE4&from=2026-09-01&to=2026-10-01&sort=date&dir=desc&page=1&pageSize=5
 ```
 
-Supported query fields are `entity` (`students`, `quizzes`, `participants`, or admin-only `teachers`), `q`, `status`, admin-only `teacher` username, participant `quiz` and `session` (share code), `from`, `to`, `sort` (`name`, `date`, or `status` when the entity supports it), `dir`, `page`, and `pageSize` (capped at 5). The response contains `items`, server-side `pagination`, and role/scope metadata. Errors use `{ "error": { "code": "...", "message": "..." } }`. Search/filter/sort/page state is reflected in the dashboard URL. Passwords are never searched or returned.
+Supported query fields are `entity` (`students`, `student_accounts`, `quizzes`, or admin-only `teachers`), `q`, `status`, admin-only `teacher` username, student `quiz` and `session` (share code), `from`, `to`, `sort` (`name`, `date`, or `status` when the entity supports it), `dir`, `page`, and `pageSize` (capped at 5). The response contains `items`, server-side `pagination`, and role/scope metadata. Errors use `{ "error": { "code": "...", "message": "..." } }`. Search/filter/sort/page state is reflected in the dashboard URL. Passwords are never searched or returned.
 
 Example success response:
 
@@ -95,8 +95,8 @@ Example success response:
 {
   "items": [
     {
-      "entity": "participants",
-      "id": "participant-id",
+      "entity": "students",
+      "id": "student-roster-id",
       "username": "maria.santos",
       "status": "completed",
       "score": 92,
@@ -112,7 +112,7 @@ Example success response:
   ],
   "pagination": { "page": 1, "pageSize": 5, "total": 1, "totalPages": 1 },
   "meta": {
-    "entity": "participants",
+    "entity": "students",
     "role": "teacher",
     "scope": "own-records",
     "dataSource": "supabase",
@@ -128,8 +128,8 @@ Example success response:
     "sort": "date",
     "dir": "desc",
     "searchableFields": [
-      "Participant username",
-      "Participant status",
+      "Student username",
+      "Student status",
       "Quiz title",
       "Session code",
       "Email"
@@ -138,7 +138,7 @@ Example success response:
 }
 ```
 
-For local development, the endpoint defaults to deterministic mock data; use `SEARCH_DATA_SOURCE=mock` or `SEARCH_DATA_SOURCE=supabase` to choose explicitly. Production defaults to Supabase. Apply `supabase/migrations/202610290001_search_views_and_indexes.sql` before enabling the Supabase source. The migration builds four `security_invoker` views on the live schema: `search_students` from `account_profiles` joined to managing teachers, `search_quizzes` from `quizzes`, `search_participants` from the `students` roster with the latest attempt/result, and `search_teachers` from `teachers`. The views expose only the columns listed in `src/lib/search/config.ts`. The API applies a trusted teacher scope before all user filters; participant rows are scoped by the quiz owner (`quizzes.teacher_id`), so another teacher's rows are not exposed.
+For local development, the endpoint defaults to deterministic mock data; use `SEARCH_DATA_SOURCE=mock` or `SEARCH_DATA_SOURCE=supabase` to choose explicitly. Production defaults to Supabase. Apply `supabase/migrations/202610290001_search_views_and_indexes.sql` before enabling the Supabase source. The migration builds four `security_invoker` views on the live schema: `search_students` (student accounts) from `account_profiles` joined to managing teachers, `search_quizzes` from `quizzes`, `search_participants` (the per-quiz student roster) from the `students` table with the latest attempt/result, and `search_teachers` from `teachers`. The views expose only the columns listed in `src/lib/search/config.ts`. The `student_accounts` entity reads `search_students` and is used by the account-management tables; the `students` entity reads `search_participants`. The API applies a trusted teacher scope before all user filters; student roster rows are scoped by the quiz owner (`quizzes.teacher_id`), so another teacher's rows are not exposed.
 
 The migration adds B-tree indexes for teacher/status/date/join columns and `pg_trgm` GIN indexes for substring-matched text columns. Trigram indexes support the `%term%` `ILIKE` searches without requiring a separate full-text search language configuration. Password columns are intentionally absent from views and indexes. `supabase/migrations/202611030002_search_views_read_only.sql` revokes the default table grants the views inherit and leaves `authenticated` with `SELECT` only. `supabase/migrations/202611030001_guard_teacher_status.sql` closes a pre-existing RLS gap that lets a teacher update their own `teachers.status`; apply it with the search migration or replace it with an equivalent policy change.
 
@@ -149,8 +149,8 @@ To add a filter field, add its key to `SearchFilterKey`, define role/entity visi
 Teachers and admins can export the available dashboard datasets as Excel (`.xlsx`) or CSV. Exports use the authenticated session, the same role scope and applicable filters as dashboard search, and the Supabase search views protected by the existing grants and RLS policies.
 
 ```http
-GET /api/export?entity=participants&format=xlsx&q=maria&status=completed
-GET /api/export?entity=participants&format=csv&q=maria&status=completed
+GET /api/export?entity=students&format=xlsx&q=maria&status=completed
+GET /api/export?entity=students&format=csv&q=maria&status=completed
 ```
 
 Exports include all matching rows, not just the current dashboard page, and are streamed in batches. A single export is capped at 100,000 rows; narrow the filters if a dataset exceeds that limit. CSV output includes a UTF-8 BOM, escaped cells, and protection against spreadsheet formula injection.

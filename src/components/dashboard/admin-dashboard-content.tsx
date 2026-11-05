@@ -51,7 +51,7 @@ export default function AdminDashboardContent({
   const searchActiveKey =
     entity === "teachers"
       ? "teacher-accounts"
-      : entity === "students"
+      : entity === "students" || entity === "student_accounts"
         ? "students"
         : "quizzes";
   const [manualActiveKey, setManualActiveKey] = useState<string | null>(null);
@@ -84,7 +84,7 @@ export default function AdminDashboardContent({
       key === "teacher-accounts"
         ? "teachers"
         : key === "students"
-          ? "students"
+          ? "student_accounts"
           : "quizzes";
     const query = defaultSearchQuery("admin", nextEntity);
     const params = new URLSearchParams();

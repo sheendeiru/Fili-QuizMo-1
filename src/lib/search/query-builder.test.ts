@@ -22,7 +22,7 @@ describe("buildSearchPlan", () => {
     });
     expect(plan.range).toEqual({ from: 20, to: 29 });
     expect(plan.order[0]).toEqual({
-      column: "created_at",
+      column: "joined_at",
       ascending: false,
     });
   });
@@ -40,9 +40,9 @@ describe("buildSearchPlan", () => {
     );
   });
 
-  it("scopes participants by the quiz owner", () => {
+  it("scopes students by the quiz owner", () => {
     const query = parseSearchQuery(
-      new URLSearchParams("entity=participants&status=completed"),
+      new URLSearchParams("entity=students&status=completed"),
       "teacher",
     );
     const plan = buildSearchPlan(
@@ -57,9 +57,9 @@ describe("buildSearchPlan", () => {
     });
   });
 
-  it("allows an admin to narrow participants by teacher username", () => {
+  it("allows an admin to narrow students by teacher username", () => {
     const query = parseSearchQuery(
-      new URLSearchParams("entity=participants&teacher=msantos"),
+      new URLSearchParams("entity=students&teacher=msantos"),
       "admin",
     );
     const plan = buildSearchPlan(
@@ -77,7 +77,7 @@ describe("buildSearchPlan", () => {
   it("rejects the admin-only teacher filter for teachers", () => {
     expect(() =>
       parseSearchQuery(
-        new URLSearchParams("entity=participants&teacher=msantos"),
+        new URLSearchParams("entity=students&teacher=msantos"),
         "teacher",
       ),
     ).toThrowError(
@@ -103,7 +103,7 @@ describe("buildSearchPlan", () => {
       "admin",
     );
 
-    expect(parsed.pageSize).toBe(100);
+    expect(parsed.pageSize).toBe(5);
     expect(parsed.sort).toBe("name");
     expect(() =>
       parseSearchQuery(
@@ -118,7 +118,7 @@ describe("buildSearchPlan", () => {
   it("rejects a sort field the entity does not support", () => {
     expect(() =>
       parseSearchQuery(
-        new URLSearchParams("entity=students&sort=status"),
+        new URLSearchParams("entity=student_accounts&sort=status"),
         "admin",
       ),
     ).toThrowError(

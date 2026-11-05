@@ -24,7 +24,7 @@ describe("export route authorization", () => {
     );
 
     const response = await GET(
-      new Request("http://localhost/api/export?entity=participants"),
+      new Request("http://localhost/api/export?entity=students"),
     );
 
     expect(response.status).toBe(401);
@@ -40,7 +40,7 @@ describe("export route authorization", () => {
     );
 
     const response = await GET(
-      new Request("http://localhost/api/export?entity=participants"),
+      new Request("http://localhost/api/export?entity=students"),
     );
 
     expect(response.status).toBe(403);

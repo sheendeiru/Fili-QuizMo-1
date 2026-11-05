@@ -59,7 +59,10 @@ export default function TeacherDashboardContent({
 }) {
   const searchParams = useSearchParams();
   const entity = searchParams.get("entity");
-  const urlActiveKey = entity === "students" ? "students" : "quizzes";
+  const urlActiveKey =
+    entity === "students" || entity === "student_accounts"
+      ? "students"
+      : "quizzes";
   // The section the teacher last clicked. It wins over the URL so the sidebar
   // highlight and the content switch together, instantly, on every click.
   const [manualActiveKey, setManualActiveKey] = useState<string | null>(null);
@@ -89,7 +92,7 @@ export default function TeacherDashboardContent({
       return;
     }
 
-    const target = key === "students" ? "students" : "quizzes";
+    const target = key === "students" ? "student_accounts" : "quizzes";
     const params = new URLSearchParams();
     const query = defaultSearchQuery("teacher", target);
     params.set("entity", query.entity);

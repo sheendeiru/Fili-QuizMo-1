@@ -14,9 +14,20 @@ import {
 } from "@/lib/auth/session-state";
 
 const EXPORT_ENTITIES: Record<SearchRole, readonly SearchEntity[]> = {
-  teacher: ["quizzes", "students"],
-  admin: ["quizzes", "students", "teachers"],
+  teacher: ["quizzes", "students", "student_accounts"],
+  admin: ["quizzes", "students", "student_accounts", "teachers"],
 };
+
+const EXPORT_ENTITY_LABELS: Partial<Record<SearchEntity, string>> = {
+  student_accounts: "Student accounts",
+};
+
+function exportEntityLabel(entity: SearchEntity): string {
+  return (
+    EXPORT_ENTITY_LABELS[entity] ??
+    entity.charAt(0).toUpperCase() + entity.slice(1)
+  );
+}
 
 export const EXPORT_FORMAT_OPTIONS = [
   { format: "xlsx", label: "Download as Excel (.xlsx)" },
@@ -125,8 +136,7 @@ export function ExportDropdown({ role }: { role: SearchRole }) {
     availability?.key === requestKey ? availability.state : "checking";
   const availabilityMessage =
     availability?.key === requestKey ? availability.message : "";
-  const selectedLabel =
-    selectedEntity.charAt(0).toUpperCase() + selectedEntity.slice(1);
+  const selectedLabel = exportEntityLabel(selectedEntity);
 
   useEffect(() => {
     const controller = createSessionRequestController();
@@ -326,7 +336,7 @@ export function ExportDropdown({ role }: { role: SearchRole }) {
       >
         {EXPORT_ENTITIES[role].map((entity) => (
           <option key={entity} value={entity}>
-            {entity.charAt(0).toUpperCase() + entity.slice(1)}
+            {exportEntityLabel(entity)}
           </option>
         ))}
       </select>

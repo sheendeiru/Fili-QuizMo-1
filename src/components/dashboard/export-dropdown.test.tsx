@@ -57,7 +57,7 @@ describe("export dropdown", () => {
     expect(params.has("from")).toBe(false);
   });
 
-  it("does not offer participants as an export dataset", () => {
+  it("does not offer a separate participants dataset", () => {
     for (const role of ["teacher", "admin"] as const) {
       const markup = renderToStaticMarkup(
         createElement(ExportDropdown, { role }),
@@ -65,6 +65,7 @@ describe("export dropdown", () => {
 
       expect(markup).not.toContain('value="participants"');
       expect(markup).toContain('value="students"');
+      expect(markup).toContain('value="student_accounts"');
     }
   });
 });

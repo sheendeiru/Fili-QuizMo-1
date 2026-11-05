@@ -28,8 +28,8 @@ describe("export data formatting", () => {
   it("keeps safe text unchanged and creates date-stamped filenames", () => {
     expect(safeSpreadsheetText("Fili-QuizMo")).toBe("Fili-QuizMo");
     expect(
-      getExportFilename("participants", "xlsx", new Date("2026-11-01T00:00:00Z")),
-    ).toBe("fili-quizmo-participants-2026-11-01.xlsx");
+      getExportFilename("students", "xlsx", new Date("2026-11-01T00:00:00Z")),
+    ).toBe("fili-quizmo-students-2026-11-01.xlsx");
   });
 
   it("paginates complete exports beyond the Supabase 1000-row limit", async () => {

@@ -5,7 +5,6 @@ import {
   hasTeacherScope,
 } from "./query-builder";
 import type {
-  ParticipantSearchItem,
   QuizSearchItem,
   SearchEntity,
   SearchItem,
@@ -14,6 +13,7 @@ import type {
   SearchResponse,
   SearchRow,
   SearchScope,
+  StudentAccountSearchItem,
   StudentSearchItem,
   TeacherSearchItem,
 } from "./types";
@@ -76,6 +76,26 @@ export function mapSearchItem(
   if (entity === "students") {
     const item: StudentSearchItem = {
       entity: "students",
+      id: textValue(row, "participant_id"),
+      username: textValue(row, "username"),
+      status: textValue(row, "status"),
+      score: nullableNumberValue(row, "score"),
+      quizId: textValue(row, "quiz_id"),
+      quizTitle: textValue(row, "quiz_title"),
+      sessionId: textValue(row, "session_id"),
+      sessionCode: textValue(row, "session_code"),
+      studentEmail: textValue(row, "student_email"),
+      teacherId: textValue(row, "teacher_id"),
+      teacherUsername: textValue(row, "teacher_username"),
+      joinedAt: textValue(row, "joined_at"),
+    };
+
+    return item;
+  }
+
+  if (entity === "student_accounts") {
+    const item: StudentAccountSearchItem = {
+      entity: "student_accounts",
       id: textValue(row, "student_id"),
       username: textValue(row, "username"),
       email: textValue(row, "email"),
@@ -97,26 +117,6 @@ export function mapSearchItem(
       teacherId: textValue(row, "teacher_id"),
       teacherUsername: textValue(row, "teacher_username"),
       createdAt: textValue(row, "created_at"),
-    };
-
-    return item;
-  }
-
-  if (entity === "participants") {
-    const item: ParticipantSearchItem = {
-      entity: "participants",
-      id: textValue(row, "participant_id"),
-      username: textValue(row, "username"),
-      status: textValue(row, "status"),
-      score: nullableNumberValue(row, "score"),
-      quizId: textValue(row, "quiz_id"),
-      quizTitle: textValue(row, "quiz_title"),
-      sessionId: textValue(row, "session_id"),
-      sessionCode: textValue(row, "session_code"),
-      studentEmail: textValue(row, "student_email"),
-      teacherId: textValue(row, "teacher_id"),
-      teacherUsername: textValue(row, "teacher_username"),
-      joinedAt: textValue(row, "joined_at"),
     };
 
     return item;

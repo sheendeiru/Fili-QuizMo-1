@@ -24,6 +24,12 @@ export const EXPORT_COLUMNS: Record<SearchEntity, readonly ExportColumn[]> = {
     { key: "teacher_username", label: "Teacher" },
     { key: "joined_at", label: "Joined at", type: "date" },
   ],
+  student_accounts: [
+    { key: "username", label: "Student username" },
+    { key: "email", label: "Email" },
+    { key: "teacher_username", label: "Teacher" },
+    { key: "created_at", label: "Created at", type: "date" },
+  ],
   teachers: [
     { key: "username", label: "Teacher" },
     { key: "email", label: "Email" },
