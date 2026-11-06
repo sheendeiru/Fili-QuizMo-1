@@ -231,9 +231,9 @@ export async function loadAdminDashboardData(
         .select("id, username, email, status, created_at")
         .order("created_at", { ascending: false })
         .limit(500),
-      supabase.from("students").select("id", { count: "exact", head: true }),
+      supabase.from("student_roster").select("id", { count: "exact", head: true }),
       supabase
-        .from("quiz_results")
+        .from("student_quiz_results")
         .select(
           "attempt_id, title, participant_username, percentage, completed_at",
         )
@@ -308,11 +308,11 @@ export async function loadTeacherDashboardData(
       .order("created_at", { ascending: false })
       .limit(1_000),
     supabase
-      .from("students")
+      .from("student_roster")
       .select("id, session_id, username")
       .limit(5_000),
     supabase
-      .from("quiz_results")
+      .from("student_quiz_results")
       .select(
         "attempt_id, title, participant_username, percentage, completed_at",
       )
@@ -326,12 +326,16 @@ export async function loadTeacherDashboardData(
 
   const quizzes = (quizzesResult.data ?? []) as QuizRow[];
   const sessionIds = new Set(quizzes.map((quiz) => quiz.session_id));
-  const rosterRows = (studentsResult.data ?? []).filter((student) =>
-    sessionIds.has(student.session_id),
+  const rosterRows = (studentsResult.data ?? []).filter(
+  (student) =>
+    student.session_id !== null && sessionIds.has(student.session_id),
   );
   const uniqueStudents = new Set(
-    rosterRows.map((student) => student.username.trim().toLowerCase()),
+  rosterRows
+    .map((student) => (student.username ?? "").trim().toLowerCase())
+    .filter((name) => name !== ""),
   );
+
   const results = (resultsResult.data ?? []) as ResultRow[];
 
   return {

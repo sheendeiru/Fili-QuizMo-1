@@ -1,4 +1,4 @@
-﻿export type Json =
+export type Json =
   | string
   | number
   | boolean
@@ -39,11 +39,44 @@ export type Database = {
   }
   public: {
     Tables: {
+      account_credential_changes: {
+        Row: {
+          action: string
+          actor_user_id: string | null
+          changed_email: boolean
+          changed_password: boolean
+          created_at: string
+          id: number
+          target_email: string | null
+          target_user_id: string | null
+        }
+        Insert: {
+          action?: string
+          actor_user_id?: string | null
+          changed_email?: boolean
+          changed_password?: boolean
+          created_at?: string
+          id?: never
+          target_email?: string | null
+          target_user_id?: string | null
+        }
+        Update: {
+          action?: string
+          actor_user_id?: string | null
+          changed_email?: boolean
+          changed_password?: boolean
+          created_at?: string
+          id?: never
+          target_email?: string | null
+          target_user_id?: string | null
+        }
+        Relationships: []
+      }
       account_profiles: {
         Row: {
-          created_at: string
           consent_accepted_at: string | null
           consent_policy_version: string | null
+          created_at: string
           email: string | null
           managed_by_teacher_id: number | null
           role: string
@@ -52,9 +85,9 @@ export type Database = {
           username_key: string | null
         }
         Insert: {
-          created_at?: string
           consent_accepted_at?: string | null
           consent_policy_version?: string | null
+          created_at?: string
           email?: string | null
           managed_by_teacher_id?: number | null
           role: string
@@ -63,9 +96,9 @@ export type Database = {
           username_key?: string | null
         }
         Update: {
-          created_at?: string
           consent_accepted_at?: string | null
           consent_policy_version?: string | null
+          created_at?: string
           email?: string | null
           managed_by_teacher_id?: number | null
           role?: string
@@ -393,6 +426,13 @@ export type Database = {
             referencedRelation: "quizzes"
             referencedColumns: ["session_id"]
           },
+          {
+            foreignKeyName: "students_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "search_quizzes"
+            referencedColumns: ["quiz_id"]
+          },
         ]
       }
       teachers: {
@@ -507,6 +547,244 @@ export type Database = {
         }
         Relationships: []
       }
+      search_participants: {
+        Row: {
+          joined_at: string | null
+          participant_id: string | null
+          quiz_id: string | null
+          quiz_title: string | null
+          score: number | null
+          session_code: string | null
+          session_id: string | null
+          status: string | null
+          student_email: string | null
+          teacher_id: string | null
+          teacher_username: string | null
+          username: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "students_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "quizzes"
+            referencedColumns: ["session_id"]
+          },
+          {
+            foreignKeyName: "students_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "search_quizzes"
+            referencedColumns: ["quiz_id"]
+          },
+        ]
+      }
+      search_quizzes: {
+        Row: {
+          created_at: string | null
+          question_count: number | null
+          quiz_id: string | null
+          status: string | null
+          teacher_id: string | null
+          teacher_username: string | null
+          title: string | null
+        }
+        Relationships: []
+      }
+      search_students: {
+        Row: {
+          created_at: string | null
+          email: string | null
+          student_id: string | null
+          teacher_id: string | null
+          teacher_username: string | null
+          username: string | null
+        }
+        Relationships: []
+      }
+      search_teachers: {
+        Row: {
+          created_at: string | null
+          email: string | null
+          quiz_count: number | null
+          status: string | null
+          teacher_id: string | null
+          username: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          email?: never
+          quiz_count?: never
+          status?: string | null
+          teacher_id?: never
+          username?: never
+        }
+        Update: {
+          created_at?: string | null
+          email?: never
+          quiz_count?: never
+          status?: string | null
+          teacher_id?: never
+          username?: never
+        }
+        Relationships: []
+      }
+      student_quiz_attempts: {
+        Row: {
+          account_id: string | null
+          answered_count: number | null
+          attempt_id: string | null
+          attempt_number: number | null
+          completed_at: string | null
+          correct_count: number | null
+          final_score: string | null
+          participant_username: string | null
+          percentage: number | null
+          recorded_at: string | null
+          session_id: string | null
+          share_code: string | null
+          started_at: string | null
+          teacher_id: string | null
+          teacher_username: string | null
+          title: string | null
+          total_questions: number | null
+        }
+        Insert: {
+          account_id?: string | null
+          answered_count?: number | null
+          attempt_id?: string | null
+          attempt_number?: number | null
+          completed_at?: string | null
+          correct_count?: number | null
+          final_score?: string | null
+          participant_username?: string | null
+          percentage?: number | null
+          recorded_at?: string | null
+          session_id?: string | null
+          share_code?: string | null
+          started_at?: string | null
+          teacher_id?: string | null
+          teacher_username?: string | null
+          title?: string | null
+          total_questions?: number | null
+        }
+        Update: {
+          account_id?: string | null
+          answered_count?: number | null
+          attempt_id?: string | null
+          attempt_number?: number | null
+          completed_at?: string | null
+          correct_count?: number | null
+          final_score?: string | null
+          participant_username?: string | null
+          percentage?: number | null
+          recorded_at?: string | null
+          session_id?: string | null
+          share_code?: string | null
+          started_at?: string | null
+          teacher_id?: string | null
+          teacher_username?: string | null
+          title?: string | null
+          total_questions?: number | null
+        }
+        Relationships: []
+      }
+      student_quiz_results: {
+        Row: {
+          account_id: string | null
+          answered_count: number | null
+          attempt_id: string | null
+          attempt_number: number | null
+          completed_at: string | null
+          correct_count: number | null
+          final_score: string | null
+          participant_username: string | null
+          percentage: number | null
+          recorded_at: string | null
+          session_id: string | null
+          share_code: string | null
+          started_at: string | null
+          teacher_id: string | null
+          teacher_username: string | null
+          title: string | null
+          total_questions: number | null
+        }
+        Insert: {
+          account_id?: string | null
+          answered_count?: number | null
+          attempt_id?: string | null
+          attempt_number?: number | null
+          completed_at?: string | null
+          correct_count?: number | null
+          final_score?: string | null
+          participant_username?: string | null
+          percentage?: number | null
+          recorded_at?: string | null
+          session_id?: string | null
+          share_code?: string | null
+          started_at?: string | null
+          teacher_id?: string | null
+          teacher_username?: string | null
+          title?: string | null
+          total_questions?: number | null
+        }
+        Update: {
+          account_id?: string | null
+          answered_count?: number | null
+          attempt_id?: string | null
+          attempt_number?: number | null
+          completed_at?: string | null
+          correct_count?: number | null
+          final_score?: string | null
+          participant_username?: string | null
+          percentage?: number | null
+          recorded_at?: string | null
+          session_id?: string | null
+          share_code?: string | null
+          started_at?: string | null
+          teacher_id?: string | null
+          teacher_username?: string | null
+          title?: string | null
+          total_questions?: number | null
+        }
+        Relationships: []
+      }
+      student_roster: {
+        Row: {
+          created_at: string | null
+          id: number | null
+          session_id: string | null
+          username: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: number | null
+          session_id?: string | null
+          username?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: number | null
+          session_id?: string | null
+          username?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "students_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "quizzes"
+            referencedColumns: ["session_id"]
+          },
+          {
+            foreignKeyName: "students_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "search_quizzes"
+            referencedColumns: ["quiz_id"]
+          },
+        ]
+      }
       teacher_student_scores: {
         Row: {
           answered_count: number | null
@@ -535,6 +813,12 @@ export type Database = {
         Returns: undefined
       }
       is_admin: { Args: never; Returns: boolean }
+      is_quiz_owner_name: {
+        Args: { p_session_id: string; p_username: string }
+        Returns: boolean
+      }
+      is_staff_account: { Args: { p_account_id: string }; Returns: boolean }
+      is_staff_user: { Args: never; Returns: boolean }
       norm_answer: { Args: { t: string }; Returns: string }
       normalized_quiz_title: { Args: { value: string }; Returns: string }
       owns_quiz: { Args: { p_session_id: string }; Returns: boolean }
@@ -542,6 +826,8 @@ export type Database = {
         Args: { p_questions: Json; p_session_id: string }
         Returns: undefined
       }
+      show_limit: { Args: never; Returns: number }
+      show_trgm: { Args: { "": string }; Returns: string[] }
       start_account_quiz_attempt: {
         Args: { p_account_id: string; p_session_id: string; p_username: string }
         Returns: Json
