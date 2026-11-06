@@ -94,6 +94,7 @@ function isSearchResponse(value: unknown): value is SearchResponse {
 export async function fetchSearchResults(
   query: SearchQuery,
   signal?: AbortSignal,
+  options: { sessionExpiredPath?: string } = {},
 ): Promise<SearchResponse> {
   const params = buildSearchApiParams(query);
   const response = await fetch(`/api/search?${params.toString()}`, {
@@ -102,6 +103,17 @@ export async function fetchSearchResults(
     cache: "no-store",
     signal,
   });
+
+  // A signed-out request can be redirected to an HTML login page. Treat it
+  // like a 401 instead of failing later with an "unexpected response" error.
+  if (response.redirected && typeof window !== "undefined") {
+    await expireSessionAndRedirect(options.sessionExpiredPath);
+    throw new SearchApiError(
+      401,
+      "UNAUTHENTICATED",
+      "Your session has ended. Please sign in again.",
+    );
+  }
 
   let body: unknown = null;
 
@@ -113,7 +125,7 @@ export async function fetchSearchResults(
 
   if (!response.ok) {
     if (response.status === 401 && typeof window !== "undefined") {
-      await expireSessionAndRedirect();
+      await expireSessionAndRedirect(options.sessionExpiredPath);
     }
 
     if (isErrorBody(body)) {

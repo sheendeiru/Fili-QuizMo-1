@@ -20,6 +20,9 @@ const EXPORT_ENTITIES: Record<SearchRole, readonly SearchEntity[]> = {
 
 const EXPORT_ENTITY_LABELS: Partial<Record<SearchEntity, string>> = {
   student_accounts: "Student accounts",
+  // "students" is the quiz roster with scores (search_participants), not the
+  // account list, so the plain label was easy to confuse with the one above.
+  students: "Student scores",
 };
 
 function exportEntityLabel(entity: SearchEntity): string {
@@ -76,6 +79,22 @@ export function createExportSearchParams(
   return params;
 }
 
+function sessionExpiredPath(role: SearchRole): string {
+  return role === "teacher"
+    ? "/teacher-login?status=session_expired"
+    : "/admin-login?status=session_expired";
+}
+
+// A signed-out request can be redirected to an HTML login page. That is not
+// JSON, so reading it must not throw a confusing "Unexpected token <" error.
+async function readJsonBody(response: Response): Promise<unknown> {
+  try {
+    return await response.json();
+  } catch {
+    return null;
+  }
+}
+
 function errorMessageFromResponse(status: number, body: unknown): string {
   if (
     typeof body === "object" &&
@@ -87,6 +106,10 @@ function errorMessageFromResponse(status: number, body: unknown): string {
     typeof body.error.message === "string"
   ) {
     return body.error.message;
+  }
+
+  if (status === 403) {
+    return "You do not have permission to export this data.";
   }
 
   return `Export failed (${status}). Please try again.`;
@@ -146,12 +169,14 @@ export function ExportDropdown({ role }: { role: SearchRole }) {
       cache: "no-store",
     })
       .then(async (response) => {
-        const body: unknown = await response.json();
+        if (response.redirected || response.status === 401) {
+          await expireSessionAndRedirect(sessionExpiredPath(role));
+          return;
+        }
+
+        const body = await readJsonBody(response);
 
         if (!response.ok) {
-          if (response.status === 401) {
-            await expireSessionAndRedirect();
-          }
           throw new Error(errorMessageFromResponse(response.status, body));
         }
 
@@ -187,7 +212,7 @@ export function ExportDropdown({ role }: { role: SearchRole }) {
       .finally(() => releaseSessionRequestController(controller));
 
     return () => controller.abort();
-  }, [availabilityUrl, requestKey]);
+  }, [availabilityUrl, requestKey, role]);
 
   useEffect(() => {
     if (!menuOpen) {
@@ -207,6 +232,15 @@ export function ExportDropdown({ role }: { role: SearchRole }) {
     document.addEventListener("pointerdown", closeOutside);
     return () => document.removeEventListener("pointerdown", closeOutside);
   }, [menuOpen]);
+
+  useEffect(() => {
+    if (!notice || noticeIsError) {
+      return;
+    }
+
+    const timer = window.setTimeout(() => setNotice(""), 4000);
+    return () => window.clearTimeout(timer);
+  }, [notice, noticeIsError]);
 
   async function download(format: "csv" | "xlsx") {
     if (availabilityState !== "available" || isExporting) {
@@ -229,17 +263,13 @@ export function ExportDropdown({ role }: { role: SearchRole }) {
         signal: controller.signal,
       });
 
-      if (!response.ok) {
-        const body: unknown = await response.json().catch(() => null);
+      if (response.redirected || response.status === 401) {
+        await expireSessionAndRedirect(sessionExpiredPath(role));
+        return;
+      }
 
-        if (response.status === 401) {
-          await expireSessionAndRedirect(
-            role === "teacher"
-              ? "/teacher-login?status=session_expired"
-              : "/admin-login?status=session_expired",
-          );
-          return;
-        }
+      if (!response.ok) {
+        const body = await readJsonBody(response);
 
         throw new Error(errorMessageFromResponse(response.status, body));
       }
@@ -332,7 +362,7 @@ export function ExportDropdown({ role }: { role: SearchRole }) {
             setNotice("");
           }
         }}
-        className="max-w-40 border border-border bg-surface px-2 py-2 text-sm text-foreground"
+        className="min-w-0 flex-1 border border-border bg-surface px-2 py-2 text-sm text-foreground sm:max-w-40 sm:flex-none"
       >
         {EXPORT_ENTITIES[role].map((entity) => (
           <option key={entity} value={entity}>
@@ -349,7 +379,12 @@ export function ExportDropdown({ role }: { role: SearchRole }) {
           onClick={() => void download("xlsx")}
           className="inline-flex items-center gap-2 border-2 border-emerald-900 bg-emerald-600 px-3 py-2 text-xs font-semibold text-px-text-dark hover:bg-emerald-500 active:bg-emerald-700 focus-visible:ring-2 focus-visible:ring-emerald-300 disabled:cursor-not-allowed disabled:bg-emerald-900/40 disabled:text-emerald-200/50"
         >
-          {isExporting ? <Spinner className="h-4 w-4" /> : null}
+          <span
+            aria-hidden="true"
+            className="inline-flex h-4 w-4 shrink-0 items-center justify-center"
+          >
+            {isExporting ? <Spinner className="h-4 w-4" /> : "↓"}
+          </span>
           Download as Excel
         </button>
         <button
@@ -417,20 +452,31 @@ export function ExportDropdown({ role }: { role: SearchRole }) {
         </span>
       ) : null}
       {availabilityState === "error" ? (
-        <p role="alert" className="basis-full border-2 border-red-400 bg-red-950/60 p-3 text-xs text-red-200">
+        <p
+          role="alert"
+          className="absolute right-0 top-full z-20 mt-2 w-72 max-w-full border-2 border-red-400 bg-red-950 p-3 text-xs text-red-200"
+        >
           {availabilityMessage}
         </p>
       ) : null}
       {notice ? (
         <p
           role={noticeIsError ? "alert" : "status"}
-          className={`basis-full border-2 p-3 text-xs ${
+          className={`fixed bottom-4 left-1/2 z-[70] flex w-[calc(100vw-2rem)] max-w-sm -translate-x-1/2 items-start justify-between gap-3 border-2 p-3 text-xs shadow-[3px_3px_0_var(--color-ink)] ${
             noticeIsError
-              ? "border-red-400 bg-red-950/60 text-red-200"
-              : "border-emerald-400 bg-emerald-950/60 text-emerald-100"
+              ? "border-red-400 bg-red-950 text-red-200"
+              : "border-emerald-400 bg-emerald-950 text-emerald-100"
           }`}
         >
-          {notice}
+          <span>{notice}</span>
+          <button
+            type="button"
+            aria-label="Dismiss message"
+            onClick={() => setNotice("")}
+            className="font-bold"
+          >
+            ×
+          </button>
         </p>
       ) : null}
     </div>

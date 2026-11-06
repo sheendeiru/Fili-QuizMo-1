@@ -6,22 +6,28 @@ import {
   useSearchParams,
 } from "next/navigation";
 import dynamic from "next/dynamic";
-import { useEffect, useState } from "react";
-import type { FormEvent, ReactNode } from "react";
+import { useState } from "react";
+import type { ReactNode } from "react";
 import {
   DashboardShell,
   type DashboardNavItem,
 } from "@/components/dashboard/dashboard-shell";
 import { PixelLoader } from "@/components/ui/pixel-loader";
 import { useNavigation } from "@/components/pixel";
-import { Button } from "@/components/ui/button";
 import { PixelCard } from "@/components/ui/pixel-primitives";
 import { SearchFilter } from "@/components/dashboard/search-filter";
+import { ManageQuizzesTable } from "@/components/dashboard/manage-quizzes";
+import {
+  BarChartCard,
+  MeterCard,
+  RecentScoresCard,
+} from "@/components/dashboard/dashboard-charts";
 import { ManageAccountsTable } from "@/components/dashboard/manage-accounts";
-import { FormField } from "@/components/ui/form-field";
+import { ProfileCard } from "@/components/dashboard/profile-card";
 import { SettingsPasswordForm } from "@/components/dashboard/settings-password-form";
-import { defaultSearchQuery } from "@/lib/search/url-state";
+import { useResetRouteState } from "@/lib/dashboard/route-reset";
 import { logoutAndRedirect } from "@/lib/auth/logout";
+import { useRealtimeRefresh } from "@/lib/realtime/use-realtime-refresh";
 import type { TeacherDashboardData } from "@/lib/dashboard/data";
 
 const PieChart = dynamic(
@@ -39,8 +45,16 @@ const navItems: DashboardNavItem[] = [
   { key: "students", label: "Manage Student Info" },
   { key: "scores", label: "View Scores" },
   { key: "leaderboard", label: "Leaderboard" },
-  { key: "settings", label: "Settings" },
 ];
+
+// Tables the teacher dashboard summarises. Only rows this teacher is allowed
+// to read are streamed (row level security).
+const LIVE_TABLES = [
+  "quiz_sessions",
+  "students",
+  "quiz_results",
+  "account_profiles",
+] as const;
 
 const dateFormatter = new Intl.DateTimeFormat("en-PH", {
   dateStyle: "medium",
@@ -53,59 +67,72 @@ function formatDate(value: string): string {
   return Number.isNaN(date.getTime()) ? "—" : dateFormatter.format(date);
 }
 
+const BASE_PATH = "/teacher-dashboard";
+
+// One route per sidebar button. `entity` is still sent as a query param
+// because the search, table and export components read it from the URL.
+// "scores" is the quiz roster with scores; "students" is the account list.
+const SECTION_ROUTES = {
+  quizzes: { slug: "quizzes", entity: "quizzes" },
+  students: { slug: "students", entity: "student_accounts" },
+  scores: { slug: "scores", entity: "students" },
+  leaderboard: { slug: "leaderboard", entity: null },
+  settings: { slug: "settings", entity: null },
+} as const;
+
+type SectionKey = keyof typeof SECTION_ROUTES;
+
+function sectionHref(key: SectionKey): string {
+  const route = SECTION_ROUTES[key];
+
+  return `${BASE_PATH}/${route.slug}${route.entity ? `?entity=${route.entity}` : ""}`;
+}
+
+function isSectionKey(key: string): key is SectionKey {
+  return key in SECTION_ROUTES;
+}
+
+/** /teacher-dashboard/scores -> "scores". Old ?entity= links still work. */
+function sectionFromUrl(pathname: string, entity: string | null): SectionKey {
+  const segment = pathname.startsWith(BASE_PATH)
+    ? pathname.slice(BASE_PATH.length).split("/").filter(Boolean)[0]
+    : undefined;
+
+  const match = (Object.keys(SECTION_ROUTES) as SectionKey[]).find(
+    (key) => SECTION_ROUTES[key].slug === segment,
+  );
+  if (match) return match;
+
+  if (entity === "student_accounts") return "students";
+  if (entity === "students") return "scores";
+  return "quizzes";
+}
+
 export default function TeacherDashboardContent({
   data,
 }: {
   data: TeacherDashboardData;
 }) {
   const searchParams = useSearchParams();
-  const entity = searchParams.get("entity");
-  const urlActiveKey =
-    entity === "students" || entity === "student_accounts"
-      ? "students"
-      : "quizzes";
-  // The section the teacher last clicked. It wins over the URL so the sidebar
-  // highlight and the content switch together, instantly, on every click.
-  const [manualActiveKey, setManualActiveKey] = useState<string | null>(null);
-  const activeKey = manualActiveKey ?? urlActiveKey;
+  const pathname = usePathname();
+  const activeKey = sectionFromUrl(pathname, searchParams.get("entity"));
   const [logoutError, setLogoutError] = useState("");
   const router = useRouter();
   const { navigate } = useNavigation();
-  const pathname = usePathname();
 
-  useEffect(() => {
-    // Browser back/forward: fall back to whatever the URL says.
-    function clearManualSection() {
-      setManualActiveKey(null);
-    }
-
-    window.addEventListener("popstate", clearManualSection);
-    return () => window.removeEventListener("popstate", clearManualSection);
-  }, []);
+  useResetRouteState("teacher-dashboard", sectionHref(activeKey));
+  useRealtimeRefresh(LIVE_TABLES);
 
   function navigateToSection(key: string) {
-    // Always select the clicked section first. Before, clicking Students or
-    // Quizzes cleared this and fell back to the *old* URL, so the sidebar and
-    // content flashed the wrong section until the route finished changing.
-    setManualActiveKey(key);
+    if (!isSectionKey(key)) return;
 
-    if (key !== "students" && key !== "quizzes") {
+    const target = sectionHref(key);
+    const currentSearch = searchParams.toString();
+    if (target === `${pathname}${currentSearch ? `?${currentSearch}` : ""}`) {
       return;
     }
 
-    const target = key === "students" ? "student_accounts" : "quizzes";
-    const params = new URLSearchParams();
-    const query = defaultSearchQuery("teacher", target);
-    params.set("entity", query.entity);
-
-    // Already on this exact URL: don't stack duplicate history entries.
-    if (params.toString() === searchParams.toString()) {
-      return;
-    }
-
-    navigate(() =>
-      router.push(`${pathname}?${params.toString()}`, { scroll: false }),
-    );
+    navigate(() => router.push(target, { scroll: false }));
   }
 
   async function handleLogout() {
@@ -213,7 +240,29 @@ function QuizzesSection({ data }: { data: TeacherDashboardData }) {
         />
       </div>
 
-      <SearchFilter role="teacher" entity="quizzes" />
+      <ManageQuizzesTable actorRole="teacher" />
+
+      <div className="grid gap-3 lg:grid-cols-2">
+        <BarChartCard
+          title="Quiz Status"
+          description="How your quizzes are split by status."
+          total={data.quizzes.total}
+          items={[
+            { label: "Ready", value: data.quizzes.ready, color: "bg-success" },
+            { label: "Drafts", value: data.quizzes.draft, color: "bg-px-gold" },
+            {
+              label: "Failed",
+              value: data.quizzes.failed,
+              color: "bg-danger-dark",
+            },
+          ]}
+        />
+        <RecentScoresCard
+          title="Recent Scores"
+          description="The latest completed attempts on your quizzes."
+          scores={data.recentScores}
+        />
+      </div>
 
       <ChartPanel
         title="Student Score Distribution"
@@ -245,6 +294,7 @@ function ScoresSection({ data }: { data: TeacherDashboardData }) {
         title="Students & Scores"
         description="Search students and review their quiz performances."
       />
+      <MeterCard label="Average Score" percent={data.results.average} />
       <SearchFilter role="teacher" entity="students" />
       <ChartPanel
         title="Score Distribution"
@@ -413,59 +463,14 @@ function LeaderboardSection({ data }: { data: TeacherDashboardData }) {
 }
 
 function SettingsSection() {
-  const [saveNotice, setSaveNotice] = useState("");
-
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setSaveNotice(
-      "Settings are not connected to profile storage yet; no changes were saved.",
-    );
-  }
-
   return (
     <div className="space-y-4">
       <SectionHeading
         title="Settings"
-        description="Update your teacher profile and notification preferences."
+        description="Review your teacher account details and keep your password up to date."
       />
 
-      <PixelCard className="max-w-2xl">
-        <form className="space-y-3" onSubmit={handleSubmit}>
-          <FormField
-            label="Display name"
-            id="teacher-display-name"
-            name="displayName"
-            type="text"
-            defaultValue="Teacher Account"
-            required
-          />
-          <FormField
-            label="Email address"
-            id="teacher-settings-email"
-            name="email"
-            type="email"
-            defaultValue="teacher@example.com"
-            required
-          />
-          <label className="flex items-center gap-3 text-sm text-neutral-600">
-            <input
-              type="checkbox"
-              name="notifications"
-              defaultChecked
-              className="h-4 w-4 rounded border-neutral-300 text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
-            />
-            Email me when students submit quiz scores
-          </label>
-          <div className="flex items-center gap-3">
-            <Button type="submit">Save Changes</Button>
-            {saveNotice ? (
-              <span role="status" className="text-sm text-px-gold-text">
-                {saveNotice}
-              </span>
-            ) : null}
-          </div>
-        </form>
-      </PixelCard>
+      <ProfileCard role="teacher" />
 
       <SettingsPasswordForm sessionExpiredPath="/teacher-login?status=session_expired" />
     </div>

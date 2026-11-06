@@ -347,6 +347,14 @@ a[class*="bg-"]:not(.pixel-button):active,
   outline: 3px solid var(--color-secondary) !important;
   outline-offset: 3px;
 }
+
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid var(--color-secondary) !important;
+  outline-offset: 0;
+}
+
 header a.pixel-button {
   font-family: var(--font-pixel);
   -webkit-font-smoothing: none;
@@ -372,7 +380,7 @@ textarea::placeholder {
 input:focus,
 select:focus,
 textarea:focus {
-  border-color: var(--color-secondary) !important;
+  border-color: var(--color-ink) !important;
 }
 
 input[type="checkbox"],

@@ -74,16 +74,22 @@ export type TeacherDashboardData = {
   leaderboards: LeaderboardData;
 };
 
+/**
+ * One row of public.quiz_sessions. This is the table the app writes new quizzes
+ * to. teacher_id there is the teacher's auth user id (uuid as text), NOT
+ * teachers.id.
+ */
 type QuizRow = {
   session_id: string;
   title: string | null;
   status: string;
-  teacher_id: number | null;
-  created_at: string;
+  teacher_id: string | null;
+  created_at: string | null;
 };
 
 type TeacherRow = {
   id: number;
+  user_id: string;
   username: string | null;
   email: string | null;
   status: string;
@@ -98,10 +104,77 @@ type ResultRow = {
   completed_at: string;
 };
 
+type RosterRow = {
+  session_id: string | null;
+  username: string | null;
+};
+
+const QUIZ_COLUMNS = "session_id, title, status, teacher_id, created_at";
+const RESULT_COLUMNS =
+  "attempt_id, title, participant_username, percentage, completed_at";
+const QUIZ_LIMIT = 1_000;
+const RESULT_LIMIT = 1_000;
+const ROSTER_LIMIT = 5_000;
+// PostgREST puts .in() values in the URL, so long id lists are sent in chunks.
+const SESSION_CHUNK = 50;
+
 function readNumber(value: number | string): number {
   const parsed = typeof value === "number" ? value : Number(value);
 
   return Number.isFinite(parsed) ? parsed : 0;
+}
+
+/**
+ * quiz_sessions.created_at is "timestamp without time zone" (stored in UTC), so
+ * the API returns it without a "Z". Browsers would read that as local time and
+ * show it hours off. Mark it as UTC.
+ */
+function toIso(value: string | null): string {
+  if (!value) {
+    return "";
+  }
+
+  return /(?:Z|[+-]\d{2}:?\d{2})$/i.test(value)
+    ? value
+    : `${value.replace(" ", "T")}Z`;
+}
+
+function normalizeQuizzes(rows: readonly QuizRow[]): QuizRow[] {
+  return rows.map((row) => ({ ...row, created_at: toIso(row.created_at) }));
+}
+
+function chunk<T>(items: readonly T[], size = SESSION_CHUNK): T[][] {
+  const groups: T[][] = [];
+
+  for (let index = 0; index < items.length; index += size) {
+    groups.push(items.slice(index, index + size));
+  }
+
+  return groups;
+}
+
+function normalizeName(value: string | null | undefined): string {
+  return (value ?? "").trim().toLowerCase();
+}
+
+/** Distinct students from the roster plus anyone who has submitted a result. */
+function countDistinctStudents(
+  roster: readonly RosterRow[],
+  results: readonly ResultRow[],
+): number {
+  const names = new Set<string>();
+
+  for (const row of roster) {
+    const name = normalizeName(row.username);
+    if (name) names.add(name);
+  }
+
+  for (const row of results) {
+    const name = normalizeName(row.participant_username);
+    if (name) names.add(name);
+  }
+
+  return names.size;
 }
 
 function quizSummary(rows: readonly { status: string }[]): QuizStatusSummary {
@@ -214,54 +287,130 @@ function throwOnError(error: { message: string } | null, label: string): void {
   }
 }
 
+function recentQuizList(
+  quizzes: readonly QuizRow[],
+  teacherNameFor: (teacherId: string | null) => string,
+): DashboardQuiz[] {
+  return quizzes.slice(0, 5).map((quiz) => ({
+    id: quiz.session_id,
+    title: quiz.title || "Untitled quiz",
+    status: quiz.status,
+    teacherUsername: teacherNameFor(quiz.teacher_id),
+    createdAt: quiz.created_at ?? "",
+  }));
+}
+
+/** Results (student rows only: staff are removed by the view) for these quizzes. */
+async function loadResultsForSessions(
+  supabase: SupabaseClient<Database>,
+  sessionIds: readonly string[],
+): Promise<ResultRow[]> {
+  const responses = await Promise.all(
+    chunk(sessionIds).map((ids) =>
+      supabase
+        .from("student_quiz_results")
+        .select(RESULT_COLUMNS)
+        .in("session_id", ids)
+        .order("completed_at", { ascending: false })
+        .limit(RESULT_LIMIT),
+    ),
+  );
+
+  const rows: ResultRow[] = [];
+
+  for (const response of responses) {
+    throwOnError(response.error, "quiz results");
+    rows.push(...((response.data ?? []) as unknown as ResultRow[]));
+  }
+
+  return rows
+    .sort(
+      (left, right) =>
+        (Date.parse(right.completed_at) || 0) -
+        (Date.parse(left.completed_at) || 0),
+    )
+    .slice(0, RESULT_LIMIT);
+}
+
+/** Roster (students who joined) for these quizzes. */
+async function loadRosterForSessions(
+  supabase: SupabaseClient<Database>,
+  sessionIds: readonly string[],
+): Promise<RosterRow[]> {
+  const responses = await Promise.all(
+    chunk(sessionIds).map((ids) =>
+      supabase
+        .from("student_roster")
+        .select("session_id, username")
+        .in("session_id", ids)
+        .limit(ROSTER_LIMIT),
+    ),
+  );
+
+  const rows: RosterRow[] = [];
+
+  for (const response of responses) {
+    throwOnError(response.error, "students");
+    rows.push(...((response.data ?? []) as unknown as RosterRow[]));
+  }
+
+  return rows;
+}
+
 export async function loadAdminDashboardData(
   supabase: SupabaseClient<Database>,
 ): Promise<AdminDashboardData> {
-  // shortcut: summaries cap at 1,000 result rows; switch to exact count
-  // queries when a dashboard dataset grows past that.
-  const [quizzesResult, teachersResult, studentsResult, resultsResult] =
+  // shortcut: summaries cap at 1,000 quizzes/results and 5,000 roster rows;
+  // switch to exact count queries when a dataset grows past that.
+  const [quizzesResult, teachersResult, rosterResult, resultsResult] =
     await Promise.all([
       supabase
-        .from("quizzes")
-        .select("session_id, title, status, teacher_id, created_at")
+        .from("quiz_sessions")
+        .select(QUIZ_COLUMNS)
         .order("created_at", { ascending: false })
-        .limit(1_000),
+        .limit(QUIZ_LIMIT),
       supabase
         .from("teachers")
-        .select("id, username, email, status, created_at")
+        .select("id, user_id, username, email, status, created_at")
         .order("created_at", { ascending: false })
         .limit(500),
-      supabase.from("student_roster").select("id", { count: "exact", head: true }),
+      supabase
+        .from("student_roster")
+        .select("session_id, username")
+        .limit(ROSTER_LIMIT),
       supabase
         .from("student_quiz_results")
-        .select(
-          "attempt_id, title, participant_username, percentage, completed_at",
-        )
+        .select(RESULT_COLUMNS)
         .order("completed_at", { ascending: false })
-        .limit(1_000),
+        .limit(RESULT_LIMIT),
     ]);
 
   throwOnError(quizzesResult.error, "quizzes");
   throwOnError(teachersResult.error, "teacher accounts");
-  throwOnError(studentsResult.error, "students");
+  throwOnError(rosterResult.error, "students");
   throwOnError(resultsResult.error, "quiz results");
 
-  const quizzes = (quizzesResult.data ?? []) as QuizRow[];
-  const teachers = (teachersResult.data ?? []) as TeacherRow[];
-  const results = (resultsResult.data ?? []) as ResultRow[];
-  const teacherNameById = new Map(
+  const quizzes = normalizeQuizzes(
+    (quizzesResult.data ?? []) as unknown as QuizRow[],
+  );
+  const teachers = (teachersResult.data ?? []) as unknown as TeacherRow[];
+  const roster = (rosterResult.data ?? []) as unknown as RosterRow[];
+  const results = (resultsResult.data ?? []) as unknown as ResultRow[];
+
+  // quiz_sessions.teacher_id holds the teacher's auth user id.
+  const teacherNameByUserId = new Map(
     teachers.map((teacher) => [
-      teacher.id,
+      teacher.user_id,
       teacher.username || teacher.email || `Teacher ${teacher.id}`,
     ]),
   );
-  const quizCountByTeacher = new Map<number, number>();
+  const quizCountByUserId = new Map<string, number>();
 
   for (const quiz of quizzes) {
-    if (quiz.teacher_id !== null) {
-      quizCountByTeacher.set(
+    if (quiz.teacher_id) {
+      quizCountByUserId.set(
         quiz.teacher_id,
-        (quizCountByTeacher.get(quiz.teacher_id) ?? 0) + 1,
+        (quizCountByUserId.get(quiz.teacher_id) ?? 0) + 1,
       );
     }
   }
@@ -269,18 +418,13 @@ export async function loadAdminDashboardData(
   return {
     quizzes: quizSummary(quizzes),
     teachers: teacherSummary(teachers),
-    studentCount: studentsResult.count ?? 0,
+    studentCount: countDistinctStudents(roster, results),
     results: resultSummary(results),
-    recentQuizzes: quizzes.slice(0, 5).map((quiz) => ({
-      id: quiz.session_id,
-      title: quiz.title || "Untitled quiz",
-      status: quiz.status,
-      teacherUsername:
-        quiz.teacher_id === null
-          ? "Unassigned"
-          : teacherNameById.get(quiz.teacher_id) ?? "Unknown teacher",
-      createdAt: quiz.created_at,
-    })),
+    recentQuizzes: recentQuizList(quizzes, (teacherId) =>
+      !teacherId
+        ? "Unassigned"
+        : teacherNameByUserId.get(teacherId) ?? "Unknown teacher",
+    ),
     recentScores: recentScores(results),
     distributions: quizDistributions(results),
     teacherAccounts: teachers.map((teacher) => ({
@@ -288,7 +432,7 @@ export async function loadAdminDashboardData(
       username: teacher.username || teacher.email || `Teacher ${teacher.id}`,
       email: teacher.email || "",
       status: teacher.status,
-      quizCount: quizCountByTeacher.get(teacher.id) ?? 0,
+      quizCount: quizCountByUserId.get(teacher.user_id) ?? 0,
       createdAt: teacher.created_at,
     })),
   };
@@ -298,58 +442,52 @@ export async function loadTeacherDashboardData(
   supabase: SupabaseClient<Database>,
   teacherId: number,
 ): Promise<TeacherDashboardData> {
-  // shortcut: summaries cap at 1,000-5,000 rows; switch to exact count
-  // queries when a dashboard dataset grows past that.
-  const [quizzesResult, studentsResult, resultsResult] = await Promise.all([
-    supabase
-      .from("quizzes")
-      .select("session_id, title, status, teacher_id, created_at")
-      .eq("teacher_id", teacherId)
-      .order("created_at", { ascending: false })
-      .limit(1_000),
-    supabase
-      .from("student_roster")
-      .select("id, session_id, username")
-      .limit(5_000),
-    supabase
-      .from("student_quiz_results")
-      .select(
-        "attempt_id, title, participant_username, percentage, completed_at",
-      )
-      .order("completed_at", { ascending: false })
-      .limit(1_000),
-  ]);
+  // quiz_sessions.teacher_id is the auth user id, but this function receives
+  // teachers.id, so look the user id up first (falling back to the signed-in
+  // user if the teachers row cannot be read).
+  const { data: teacherRow, error: teacherError } = await supabase
+    .from("teachers")
+    .select("user_id")
+    .eq("id", teacherId)
+    .maybeSingle();
+
+  throwOnError(teacherError, "teacher");
+
+  let ownerId: string | null = teacherRow?.user_id ?? null;
+
+  if (!ownerId) {
+    const { data: auth } = await supabase.auth.getUser();
+    ownerId = auth.user?.id ?? null;
+  }
+
+  const quizzesResult = ownerId
+    ? await supabase
+        .from("quiz_sessions")
+        .select(QUIZ_COLUMNS)
+        .eq("teacher_id", ownerId)
+        .order("created_at", { ascending: false })
+        .limit(QUIZ_LIMIT)
+    : { data: [], error: null };
 
   throwOnError(quizzesResult.error, "quizzes");
-  throwOnError(studentsResult.error, "students");
-  throwOnError(resultsResult.error, "quiz results");
 
-  const quizzes = (quizzesResult.data ?? []) as QuizRow[];
-  const sessionIds = new Set(quizzes.map((quiz) => quiz.session_id));
-  const rosterRows = (studentsResult.data ?? []).filter(
-  (student) =>
-    student.session_id !== null && sessionIds.has(student.session_id),
+  const quizzes = normalizeQuizzes(
+    (quizzesResult.data ?? []) as unknown as QuizRow[],
   );
-  const uniqueStudents = new Set(
-  rosterRows
-    .map((student) => (student.username ?? "").trim().toLowerCase())
-    .filter((name) => name !== ""),
-  );
+  const sessionIds = quizzes.map((quiz) => quiz.session_id);
 
-  const results = (resultsResult.data ?? []) as ResultRow[];
+  // Only this teacher's quizzes: results and roster are scoped by session.
+  const [results, roster] = await Promise.all([
+    loadResultsForSessions(supabase, sessionIds),
+    loadRosterForSessions(supabase, sessionIds),
+  ]);
 
   return {
     leaderboards: buildLeaderboards(results),
     quizzes: quizSummary(quizzes),
-    studentCount: uniqueStudents.size,
+    studentCount: countDistinctStudents(roster, results),
     results: resultSummary(results),
-    recentQuizzes: quizzes.slice(0, 5).map((quiz) => ({
-      id: quiz.session_id,
-      title: quiz.title || "Untitled quiz",
-      status: quiz.status,
-      teacherUsername: "",
-      createdAt: quiz.created_at,
-    })),
+    recentQuizzes: recentQuizList(quizzes, () => ""),
     recentScores: recentScores(results),
     distributions: quizDistributions(results),
   };

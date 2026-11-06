@@ -1,8 +1,7 @@
 "use client";
 
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useNavigation } from "@/components/pixel";
 import { fetchSearchResults } from "./api-client";
 import { DASHBOARD_DATA_CHANGED_EVENT } from "@/lib/dashboard/realtime-events";
 import {
@@ -15,6 +14,12 @@ import {
   releaseSessionRequestController,
 } from "@/lib/auth/session-state";
 import type { SearchQuery, SearchResponse, SearchRole } from "./types";
+
+function sessionExpiredPathFor(role: SearchRole): string {
+  return role === "teacher"
+    ? "/teacher-login?status=session_expired"
+    : "/admin-login?status=session_expired";
+}
 
 function messageFromError(error: unknown): string {
   return error instanceof Error
@@ -33,8 +38,6 @@ export function useSearchFilters(
   role: SearchRole,
   initialEntity: SearchQuery["entity"],
 ) {
-  const router = useRouter();
-  const { navigate } = useNavigation();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const search = searchParams.toString();
@@ -88,13 +91,18 @@ export function useSearchFilters(
         ? `${pathname}?${serialized}`
         : pathname;
 
-      navigate(() =>
-        addHistoryEntry
-          ? router.push(nextUrl, { scroll: false })
-          : router.replace(nextUrl, { scroll: false }),
-      );
+      // Searching, filtering, sorting and paging only change what the table
+      // asks /api/search for, so the page does not need to render again on the
+      // server. Updating the URL with the History API keeps the address bar and
+      // useSearchParams in sync (Next.js supports this) without a route
+      // transition: no app-wide loading screen and no server round trip.
+      if (addHistoryEntry) {
+        window.history.pushState(null, "", nextUrl);
+      } else {
+        window.history.replaceState(null, "", nextUrl);
+      }
     },
-    [navigate, pathname, query, router],
+    [pathname, query],
   );
 
   useEffect(() => {
@@ -107,16 +115,24 @@ export function useSearchFilters(
 
     queueMicrotask(() => {
       if (active) {
-        setRequest({
-          key: queryKey,
-          results: null,
-          loading: true,
-          error: "",
-        });
+        // A live refresh re-runs the same query. Keep the rows on screen
+        // while it loads so the table does not flash empty on every change.
+        setRequest((previous) =>
+          previous.key === queryKey
+            ? previous
+            : {
+                key: queryKey,
+                results: null,
+                loading: true,
+                error: "",
+              },
+        );
       }
     });
 
-    fetchSearchResults(query, controller.signal)
+    fetchSearchResults(query, controller.signal, {
+      sessionExpiredPath: sessionExpiredPathFor(role),
+    })
       .then((results) => {
         if (active) {
           setRequest({
@@ -149,7 +165,7 @@ export function useSearchFilters(
       controller.abort();
       releaseSessionRequestController(controller);
     };
-  }, [parsedState.error, query, queryKey, refreshKey]);
+  }, [parsedState.error, query, queryKey, refreshKey, role]);
 
   const requestMatchesQuery = request.key === queryKey;
 

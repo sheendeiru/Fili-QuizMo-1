@@ -57,17 +57,17 @@ const features = [
 
 const developers = [
   {
-    src: "/assets/docu.jpg",
+    src: "/assets/images.jpg",
     name: "Edrian Sarte",
     role: "Documentation",
   },
   {
-    src: "/assets/leader.jpg",
+    src: "/assets/AJ.jpg",
     name: "Allen Joseph Cabatingan",
     role: "Web Developer",
   },
   {
-    src: "/assets/web-dev.jpeg",
+    src: "/assets/profileniRub.jpeg",
     name: "John Carl Rubio",
     role: "Documentation",
   },

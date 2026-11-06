@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import localFont from "next/font/local";
+import { Suspense } from "react";
 import { SessionBoundary } from "@/components/auth/session-boundary";
 import { NavigationProvider } from "@/components/pixel";
 import { CookieNotice } from "@/components/legal/cookie-notice";
@@ -48,9 +49,13 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       className={`${pressStart.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
-        <NavTracker />
+        <Suspense fallback={null}>
+          <NavTracker />
+        </Suspense>
           <NavigationProvider>
-            <SessionBoundary />
+            <Suspense fallback={null}>
+              <SessionBoundary />
+            </Suspense>
             {children}
             <CookieNotice />
           </NavigationProvider>

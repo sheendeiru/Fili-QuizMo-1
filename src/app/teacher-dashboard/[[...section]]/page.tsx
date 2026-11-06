@@ -1,3 +1,4 @@
+
 import { Suspense } from "react";
 import { connection } from "next/server";
 import { forbidden } from "next/navigation";
@@ -14,6 +15,7 @@ async function TeacherDashboardData({ teacherId }: { teacherId: number }) {
   return <TeacherDashboardContent data={data} />;
 }
 
+export const instant = false;
 export default async function TeacherDashboardPage() {
   await connection();
   const { access } = await requireTeacherAccess();

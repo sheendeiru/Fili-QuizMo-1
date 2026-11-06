@@ -214,7 +214,7 @@ export function DashboardShell({
               aria-label="Open sidebar"
               aria-controls="dashboard-sidebar"
               aria-expanded={sidebarOpen}
-              className="inline-flex h-9 w-9 items-center justify-center text-ink transition-colors border border-ink border-2, border-4 hover:bg-neutral-100"
+              className="inline-flex h-9 w-9 items-center justify-center text-ink transition-colors border-2 border-ink hover:bg-neutral-100"
             >
               <svg
                 className="h-4 w-4"
@@ -280,14 +280,16 @@ export function DashboardShell({
         <main className="mx-auto w-full max-w-5xl flex-1 p-3 sm:p-4">
           {role !== "Student" &&
           ((role === "Teacher" &&
-            ["quizzes", "students"].includes(activeKey)) ||
+            ["quizzes", "students", "scores"].includes(activeKey)) ||
             (role === "Admin" &&
               [
                 "quizzes",
                 "teacher-accounts",
                 "students",
               ].includes(activeKey))) ? (
-            <div className="mb-3 flex justify-end">
+            // Phones: the export control fills the row so it never overflows.
+            // Tablet and desktop: it sits at the right edge, above the page heading.
+            <div className="mb-3 flex w-full max-sm:[&>*]:w-full [&>*]:max-w-full sm:justify-end">
               <ExportDropdown role={role === "Teacher" ? "teacher" : "admin"} />
             </div>
           ) : null}

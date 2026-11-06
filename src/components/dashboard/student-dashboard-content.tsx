@@ -19,6 +19,7 @@ import {
 } from "@/components/dashboard/student-charts";
 import { buildStudentAnalytics } from "@/lib/dashboard/student-analytics";
 import { logoutAndRedirect } from "@/lib/auth/logout";
+import { useResetRouteState } from "@/lib/dashboard/route-reset";
 import { useNavigation } from "@/components/pixel";
 import { Button } from "@/components/ui/button";
 import { PaginatedTable } from "@/components/ui/paginated-table";
@@ -195,23 +196,18 @@ export default function StudentDashboardContent({
     () => buildStudentAnalytics(summaryHistory),
     [summaryHistory],
   );
+  const cleanHref =
+    activeKey === "overview" ? pathname : `${pathname}?tab=${activeKey}`;
+
+  useResetRouteState("student-dashboard", cleanHref);
 
   function navigateToSection(tab: string) {
-    const params = new URLSearchParams(searchParams.toString());
-    if (tab === "overview") {
-      params.delete("tab");
-    } else {
-      params.set("tab", tab);
+    const target = tab === "overview" ? pathname : `${pathname}?tab=${tab}`;
+    if (target === `${pathname}${search ? `?${search}` : ""}`) {
+      return;
     }
-    if (tab !== "history") {
-      params.delete("page");
-    }
-    const query = params.toString();
-    navigate(() =>
-      router.push(query ? `${pathname}?${query}` : pathname, {
-        scroll: false,
-      }),
-    );
+
+    navigate(() => router.push(target, { scroll: false }));
   }
 
   const navigateToPage = useCallback(

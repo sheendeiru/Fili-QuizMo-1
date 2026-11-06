@@ -1,3 +1,4 @@
+
 import { Suspense } from "react";
 import { connection } from "next/server";
 import AdminDashboardContent from "@/components/dashboard/admin-dashboard-content";
@@ -12,7 +13,7 @@ async function AdminDashboardData() {
   const data = await loadAdminDashboardData(supabase);
   return <AdminDashboardContent data={data} />;
 }
-
+export const instant = false;
 export default async function AdminDashboardPage() {
   await connection();
   await requireAdminAccess();

@@ -10,14 +10,19 @@ import type {
   SearchScope,
 } from "./types";
 
+/**
+ * Real Supabase data is the default everywhere, including `npm run dev`.
+ * Demo rows are only used when SEARCH_DATA_SOURCE=mock is set explicitly,
+ * and never in production, so a stray env var cannot show fake students.
+ */
 export function getSearchDataSource(): SearchDataSource {
   const configured = process.env.SEARCH_DATA_SOURCE?.trim().toLowerCase();
 
-  if (configured === "mock" || configured === "supabase") {
-    return configured;
+  if (configured === "mock" && process.env.NODE_ENV !== "production") {
+    return "mock";
   }
 
-  return process.env.NODE_ENV === "development" ? "mock" : "supabase";
+  return "supabase";
 }
 
 export function createSearchRepository(input: {

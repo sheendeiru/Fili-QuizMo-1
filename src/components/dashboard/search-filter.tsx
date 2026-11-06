@@ -277,6 +277,13 @@ export function SearchFilter({
   const config = getEntityConfig(entity);
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const mobileFilterButtonRef = useRef<HTMLButtonElement>(null);
+  // Keep the last loaded page on screen while the next one loads, so moving
+  // between pages (or editing a filter) never swaps the table for a loader.
+  const [lastResults, setLastResults] = useState(results);
+  if (results && results !== lastResults) {
+    setLastResults(results);
+  }
+  const visibleResults = results ?? lastResults;
 
   function clearAllFilters() {
     updateQuery(defaultSearchQuery(role, entity));
@@ -349,8 +356,9 @@ export function SearchFilter({
   }
 
   const chips = getActiveFilterChips(query);
-  const items = results?.items ?? [];
+  const items = visibleResults?.items ?? [];
   const pagination = results?.pagination;
+  const visiblePagination = visibleResults?.pagination;
 
   useEffect(() => {
     if (
@@ -535,7 +543,7 @@ export function SearchFilter({
             : ""}
       </p>
 
-      {loading ? (
+      {loading && !visibleResults ? (
         <PixelLoader label="Loading search results..." />
       ) : null}
       {error ? (
@@ -551,7 +559,11 @@ export function SearchFilter({
         <div className="flex flex-wrap justify-end gap-2">{toolbar}</div>
       ) : null}
 
-      {!loading && !error && results ? (
+      {!error && visibleResults ? (
+        <div
+          aria-busy={loading}
+          className={loading ? "pointer-events-none opacity-60 transition-opacity" : undefined}
+        >
         <PaginatedTable
           caption={`${config.pluralLabel} search results`}
           columns={[
@@ -574,11 +586,12 @@ export function SearchFilter({
           ]}
           rows={items}
           rowKey={(item) => item.id}
-          page={pagination?.page ?? 1}
-          totalPages={pagination?.totalPages ?? 1}
+          page={visiblePagination?.page ?? 1}
+          totalPages={visiblePagination?.totalPages ?? 1}
           onPageChange={(page) => updateQuery({ page }, true)}
           emptyMessage="No results match your filters."
         />
+        </div>
       ) : null}
     </section>
   );

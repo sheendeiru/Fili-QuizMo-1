@@ -1,7 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import type { FormEvent } from "react";
+import { useState } from "react";
 import {
   usePathname,
   useRouter,
@@ -12,17 +11,23 @@ import {
   DashboardShell,
   type DashboardNavItem,
 } from "@/components/dashboard/dashboard-shell";
-import { Button } from "@/components/ui/button";
 import { PixelCard } from "@/components/ui/pixel-primitives";
-import { FormField } from "@/components/ui/form-field";
+import { ProfileCard } from "@/components/dashboard/profile-card";
 import { SettingsPasswordForm } from "@/components/dashboard/settings-password-form";
-import { SearchFilter } from "@/components/dashboard/search-filter";
+import { ManageQuizzesTable } from "@/components/dashboard/manage-quizzes";
+import {
+  BarChartCard,
+  MeterCard,
+  RecentScoresCard,
+  percentOf,
+} from "@/components/dashboard/dashboard-charts";
 import { ManageAccountsTable } from "@/components/dashboard/manage-accounts";
 import { TeacherStatusActions } from "@/components/dashboard/teacher-status-actions";
 import { PixelLoader } from "@/components/ui/pixel-loader";
 import { useNavigation } from "@/components/pixel";
-import { defaultSearchQuery } from "@/lib/search/url-state";
+import { useResetRouteState } from "@/lib/dashboard/route-reset";
 import { logoutAndRedirect } from "@/lib/auth/logout";
+import { useRealtimeRefresh } from "@/lib/realtime/use-realtime-refresh";
 import type { AdminDashboardData } from "@/lib/dashboard/data";
 import type { SearchItem } from "@/lib/search/types";
 
@@ -42,57 +47,81 @@ const navItems: DashboardNavItem[] = [
   { key: "students", label: "Manage Student Accounts" },
 ];
 
+// Tables the admin dashboard summarises. A change in any of them refreshes
+// the stat cards, charts and teacher list.
+const LIVE_TABLES = [
+  "quiz_sessions",
+  "quizzes",
+  "teachers",
+  "students",
+  "quiz_results",
+  "account_profiles",
+] as const;
+
+const BASE_PATH = "/admin-dashboard";
+
+// One route per sidebar button. `entity` is still sent as a query param
+// because the search and table components read it from the URL.
+const SECTION_ROUTES = {
+  quizzes: { slug: "quizzes", entity: "quizzes" },
+  "teacher-accounts": { slug: "teachers", entity: "teachers" },
+  students: { slug: "students", entity: "student_accounts" },
+  settings: { slug: "settings", entity: null },
+} as const;
+
+type SectionKey = keyof typeof SECTION_ROUTES;
+
+function sectionHref(key: SectionKey): string {
+  const route = SECTION_ROUTES[key];
+
+  return `${BASE_PATH}/${route.slug}${route.entity ? `?entity=${route.entity}` : ""}`;
+}
+
+function isSectionKey(key: string): key is SectionKey {
+  return key in SECTION_ROUTES;
+}
+
+/** /admin-dashboard/teachers -> "teacher-accounts". Old ?entity= links still work. */
+function sectionFromUrl(pathname: string, entity: string | null): SectionKey {
+  const segment = pathname.startsWith(BASE_PATH)
+    ? pathname.slice(BASE_PATH.length).split("/").filter(Boolean)[0]
+    : undefined;
+
+  const match = (Object.keys(SECTION_ROUTES) as SectionKey[]).find(
+    (key) => SECTION_ROUTES[key].slug === segment,
+  );
+  if (match) return match;
+
+  if (entity === "teachers") return "teacher-accounts";
+  if (entity === "students" || entity === "student_accounts") return "students";
+  return "quizzes";
+}
+
 export default function AdminDashboardContent({
   data,
 }: {
   data: AdminDashboardData;
 }) {
   const searchParams = useSearchParams();
-  const entity = searchParams.get("entity");
-  const searchActiveKey =
-    entity === "teachers"
-      ? "teacher-accounts"
-      : entity === "students" || entity === "student_accounts"
-        ? "students"
-        : "quizzes";
-  const [manualActiveKey, setManualActiveKey] = useState<string | null>(null);
-  const activeKey = manualActiveKey ?? searchActiveKey;
+  const pathname = usePathname();
+  const activeKey = sectionFromUrl(pathname, searchParams.get("entity"));
   const [logoutError, setLogoutError] = useState("");
   const router = useRouter();
   const { navigate } = useNavigation();
-  const pathname = usePathname();
 
-  useEffect(() => {
-    function clearManualSection() {
-      setManualActiveKey(null);
-    }
-
-    window.addEventListener("popstate", clearManualSection);
-    return () => window.removeEventListener("popstate", clearManualSection);
-  }, []);
+  useResetRouteState("admin-dashboard", sectionHref(activeKey));
+  useRealtimeRefresh(LIVE_TABLES);
 
   function navigateToSection(key: string) {
-    setManualActiveKey(key === "settings" ? "settings" : null);
-    if (
-      key !== "teacher-accounts" &&
-      key !== "students" &&
-      key !== "quizzes"
-    ) {
+    if (!isSectionKey(key)) return;
+
+    const target = sectionHref(key);
+    const currentSearch = searchParams.toString();
+    if (target === `${pathname}${currentSearch ? `?${currentSearch}` : ""}`) {
       return;
     }
 
-    const nextEntity =
-      key === "teacher-accounts"
-        ? "teachers"
-        : key === "students"
-          ? "student_accounts"
-          : "quizzes";
-    const query = defaultSearchQuery("admin", nextEntity);
-    const params = new URLSearchParams();
-    params.set("entity", query.entity);
-    navigate(() =>
-      router.push(`${pathname}?${params.toString()}`, { scroll: false }),
-    );
+    navigate(() => router.push(target, { scroll: false }));
   }
 
   async function handleLogout() {
@@ -157,93 +186,14 @@ function StatCard({ label, value }: { label: string; value: string }) {
   );
 }
 
-/**
- * Horizontal bar chart built from counts the dashboard already loads.
- * Pixel-style track (border-2 border-ink) so it matches the existing cards.
- */
-function BarChartCard({
-  title,
-  description,
-  total,
-  items,
-}: {
-  title: string;
-  description: string;
-  total: number;
-  items: { label: string; value: number; color: string }[];
-}) {
-  return (
-    <PixelCard as="article" className="h-full">
-      <h3 className="text-lg font-semibold text-foreground">{title}</h3>
-      <p className="mt-1 text-sm text-neutral-500">{description}</p>
-
-      {total > 0 ? (
-        <ul className="mt-3 space-y-3">
-          {items.map((item) => {
-            const percent = Math.round((item.value / total) * 100);
-
-            return (
-              <li key={item.label}>
-                <div className="flex items-baseline justify-between gap-2 text-sm">
-                  <span className="font-semibold text-foreground">
-                    {item.label}
-                  </span>
-                  <span className="text-neutral-500">
-                    <span className="font-semibold text-foreground">
-                      {item.value}
-                    </span>{" "}
-                    of {total} ({percent}%)
-                  </span>
-                </div>
-                <div
-                  aria-hidden="true"
-                  className="mt-1 h-4 border-2 border-ink bg-px-cream"
-                >
-                  <div
-                    className={`h-full ${item.color}`}
-                    style={{ width: `${percent}%` }}
-                  />
-                </div>
-              </li>
-            );
-          })}
-        </ul>
-      ) : (
-        <p className="mt-3 text-sm text-neutral-500">Nothing to show yet.</p>
-      )}
-    </PixelCard>
-  );
-}
-
-/** Stat card with a 0-100 meter, for percentages such as the average score. */
-function MeterCard({ label, percent }: { label: string; percent: number }) {
-  const value = Number.isFinite(percent)
-    ? Math.min(Math.max(percent, 0), 100)
-    : 0;
-  const shown = Math.round(value * 10) / 10;
-
-  return (
-    <PixelCard as="article">
-      <p className="text-sm text-neutral-500">{label}</p>
-      <p className="mt-1 text-xl font-bold text-foreground">{shown}%</p>
-      <div
-        role="meter"
-        aria-label={label}
-        aria-valuemin={0}
-        aria-valuemax={100}
-        aria-valuenow={shown}
-        className="mt-2 h-3 border-2 border-ink bg-px-cream"
-      >
-        <div className="h-full bg-primary" style={{ width: `${value}%` }} />
-      </div>
-    </PixelCard>
-  );
-}
-
 function ManageQuizzesSection({ data }: { data: AdminDashboardData }) {
   const { total, ready, draft, failed } = data.quizzes;
   // 'processing' quizzes are in the total but have no stat card of their own
   const processing = Math.max(total - ready - draft - failed, 0);
+  const topTeachers = data.teacherAccounts
+    .filter((teacher) => teacher.quizCount > 0)
+    .sort((left, right) => right.quizCount - left.quizCount)
+    .slice(0, 5);
 
   return (
     <div className="space-y-3">
@@ -257,6 +207,30 @@ function ManageQuizzesSection({ data }: { data: AdminDashboardData }) {
         <StatCard label="Ready" value={String(ready)} />
         <StatCard label="Drafts" value={String(draft)} />
         <StatCard label="Failed" value={String(failed)} />
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-2">
+        <MeterCard label="Ready Rate" percent={percentOf(ready, total)} />
+        <MeterCard label="Failed Rate" percent={percentOf(failed, total)} />
+      </div>
+
+      <div className="grid gap-3 lg:grid-cols-2">
+        <BarChartCard
+          title="Quizzes by Teacher"
+          description="Top teachers by number of quizzes created."
+          total={total}
+          items={topTeachers.map((teacher) => ({
+            label: teacher.username,
+            value: teacher.quizCount,
+            color: "bg-primary",
+          }))}
+        />
+
+        <RecentScoresCard
+          title="Recent Scores"
+          description="The latest completed attempts across the platform."
+          scores={data.recentScores}
+        />
       </div>
 
       <div className="grid gap-3 lg:grid-cols-2">
@@ -293,15 +267,13 @@ function ManageQuizzesSection({ data }: { data: AdminDashboardData }) {
         </PixelCard>
       </div>
 
-      <SearchFilter role="admin" entity="quizzes" />
+      <ManageQuizzesTable actorRole="admin" />
     </div>
   );
 }
 
 function TeacherAccountsSection({ data }: { data: AdminDashboardData }) {
-  const { total, approved, pending } = data.teachers;
-  // teachers.status also allows 'rejected' and 'suspended'
-  const rejectedOrSuspended = Math.max(total - approved - pending, 0);
+  const { total, approved, pending, rejected, suspended } = data.teachers;
 
   return (
     <div className="space-y-3">
@@ -310,10 +282,11 @@ function TeacherAccountsSection({ data }: { data: AdminDashboardData }) {
         description="Approve, reject, or suspend teacher login access."
       />
 
-      <div className="grid gap-3 sm:grid-cols-3">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard label="Total Teachers" value={String(total)} />
         <StatCard label="Approved" value={String(approved)} />
         <StatCard label="Pending" value={String(pending)} />
+        <MeterCard label="Approval Rate" percent={percentOf(approved, total)} />
       </div>
 
       <BarChartCard
@@ -323,11 +296,8 @@ function TeacherAccountsSection({ data }: { data: AdminDashboardData }) {
         items={[
           { label: "Approved", value: approved, color: "bg-success" },
           { label: "Pending", value: pending, color: "bg-px-gold" },
-          {
-            label: "Rejected or suspended",
-            value: rejectedOrSuspended,
-            color: "bg-danger-dark",
-          },
+          { label: "Rejected", value: rejected, color: "bg-danger-dark" },
+          { label: "Suspended", value: suspended, color: "bg-px-indigo" },
         ]}
       />
 
@@ -364,6 +334,12 @@ function StudentAccountsSection({ data }: { data: AdminDashboardData }) {
         />
       </div>
 
+      <RecentScoresCard
+        title="Recent Scores"
+        description="The latest completed attempts across the platform."
+        scores={data.recentScores}
+      />
+
       <ManageAccountsTable
         actorRole="admin"
         accountRole="student"
@@ -374,59 +350,14 @@ function StudentAccountsSection({ data }: { data: AdminDashboardData }) {
 }
 
 function AdminSettingsSection() {
-  const [saveNotice, setSaveNotice] = useState("");
-
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setSaveNotice(
-      "Settings are not connected to profile storage yet; no changes were saved.",
-    );
-  }
-
   return (
     <div className="space-y-3">
       <SectionHeading
         title="Settings"
-        description="Update your admin profile and platform preferences."
+        description="Review your admin account details and keep your password up to date."
       />
 
-      <PixelCard className="max-w-2xl">
-        <form className="space-y-3" onSubmit={handleSubmit}>
-          <FormField
-            label="Display name"
-            id="admin-display-name"
-            name="displayName"
-            type="text"
-            defaultValue="Administrator"
-            required
-          />
-          <FormField
-            label="Email address"
-            id="admin-settings-email"
-            name="email"
-            type="email"
-            defaultValue="admin@example.com"
-            required
-          />
-          <label className="flex items-center gap-3 text-sm text-neutral-600">
-            <input
-              type="checkbox"
-              name="notifications"
-              defaultChecked
-              className="h-4 w-4 rounded border-neutral-300 text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
-            />
-            Notify me about new teacher account requests
-          </label>
-          <div className="flex items-center gap-3">
-            <Button type="submit">Save Changes</Button>
-            {saveNotice ? (
-              <span role="status" className="text-sm text-px-gold-text">
-                {saveNotice}
-              </span>
-            ) : null}
-          </div>
-        </form>
-      </PixelCard>
+      <ProfileCard role="admin" />
 
       <SettingsPasswordForm sessionExpiredPath="/admin-login?status=session_expired" />
     </div>
