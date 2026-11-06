@@ -50,7 +50,7 @@ const features = [
   {
     title: "Teacher tools",
     description:
-      "Create quizzes and keep track of student progress from one simple dashboard.",
+      "Create quizzes in Mobile App and keep track of student progress from one simple dashboard in website.",
     icon: "M4 19V5m0 14h16M8 16v-5m4 5V8m4 8v-3",
   },
 ];
