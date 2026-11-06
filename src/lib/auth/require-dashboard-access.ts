@@ -1,4 +1,5 @@
 import { forbidden, redirect } from "next/navigation";
+import { connection } from "next/server";
 import { isInvalidSession } from "@/lib/auth/session-errors";
 import {
   createAccountRoleLookup,
@@ -12,6 +13,9 @@ import { createClient } from "@/lib/supabase/server";
 async function requireAccess(
   expectedRole: AccountRole,
 ) {
+  // Auth pages render per request; this stops Next's PPR shell from touching
+  // Supabase's Date.now()-based session code during prerendering.
+  await connection();
   const supabase = await createClient();
   const {
     data: { user },
