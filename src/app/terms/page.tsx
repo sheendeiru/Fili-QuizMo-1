@@ -139,7 +139,7 @@ const sections: PolicySection[] = [
           rights.
         </p>
         <p>
-          Questions: JASE, 109 Samson Road corner Caimito Road, Caloocan, Philippines.
+          Questions: JASE or send us an email filiquizmo.support@gmail.com, 109 Samson Road corner Caimito Road, Caloocan, Philippines.
         </p>
       </>
     ),

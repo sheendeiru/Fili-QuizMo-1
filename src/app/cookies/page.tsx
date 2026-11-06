@@ -62,8 +62,8 @@ const sections: PolicySection[] = [
     title: "4. Contact",
     content: (
       <p>
-        Questions about this policy may be sent to [ORGANIZATION NAME] at
-        [CONTACT EMAIL]. Effective date: [EFFECTIVE DATE].
+        Questions about this policy may be sent to JASE at
+        filiquizmo.support@gmail.com. Effective date: November 4, 2026.
       </p>
     ),
   },

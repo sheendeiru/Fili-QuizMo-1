@@ -67,7 +67,7 @@ const developers = [
     role: "Web Developer",
   },
   {
-    src: "/assets/profileniRub.jpeg",
+    src: "/assets/profileniRub.png",
     name: "John Carl Rubio",
     role: "Documentation",
   },

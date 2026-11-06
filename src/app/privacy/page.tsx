@@ -146,7 +146,7 @@ const sections: PolicySection[] = [
     content: (
       <p>
         This notice may be updated when our practices or legal obligations
-        change. Contact JASE, 109 Samson Road corner Caimito Road, Caloocan, Philippines.
+        change. Contact JASE or send us an email filiquizmo.support@gmail.com, 109 Samson Road corner Caimito Road, Caloocan, Philippines.
       </p>
     ),
   },
