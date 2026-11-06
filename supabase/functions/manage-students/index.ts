@@ -16,7 +16,6 @@ import {
   HttpError,
   json,
   profileRole,
-  requireAdmin,
   rowExists,
   serve,
 } from "../_shared/accounts.ts";
@@ -30,6 +29,7 @@ import {
   logAction,
   optionalPassword,
   readBody,
+  requireAdmin,
   requireEmail,
   requireUsername,
   requireUuid,
@@ -44,7 +44,7 @@ async function isAdmin(ctx: Context): Promise<boolean> {
     throw new HttpError(500, "Authorization check failed");
   }
   if (data === true) {
-    await requireAdmin(ctx.userClient);
+    await requireAdmin(ctx);
     return true;
   }
   return false;

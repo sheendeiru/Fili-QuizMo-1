@@ -43,7 +43,7 @@ import {
  
 serve(async (req) => {
   const ctx = await authenticate(req);
-  await requireAdmin(ctx.userClient);
+  await requireAdmin(ctx);
   const body = await readBody(req);
  
   switch (body.action) {

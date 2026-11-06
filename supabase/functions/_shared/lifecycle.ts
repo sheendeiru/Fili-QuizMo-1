@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "npm:@supabase/supabase-js@2";
-import { HttpError } from "./accounts.ts";
+import { HttpError, type Context } from "./accounts.ts";
 
 // ---------------------------------------------------------------------
 // Request parsing
@@ -103,21 +103,17 @@ export function generatePassword(length = 14): string {
 // ---------------------------------------------------------------------
 
 /** Checked by the database as the caller (is_admin() reads auth.uid()). */
-export async function requireAdmin(userClient: SupabaseClient): Promise<void> {
-  const { data, error } = await userClient.rpc("is_admin");
+export async function requireAdmin(ctx: Context): Promise<void> {
+  const { data, error } = await ctx.userClient.rpc("is_admin");
   if (error) {
     console.error("is_admin failed:", error.message);
     throw new HttpError(500, "Authorization check failed");
   }
   if (data !== true) throw new HttpError(403, "Admins only");
 
-  const { data: assurance, error: assuranceError } =
-    await userClient.auth.mfa.getAuthenticatorAssuranceLevel();
-  if (assuranceError) {
-    console.error("Admin security level lookup failed:", assuranceError.message);
-    throw new HttpError(503, "Security level check failed");
-  }
-  if (assurance.currentLevel !== "aal2") {
+  // The edge runtime has no persisted auth session, so read the assurance
+  // level from the JWT that authenticate() already verified.
+  if (ctx.assuranceLevel !== "aal2") {
     throw new HttpError(403, "Admin account management requires MFA");
   }
 }

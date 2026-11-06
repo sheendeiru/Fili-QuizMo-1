@@ -107,10 +107,33 @@ export async function parseUpdateRequest(req: Request): Promise<UpdateRequest> {
 
 export interface Context {
   caller: User;
+  /** Assurance level from the validated access token ("aal1" or "aal2"). */
+  assuranceLevel: string | null;
   /** Acts as the caller: RLS and auth.uid() apply. Use for authorization checks. */
   userClient: SupabaseClient;
   /** Service role: bypasses RLS. Use only AFTER authorization succeeded. */
   adminClient: SupabaseClient;
+}
+
+function assuranceLevelOf(token: string): string | null {
+  const payload = token.split(".")[1];
+  if (!payload) return null;
+
+  try {
+    const base64 = payload.replace(/-/g, "+").replace(/_/g, "/");
+    const padded = base64.padEnd(
+      base64.length + ((4 - (base64.length % 4)) % 4),
+      "=",
+    );
+    const claims = JSON.parse(
+      new TextDecoder().decode(
+        Uint8Array.from(atob(padded), (char) => char.charCodeAt(0)),
+      ),
+    );
+    return typeof claims.aal === "string" ? claims.aal : null;
+  } catch {
+    return null;
+  }
 }
 
 export async function authenticate(req: Request): Promise<Context> {
@@ -138,7 +161,12 @@ export async function authenticate(req: Request): Promise<Context> {
   if (error || !data.user) throw new HttpError(401, "Invalid or expired session");
 
   const adminClient = createClient(url, serviceKey, { auth: noSession });
-  return { caller: data.user, userClient, adminClient };
+  return {
+    caller: data.user,
+    assuranceLevel: assuranceLevelOf(token),
+    userClient,
+    adminClient,
+  };
 }
 
 // ---------------------------------------------------------------------
