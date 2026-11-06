@@ -61,7 +61,7 @@ export default function AdminLoginPage({
           Need the teacher portal?{" "}
           <NavLink
             href="/teacher-login"
-            className="font-semibold text-primary hover:underline"
+            className="font-semibold text-color--ink hover:underline"
           >
             Login
           </NavLink>

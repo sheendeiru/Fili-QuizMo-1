@@ -67,10 +67,10 @@ export default function StudentLoginPage({
             Sign up
           </NavLink>
           <span className="block pt-3">
-            Teacher?{" "}
+            Are you a teacher?{" "}
             <NavLink
               href="/teacher-login"
-              className="font-semibold text-px-gold-text hover:underline focus-visible:outline"
+              className="font-semibold text-color--ink hover:underline focus-visible:outline"
             >
               Teacher Log In
             </NavLink>

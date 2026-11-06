@@ -380,7 +380,7 @@ export function ExportDropdown({ role }: { role: SearchRole }) {
           role="menu"
           aria-label="Export format"
           onKeyDown={handleMenuKeyDown}
-          className="absolute right-0 top-full z-30 mt-2 min-w-56 border-2 border-border bg-background p-1 text-emerald-100 shadow-lg"
+          className="absolute right-0 top-full z-30 mt-2 min-w-56 border-2 border-ink bg-ink p-1 text-px-gold shadow-lg"
         >
           {EXPORT_FORMAT_OPTIONS.map((option, index) => (
             <button
@@ -396,16 +396,16 @@ export function ExportDropdown({ role }: { role: SearchRole }) {
                 void download(option.format);
               }}
               aria-current={selectedFormat === option.format ? "true" : undefined}
-              className={`flex w-full items-center gap-2 border-l-4 px-3 py-2 text-left text-xs text-emerald-100 hover:bg-emerald-600/20 ${
-                selectedFormat === option.format
-                  ? "border-l-emerald-400 bg-emerald-600/10"
-                  : "border-l-transparent"
-              }`}
-            >
-              <span className="w-3 text-emerald-300" aria-hidden="true">
-                {selectedFormat === option.format ? "✓" : ""}
-              </span>
-              {option.label}
+             className={`flex w-full items-center gap-2 border-l-4 px-3 py-2 text-left text-xs text-px-gold hover:bg-px-gold hover:text-ink focus-visible:bg-px-gold focus-visible:text-ink ${
+              selectedFormat === option.format
+                ? "border-l-px-gold bg-surface/10"
+                : "border-l-transparent"
+                 }`}
+                >
+                <span className="w-3 text-px-gold" aria-hidden="true">
+                  {selectedFormat === option.format ? "✓" : ""}
+                 </span>
+            {option.label}
             </button>
           ))}
         </div>

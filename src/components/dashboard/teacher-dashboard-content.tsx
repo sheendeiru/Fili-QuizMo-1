@@ -19,6 +19,7 @@ import { PixelCard } from "@/components/ui/pixel-primitives";
 import { SearchFilter } from "@/components/dashboard/search-filter";
 import { ManageAccountsTable } from "@/components/dashboard/manage-accounts";
 import { FormField } from "@/components/ui/form-field";
+import { SettingsPasswordForm } from "@/components/dashboard/settings-password-form";
 import { defaultSearchQuery } from "@/lib/search/url-state";
 import { logoutAndRedirect } from "@/lib/auth/logout";
 import type { TeacherDashboardData } from "@/lib/dashboard/data";
@@ -465,6 +466,8 @@ function SettingsSection() {
           </div>
         </form>
       </PixelCard>
+
+      <SettingsPasswordForm sessionExpiredPath="/teacher-login?status=session_expired" />
     </div>
   );
 }

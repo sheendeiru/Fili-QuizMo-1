@@ -39,6 +39,59 @@ export const EXPORT_COLUMNS: Record<SearchEntity, readonly ExportColumn[]> = {
   ],
 };
 
+// Dates are exported as calendar dates (no time, no UTC offset), in the
+// same time zone the app shows to users, so a quiz created at 23:27 UTC on
+// Oct 31 is listed as 2026-11-01 (it is already Nov 1 in the Philippines).
+export const EXPORT_TIME_ZONE = "Asia/Manila";
+
+const exportDateFormat = new Intl.DateTimeFormat("en-CA", {
+  timeZone: EXPORT_TIME_ZONE,
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+});
+
+function exportDateParts(
+  value: unknown,
+): { year: number; month: number; day: number } | null {
+  if (value === null || value === undefined || value === "") {
+    return null;
+  }
+
+  const date = value instanceof Date ? value : new Date(String(value));
+  if (Number.isNaN(date.getTime())) {
+    return null;
+  }
+
+  const parts = exportDateFormat.formatToParts(date);
+  const pick = (type: string) =>
+    Number(parts.find((part) => part.type === type)?.value);
+
+  return { year: pick("year"), month: pick("month"), day: pick("day") };
+}
+
+/** "2026-11-01", or "" when the value is empty or not a valid date. */
+export function formatExportDate(value: unknown): string {
+  const parts = exportDateParts(value);
+  if (!parts) {
+    return "";
+  }
+
+  const { year, month, day } = parts;
+  return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+}
+
+/**
+ * A Date at 00:00 UTC on that calendar day, for real Excel date cells.
+ * ExcelJS writes dates by their UTC value, so this shows the exact day.
+ */
+export function toExportDateOnly(value: unknown): Date | null {
+  const parts = exportDateParts(value);
+  return parts
+    ? new Date(Date.UTC(parts.year, parts.month - 1, parts.day))
+    : null;
+}
+
 export function safeSpreadsheetText(value: string): string {
   return /^[\t\r\n ]*[=+\-@]/.test(value) ? `'${value}` : value;
 }
@@ -66,7 +119,15 @@ export function serializeCsvRow(
   row: SearchRow,
   columns: readonly ExportColumn[],
 ): string {
-  return `${columns.map((column) => csvCell(row[column.key])).join(",")}\r\n`;
+  return `${columns
+    .map((column) =>
+      csvCell(
+        column.type === "date"
+          ? formatExportDate(row[column.key])
+          : row[column.key],
+      ),
+    )
+    .join(",")}\r\n`;
 }
 
 export function serializeCsv(

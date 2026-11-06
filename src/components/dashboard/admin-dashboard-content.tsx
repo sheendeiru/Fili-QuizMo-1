@@ -15,6 +15,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { PixelCard } from "@/components/ui/pixel-primitives";
 import { FormField } from "@/components/ui/form-field";
+import { SettingsPasswordForm } from "@/components/dashboard/settings-password-form";
 import { SearchFilter } from "@/components/dashboard/search-filter";
 import { ManageAccountsTable } from "@/components/dashboard/manage-accounts";
 import { TeacherStatusActions } from "@/components/dashboard/teacher-status-actions";
@@ -426,6 +427,8 @@ function AdminSettingsSection() {
           </div>
         </form>
       </PixelCard>
+
+      <SettingsPasswordForm sessionExpiredPath="/admin-login?status=session_expired" />
     </div>
   );
 }

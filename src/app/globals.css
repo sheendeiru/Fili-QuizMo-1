@@ -673,7 +673,9 @@ h4 {
   background-repeat: repeat-x;
   background-size: 480px auto;     
   image-rendering: pixelated;
-  animation: skyline-scroll 35s linear infinite;
+  animation: skyline-scroll 35s linear infinite;.auth-page {
+  background-color: var(--color-sky-bottom);
+}
 }
 
 @keyframes skyline-scroll {

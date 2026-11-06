@@ -62,7 +62,7 @@ export default function TeacherLoginPage({
           Are you new here?{" "}
           <NavLink
             href="/signup"
-            className="font-semibold text-px-gold-text hover:underline"
+            className="font-semibold text-color--ink hover:underline"
           >
             Request an account
           </NavLink>
@@ -70,7 +70,7 @@ export default function TeacherLoginPage({
             Are you a student?{" "}
             <NavLink
               href="/student-login"
-              className="font-semibold text-px-gold-text hover:underline focus-visible:outline"
+              className="font-semibold text-color--ink hover:underline focus-visible:outline"
             >
               Student Log In
             </NavLink>

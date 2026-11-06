@@ -214,7 +214,7 @@ export function DashboardShell({
               aria-label="Open sidebar"
               aria-controls="dashboard-sidebar"
               aria-expanded={sidebarOpen}
-              className="inline-flex h-9 w-9 items-center justify-center text-ink transition-colors hover:bg-neutral-100"
+              className="inline-flex h-9 w-9 items-center justify-center text-ink transition-colors border border-ink border-2, border-4 hover:bg-neutral-100"
             >
               <svg
                 className="h-4 w-4"
@@ -242,7 +242,7 @@ export function DashboardShell({
               onClick={() => setProfileOpen((prev) => !prev)}
               aria-label="Open profile menu"
               aria-expanded={profileOpen}
-              className="flex items-center focus:outline-none"
+              className="flex items-center border border-ink focus:outline-none"
             >
               <PixelAvatar
                 name={`${role} profile`}

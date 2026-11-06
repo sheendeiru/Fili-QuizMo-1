@@ -46,10 +46,10 @@ export default function SignupPage({ searchParams }: SignupPageProps) {
             Student login
           </NavLink>
           <span className="block pt-3">
-            Teacher?{" "}
+            Are you a teacher?{" "}
             <NavLink
               href="/teacher-login"
-              className="font-semibold text-primary hover:underline"
+              className="font-semibold text-color--ink hover:underline"
             >
               Teacher login
             </NavLink>

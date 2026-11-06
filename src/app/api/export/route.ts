@@ -21,6 +21,7 @@ import {
   safeSpreadsheetText,
   serializeCsvHeader,
   serializeCsvRow,
+  toExportDateOnly,
   type ExportColumn,
 } from "@/lib/export/export-data";
 
@@ -95,8 +96,7 @@ function cellValue(row: SearchRow, column: ExportColumn): string | number | Date
   }
 
   if (column.type === "date") {
-    const dateValue = value instanceof Date ? value : new Date(String(value));
-    return Number.isNaN(dateValue.getTime()) ? null : dateValue;
+    return toExportDateOnly(value);
   }
 
   const text = typeof value === "string" ? value : String(value);
@@ -176,7 +176,7 @@ async function excelStream(
 
         columns.forEach((column, index) => {
           if (column.type === "date") {
-            excelRow.getCell(index + 1).numFmt = "yyyy-mm-dd hh:mm";
+            excelRow.getCell(index + 1).numFmt = "yyyy-mm-dd";
           }
         });
 
