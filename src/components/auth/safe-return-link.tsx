@@ -127,7 +127,9 @@ export function SafeReturnLink({
         disabled={isBusy}
         aria-disabled={isBusy}
         aria-busy={isBusy}
-        className="pixel-border inline-flex min-h-11 items-center justify-center gap-2 border-2 border-px-indigo bg-px-cream px-4 py-2 text-sm font-semibold text-px-text-dark shadow-[4px_4px_0_var(--px-ink)] hover:bg-px-gold active:bg-px-gold-dk focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-px-indigo disabled:cursor-wait disabled:opacity-70"
+        // Same pixel-button base as "Send Reset Link": identical 2px navy border,
+        // pixel shadow and press animation. Gold text, white while pressed.
+        className="pixel-button inline-flex h-10 items-center justify-center gap-2 px-4 text-sm font-semibold text-accent! active:text-white! [--pixel-button-bg:var(--color-ink)]"
       >
         {isBusy ? <Spinner className="h-4 w-4" /> : null}
         {isBusy ? "Loading..." : label}

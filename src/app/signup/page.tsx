@@ -41,7 +41,7 @@ export default function SignupPage({ searchParams }: SignupPageProps) {
           Already have an account?{" "}
           <NavLink
             href="/student-login"
-            className="font-semibold text-secondary hover:underline focus-visible:outline"
+            className="font-semibold text-color--ink hover:underline focus-visible:outline"
           >
             Student login
           </NavLink>

@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/pixel-primitives";
 import { PixelModal } from "@/components/ui/pixel-modal";
 import type { DashboardTeacher } from "@/lib/dashboard/data";
+import { DASHBOARD_DATA_CHANGED_EVENT } from "@/lib/dashboard/realtime-events";
 import type { SearchItem, SearchRole } from "@/lib/search/types";
 
 type ManagedRole = "student" | "teacher";
@@ -53,7 +54,6 @@ export function ManageAccountsTable({
   renderExtraActions?: (item: SearchItem) => ReactNode;
 }) {
   const router = useRouter();
-  const [refreshKey, setRefreshKey] = useState(0);
   const [createOpen, setCreateOpen] = useState(false);
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState("");
@@ -68,6 +68,13 @@ export function ManageAccountsTable({
   const approvedTeachers = teachers.filter(
     (teacher) => teacher.status === "approved",
   );
+
+  // Re-run the table's search in place (the rows stay on screen, so no loading
+  // screen) and refresh the stat cards and charts behind it.
+  function refreshTable() {
+    window.dispatchEvent(new Event(DASHBOARD_DATA_CHANGED_EVENT));
+    router.refresh();
+  }
 
   async function createAccount(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -128,8 +135,7 @@ export function ManageAccountsTable({
       setFeedbackKind("success");
       form.reset();
       setCreateOpen(false);
-      setRefreshKey((key) => key + 1);
-      router.refresh();
+      refreshTable();
     } catch (error) {
       setCreateError(
         error instanceof Error ? error.message : "Unable to create the account.",
@@ -170,8 +176,7 @@ export function ManageAccountsTable({
       setDeleteTarget(null);
       setFeedback("Account deleted.");
       setFeedbackKind("success");
-      setRefreshKey((key) => key + 1);
-      router.refresh();
+      refreshTable();
     } catch (error) {
       setFeedback(
         error instanceof Error ? error.message : "Unable to delete the account.",
@@ -199,7 +204,6 @@ export function ManageAccountsTable({
         </p>
       ) : null}
       <SearchFilter
-        key={refreshKey}
         role={actorRole}
         entity={pageEntity}
         toolbar={
@@ -215,13 +219,16 @@ export function ManageAccountsTable({
           </PixelButton>
         }
         renderActions={(item) => (
-          <div className="flex flex-wrap gap-2">
+          // Phones: buttons stack and share one width, and the labels never
+          // wrap ("Suspen/d"). From sm up they sit side by side.
+          <div className="flex w-full min-w-28 flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap">
             {renderExtraActions?.(item)}
             <PixelButton
               type="button"
               variant="danger"
               size="sm"
               onClick={() => setDeleteTarget(item)}
+              className="w-full whitespace-nowrap sm:w-auto"
             >
               Delete
             </PixelButton>
@@ -307,7 +314,12 @@ export function ManageAccountsTable({
               >
                 Cancel
               </PixelButton>
-              <PixelButton type="submit" variant="primary" disabled={creating}>
+              <PixelButton
+                type="submit"
+                variant="primary"
+                disabled={creating}
+                aria-busy={creating}
+              >
                 {creating ? "Creating..." : "Confirm"}
               </PixelButton>
             </div>
