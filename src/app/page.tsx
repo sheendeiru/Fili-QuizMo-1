@@ -67,12 +67,12 @@ const developers = [
     role: "Web Developer",
   },
   {
-    src: "/assets/profileniRub.png",
+    src: "/assets/team-avatar.png",
     name: "John Carl Rubio",
     role: "Documentation",
   },
   {
-    src: null,
+    src: "/assets/Sheen.jpg",
     name: "Sheen Agustin",
     role: "Mobile App Developer",
   },
