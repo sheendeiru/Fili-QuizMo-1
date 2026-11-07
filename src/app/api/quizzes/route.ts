@@ -171,16 +171,18 @@ export async function DELETE(request: Request): Promise<Response> {
           "QUIZ_IN_USE",
           "This quiz still has related records and cannot be deleted yet.",
         );
+       case "P0001":
+          return errorResponse(
+            409,
+            "QUIZ_LOCKED",
+            error.message || "This quiz is locked and cannot be deleted.",
+          );
       default:
-        console.error("Quiz delete failed.", error.message);
-        return errorResponse(
-          503,
-          "QUIZ_DELETE_FAILED",
-          "Unable to delete the quiz.",
-        );
+            console.error("Quiz delete failed.", {
+            quizId, code: error.code, message: error.message,
+      });
     }
   }
-
   return Response.json(
     { deleted: true },
     { headers: { "Cache-Control": "private, no-store" } },
