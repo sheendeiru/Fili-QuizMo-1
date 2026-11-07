@@ -35,7 +35,7 @@ export default function SignupPage({ searchParams }: SignupPageProps) {
   return (
     <AuthShell
       title="Create Account"
-      subtitle="Join Fili-QuizMo as a student or request a teacher account."
+      subtitle="Request a teacher account to join Fili-QuizMo."
       footer={
         <>
           Already have an account?{" "}
