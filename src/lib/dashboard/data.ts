@@ -20,6 +20,9 @@ export type DashboardScore = {
   student: string;
   quizTitle: string;
   score: number;
+  /** Raw score parts, e.g. 8 and 10 for "8/10". null if the view has no counts. */
+  correct?: number | null;
+  total?: number | null;
   status: string;
   completedAt: string;
 };
@@ -107,6 +110,8 @@ type ResultRow = {
   title: string;
   participant_username: string;
   percentage: number | string;
+  correct_count: number | string | null;
+  total_questions: number | string | null;
   completed_at: string;
 };
 
@@ -117,7 +122,7 @@ type RosterRow = {
 
 const QUIZ_COLUMNS = "session_id, title, status, teacher_id, created_at";
 const RESULT_COLUMNS =
-  "attempt_id, session_id, title, participant_username, percentage, completed_at";
+  "attempt_id, session_id, title, participant_username, percentage, correct_count, total_questions, completed_at";
 const QUIZ_LIMIT = 1_000;
 const RESULT_LIMIT = 1_000;
 const ROSTER_LIMIT = 5_000;
@@ -128,6 +133,17 @@ function readNumber(value: number | string): number {
   const parsed = typeof value === "number" ? value : Number(value);
 
   return Number.isFinite(parsed) ? parsed : 0;
+}
+
+/** A count such as correct answers, or null when it is missing or not a number. */
+function readCount(value: number | string | null | undefined): number | null {
+  if (value === null || value === undefined) {
+    return null;
+  }
+
+  const parsed = typeof value === "number" ? value : Number(value);
+
+  return Number.isFinite(parsed) ? parsed : null;
 }
 
 /**
@@ -267,6 +283,8 @@ function recentScores(
       student: row.participant_username,
       quizTitle: row.title,
       score,
+      correct: readCount(row.correct_count),
+      total: readCount(row.total_questions),
       status: scoreStatusLabel(score),
       completedAt: row.completed_at,
     };

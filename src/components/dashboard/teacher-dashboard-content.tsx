@@ -337,7 +337,7 @@ function RankChip({ rank }: { rank: number }) {
   );
 }
 
-function ScoreBar({ value }: { value: number }) {
+function ScoreBar({ value, label }: { value: number; label?: string | null }) {
   const width = Math.min(100, Math.max(0, value));
   const tone =
     value >= 75 ? "bg-primary" : value >= 50 ? "bg-accent" : "bg-danger";
@@ -350,8 +350,11 @@ function ScoreBar({ value }: { value: number }) {
       >
         <div className={`h-full ${tone}`} style={{ width: `${width}%` }} />
       </div>
-      <span className="font-semibold text-foreground">
-        {Math.round(value * 10) / 10}%
+      <span
+        className="font-semibold text-foreground"
+        title={`${Math.round(value * 10) / 10}%`}
+      >
+        {label ?? `${Math.round(value * 10) / 10}%`}
       </span>
     </div>
   );
@@ -456,15 +459,16 @@ function LeaderboardSection({ data }: { data: TeacherDashboardData }) {
                               ? entry.best
                               : entry.average
                           }
+                          label={
+                            board.rankedBy === "best" ? entry.bestRaw : null
+                          }
                         />
                       </td>
                       <td className={`${LB_CELL} ${LB_HIDE_SM}`}>
-                        {Math.round(
-                          (board.rankedBy === "best"
-                            ? entry.average
-                            : entry.best) * 10,
-                        ) / 10}
-                        %
+                        {board.rankedBy === "best"
+                          ? `${Math.round(entry.average * 10) / 10}%`
+                          : (entry.bestRaw ??
+                            `${Math.round(entry.best * 10) / 10}%`)}
                       </td>
                       <td className={`${LB_CELL} ${LB_HIDE_SM}`}>
                         {entry.attempts}

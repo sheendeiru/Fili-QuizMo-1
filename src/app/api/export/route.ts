@@ -199,6 +199,7 @@ export async function GET(request: Request): Promise<Response> {
   try {
     const supabase = await createClient();
     const context = await resolveSearchContext(createAuthClient(supabase));
+    console.log("EXPORT SCOPE", context.role, context.teacherId);
     const url = new URL(request.url);
     const format = url.searchParams.get("format") ?? "xlsx";
 

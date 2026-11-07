@@ -364,8 +364,11 @@ export function ScoreBands({ bands }: { bands: StudentAnalytics["bands"] }) {
 
 export function RetakeProgress({
   rows,
+  raw,
 }: {
   rows: StudentAnalytics["retakes"];
+  /** Raw scores by quiz (e.g. "4/10" -> "8/10"). Quizzes without one show percentages. */
+  raw?: ReadonlyMap<string, { first: string; latest: string }>;
 }) {
   return (
     <ul className="divide-y-2 divide-ink/15">
@@ -387,8 +390,13 @@ export function RetakeProgress({
               {row.quiz}
             </span>
             <span className="flex shrink-0 items-center gap-2">
-              <span className="text-neutral-500">
-                {Math.round(row.first)}% → {Math.round(row.latest)}%
+              <span
+                className="text-neutral-500"
+                title={`${Math.round(row.first)}% → ${Math.round(row.latest)}%`}
+              >
+                {raw?.get(row.quiz)
+                  ? `${raw.get(row.quiz)?.first} → ${raw.get(row.quiz)?.latest}`
+                  : `${Math.round(row.first)}% → ${Math.round(row.latest)}%`}
               </span>
               <span className={`border-2 px-2 py-0.5 text-xs font-bold ${chip}`}>
                 {change > 0 ? "+" : ""}

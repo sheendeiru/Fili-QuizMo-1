@@ -18,6 +18,7 @@ import {
   ScoreTrendChart,
 } from "@/components/dashboard/student-charts";
 import { buildStudentAnalytics } from "@/lib/dashboard/student-analytics";
+import { formatRawScore } from "@/lib/dashboard/raw-score";
 import { logoutAndRedirect } from "@/lib/auth/logout";
 import { useResetRouteState } from "@/lib/dashboard/route-reset";
 import { useNavigation } from "@/components/pixel";
@@ -95,6 +96,73 @@ function formatDuration(value: number | null): string {
   const minutes = Math.floor(value / 60);
   const seconds = value % 60;
   return `${minutes}:${String(seconds).padStart(2, "0")}`;
+}
+
+type RawPair = { first: string; latest: string };
+
+function rawOf(row: StudentHistoryRow | undefined): string | null {
+  return row ? formatRawScore(row.correct_count, row.total_questions) : null;
+}
+
+function completedTime(row: StudentHistoryRow): number {
+  return Date.parse(row.completed_at ?? "") || 0;
+}
+
+/**
+ * Raw scores (e.g. 8/10) for the percentages the overview cards show. Each raw
+ * value is only used when its attempt's percentage matches the analytics value,
+ * so a card never shows a raw score from a different attempt. When there is no
+ * match, the card keeps its percentage.
+ */
+function buildRawScores(
+  rows: readonly StudentHistoryRow[],
+  analytics: NonNullable<ReturnType<typeof buildStudentAnalytics>>,
+) {
+  const same = (a: number | null, b: number) =>
+    a !== null && Math.round(a) === Math.round(b);
+  const scored = rows.filter(
+    (row) => row.percentage !== null && Number.isFinite(row.percentage),
+  );
+  // Newest first.
+  const byDate = [...scored].sort(
+    (left, right) => completedTime(right) - completedTime(left),
+  );
+  const latestRow = byDate[0];
+  const bestRow = byDate.reduce<StudentHistoryRow | undefined>(
+    (best, row) =>
+      !best || (row.percentage ?? 0) > (best.percentage ?? 0) ? row : best,
+    undefined,
+  );
+
+  const retakes = new Map<string, RawPair>();
+  for (const retake of analytics.retakes) {
+    const attempts = byDate
+      .filter((row) => row.quiz_title === retake.quiz)
+      .reverse();
+    const first = attempts[0];
+    const latest = attempts[attempts.length - 1];
+    const firstRaw = rawOf(first);
+    const latestRaw = rawOf(latest);
+
+    if (
+      firstRaw &&
+      latestRaw &&
+      same(first.percentage, retake.first) &&
+      same(latest.percentage, retake.latest)
+    ) {
+      retakes.set(retake.quiz, { first: firstRaw, latest: latestRaw });
+    }
+  }
+
+  return {
+    best: same(bestRow?.percentage ?? null, analytics.kpis.best)
+      ? rawOf(bestRow)
+      : null,
+    latest: same(latestRow?.percentage ?? null, analytics.kpis.latest)
+      ? rawOf(latestRow)
+      : null,
+    retakes,
+  };
 }
 
 function HistoryTable({
@@ -181,6 +249,10 @@ export default function StudentDashboardContent({
     () => buildStudentAnalytics(summaryHistory),
     [summaryHistory],
   );
+  const rawScores = useMemo(
+    () => (analytics ? buildRawScores(summaryHistory, analytics) : null),
+    [analytics, summaryHistory],
+  );
   const cleanHref =
     activeKey === "overview" ? pathname : `${pathname}?tab=${activeKey}`;
 
@@ -256,12 +328,18 @@ export default function StudentDashboardContent({
               />
               <StatCard
                 label="Best score"
-                value={formatPercent(analytics?.kpis.best ?? null)}
+                value={
+                  rawScores?.best ??
+                  formatPercent(analytics?.kpis.best ?? null)
+                }
                 hint="Highest in latest results"
               />
               <StatCard
                 label="Latest score"
-                value={formatPercent(analytics?.kpis.latest ?? null)}
+                value={
+                  rawScores?.latest ??
+                  formatPercent(analytics?.kpis.latest ?? null)
+                }
                 hint={analytics?.kpis.latestQuiz ?? "No completed quiz yet"}
               />
             </StatGrid>
@@ -337,7 +415,10 @@ export default function StudentDashboardContent({
                               title="Retake progress"
                               caption="First attempt compared with your latest"
                             >
-                              <RetakeProgress rows={analytics.retakes} />
+                              <RetakeProgress
+                                rows={analytics.retakes}
+                                raw={rawScores?.retakes}
+                              />
                             </ChartCard>
                           ),
                         },

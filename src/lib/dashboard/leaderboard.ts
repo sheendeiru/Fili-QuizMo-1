@@ -1,5 +1,8 @@
 // lib/dashboard/leaderboard.ts
 // Pure helpers: rank students from quiz_results rows. Scores are 0-100 percentages.
+// Ranking still uses the percentage; `bestRaw` is only for display (e.g. "8/10").
+
+import { formatRawScore } from "./raw-score";
 
 export type LeaderboardEntry = {
   rank: number;
@@ -8,6 +11,8 @@ export type LeaderboardEntry = {
   average: number;
   /** Highest single-attempt %. */
   best: number;
+  /** Raw score of the best attempt, e.g. "8/10". null if counts are missing. */
+  bestRaw: string | null;
   attempts: number;
   lastCompletedAt: string;
 };
@@ -29,6 +34,8 @@ type ResultLike = {
   title: string;
   participant_username: string;
   percentage: number | string;
+  correct_count?: number | string | null;
+  total_questions?: number | string | null;
   completed_at: string;
 };
 
@@ -49,7 +56,14 @@ function rankStudents(
 ): LeaderboardEntry[] {
   const byStudent = new Map<
     string,
-    { student: string; scores: number[]; lastTime: number; lastIso: string }
+    {
+      student: string;
+      scores: number[];
+      lastTime: number;
+      lastIso: string;
+      bestScore: number;
+      bestRaw: string | null;
+    }
   >();
 
   for (const row of rows) {
@@ -62,10 +76,20 @@ function rankStudents(
       scores: [],
       lastTime: 0,
       lastIso: row.completed_at,
+      bestScore: Number.NEGATIVE_INFINITY,
+      bestRaw: null,
     };
     const time = Date.parse(row.completed_at) || 0;
+    const score = toScore(row.percentage);
+    const raw = formatRawScore(row.correct_count, row.total_questions);
 
-    entry.scores.push(toScore(row.percentage));
+    // Keep the raw score of the highest-percentage attempt (first one on a tie).
+    if (score > entry.bestScore || (score === entry.bestScore && !entry.bestRaw)) {
+      entry.bestScore = score;
+      entry.bestRaw = raw;
+    }
+
+    entry.scores.push(score);
     if (time >= entry.lastTime) {
       entry.lastTime = time;
       entry.lastIso = row.completed_at;
@@ -79,6 +103,7 @@ function rankStudents(
       entry.scores.reduce((sum, score) => sum + score, 0) / entry.scores.length,
     ),
     best: Math.max(...entry.scores),
+    bestRaw: entry.bestRaw,
     attempts: entry.scores.length,
     lastCompletedAt: entry.lastIso,
   }));
