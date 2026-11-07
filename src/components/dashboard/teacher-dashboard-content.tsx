@@ -15,6 +15,12 @@ import {
 import { PixelLoader } from "@/components/ui/pixel-loader";
 import { useNavigation } from "@/components/pixel";
 import { PixelCard } from "@/components/ui/pixel-primitives";
+import {
+  ChartTabs,
+  SectionHeading,
+  StatCard,
+  StatGrid,
+} from "@/components/dashboard/compact-layout";
 import { SearchFilter } from "@/components/dashboard/search-filter";
 import { ManageQuizzesTable } from "@/components/dashboard/manage-quizzes";
 import {
@@ -172,32 +178,6 @@ export default function TeacherDashboardContent({
   );
 }
 
-function SectionHeading({
-  title,
-  description,
-}: {
-  title: string;
-  description: string;
-}) {
-  return (
-    <div>
-      <h2 className="text-xl font-bold text-foreground">{title}</h2>
-      <p className="mt-1 text-sm text-px-muted">{description}</p>
-    </div>
-  );
-}
-
-function StatCard({ label, value }: { label: string; value: string }) {
-  return (
-    <PixelCard as="article">
-      <p className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
-        {label}
-      </p>
-      <p className="mt-1 text-xl font-bold text-foreground">{value}</p>
-    </PixelCard>
-  );
-}
-
 /** One card style for every chart so the sections look the same. */
 function ChartPanel({
   title,
@@ -209,74 +189,97 @@ function ChartPanel({
   children: ReactNode;
 }) {
   return (
-    <PixelCard as="article">
-      <h3 className="text-base font-semibold text-foreground">{title}</h3>
-      <p className="mt-1 text-sm text-neutral-500">{caption}</p>
-      <div className="mt-3">{children}</div>
+    <PixelCard as="article" className="p-2.5! sm:p-3!">
+      <h3 className="text-sm font-semibold text-foreground sm:text-base">
+        {title}
+      </h3>
+      <p className="mt-0.5 text-xs text-neutral-500 sm:text-sm">{caption}</p>
+      <div className="mt-2">{children}</div>
     </PixelCard>
   );
 }
 
 function QuizzesSection({ data }: { data: TeacherDashboardData }) {
   return (
-    <div className="space-y-4">
+    <div className="space-y-2 sm:space-y-3">
       <SectionHeading
         title="View Quizzes"
         description="Review your quiz library and overall class performance."
       />
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <StatCard
-          label="Total Quizzes"
-          value={String(data.quizzes.total)}
-        />
-        <StatCard
-          label="Active Students"
-          value={String(data.studentCount)}
-        />
-        <StatCard
-          label="Average Score"
-          value={`${data.results.average}%`}
-        />
-      </div>
+      <StatGrid columns={3}>
+        <StatCard label="Total Quizzes" value={String(data.quizzes.total)} />
+        <StatCard label="Active Students" value={String(data.studentCount)} />
+        <StatCard label="Average Score" value={`${data.results.average}%`} />
+      </StatGrid>
+
+      {/* Phones: one chart at a time behind tabs. md and up: 2-column grid. */}
+      <ChartTabs
+        label="Quiz charts"
+        tabs={[
+          {
+            key: "status",
+            label: "Quiz Status",
+            content: (
+              <BarChartCard
+                title="Quiz Status"
+                description="How your quizzes are split by status."
+                total={data.quizzes.total}
+                items={[
+                  {
+                    label: "Ready",
+                    value: data.quizzes.ready,
+                    color: "bg-success",
+                  },
+                  {
+                    label: "Drafts",
+                    value: data.quizzes.draft,
+                    color: "bg-px-gold",
+                  },
+                  {
+                    label: "Failed",
+                    value: data.quizzes.failed,
+                    color: "bg-danger-dark",
+                  },
+                ]}
+              />
+            ),
+          },
+          {
+            key: "recent",
+            label: "Recent Scores",
+            content: (
+              <RecentScoresCard
+                title="Recent Scores"
+                description="The latest completed attempts on your quizzes."
+                scores={data.recentScores}
+              />
+            ),
+          },
+          {
+            key: "distribution",
+            label: "Score Distribution",
+            wide: true,
+            content: (
+              <ChartPanel
+                title="Student Score Distribution"
+                caption="Latest quiz performance across score bands."
+              >
+                <PieChart distributions={data.distributions} />
+              </ChartPanel>
+            ),
+          },
+        ]}
+      />
 
       <ManageQuizzesTable actorRole="teacher" />
-
-      <div className="grid gap-3 lg:grid-cols-2">
-        <BarChartCard
-          title="Quiz Status"
-          description="How your quizzes are split by status."
-          total={data.quizzes.total}
-          items={[
-            { label: "Ready", value: data.quizzes.ready, color: "bg-success" },
-            { label: "Drafts", value: data.quizzes.draft, color: "bg-px-gold" },
-            {
-              label: "Failed",
-              value: data.quizzes.failed,
-              color: "bg-danger-dark",
-            },
-          ]}
-        />
-        <RecentScoresCard
-          title="Recent Scores"
-          description="The latest completed attempts on your quizzes."
-          scores={data.recentScores}
-        />
-      </div>
-
-      <ChartPanel
-        title="Student Score Distribution"
-        caption="Latest quiz performance across score bands."
-      >
-        <PieChart distributions={data.distributions} />
-      </ChartPanel>
     </div>
   );
 }
 
 function StudentsSection() {
   return (
-    <div className="space-y-4">
+    <div className="space-y-2 sm:space-y-3">
       <SectionHeading
         title="Manage Student Info"
         description="Search students assigned to your classes."
@@ -289,19 +292,21 @@ function StudentsSection() {
 
 function ScoresSection({ data }: { data: TeacherDashboardData }) {
   return (
-    <div className="space-y-4">
+    <div className="space-y-2 sm:space-y-3">
       <SectionHeading
         title="Students & Scores"
         description="Search students and review their quiz performances."
       />
-      <MeterCard label="Average Score" percent={data.results.average} />
+      <div className="grid gap-2 sm:gap-3 md:grid-cols-[minmax(0,1fr)_minmax(0,2fr)] md:items-start">
+        <MeterCard label="Average Score" percent={data.results.average} />
+        <ChartPanel
+          title="Score Distribution"
+          caption="Student score distribution per quiz."
+        >
+          <PieChart distributions={data.distributions} />
+        </ChartPanel>
+      </div>
       <SearchFilter role="teacher" entity="students" />
-      <ChartPanel
-        title="Score Distribution"
-        caption="Student score distribution per quiz."
-      >
-        <PieChart distributions={data.distributions} />
-      </ChartPanel>
     </div>
   );
 }
@@ -323,7 +328,7 @@ const medalClass: Record<number, string> = {
 function RankChip({ rank }: { rank: number }) {
   return (
     <span
-      className={`inline-block min-w-12 border-2 border-ink px-2 py-0.5 text-center text-xs font-bold ${
+      className={`inline-block min-w-10 border-2 sm:min-w-12 border-ink px-2 py-0.5 text-center text-xs font-bold ${
         medalClass[rank] ?? "bg-surface text-ink"
       }`}
     >
@@ -341,7 +346,7 @@ function ScoreBar({ value }: { value: number }) {
     <div className="flex items-center gap-2">
       <div
         aria-hidden="true"
-        className="h-3 w-20 shrink-0 border-2 border-ink bg-surface"
+        className="h-2.5 w-14 shrink-0 border-2 border-ink bg-surface sm:h-3 sm:w-20"
       >
         <div className={`h-full ${tone}`} style={{ width: `${width}%` }} />
       </div>
@@ -352,6 +357,12 @@ function ScoreBar({ value }: { value: number }) {
   );
 }
 
+// Leaderboard table: tight cells on phones, with the extra columns tucked
+// away until there is room (secondary score + attempts from sm, date from md).
+const LB_CELL = "py-1.5 pr-2 sm:py-2 sm:pr-3";
+const LB_HIDE_SM = "hidden sm:table-cell";
+const LB_HIDE_MD = "hidden md:table-cell";
+
 function LeaderboardSection({ data }: { data: TeacherDashboardData }) {
   const { overall, byQuiz } = data.leaderboards;
   const boards = [overall, ...byQuiz];
@@ -361,7 +372,7 @@ function LeaderboardSection({ data }: { data: TeacherDashboardData }) {
   const secondaryLabel = board.rankedBy === "best" ? "Average" : "Best score";
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-2 sm:space-y-3">
       <SectionHeading
         title="Leaderboard"
         description="See which students are scoring highest across your quizzes."
@@ -379,7 +390,7 @@ function LeaderboardSection({ data }: { data: TeacherDashboardData }) {
           <div>
             <label
               htmlFor="leaderboard-quiz"
-              className="block text-sm font-medium text-foreground"
+              className="block text-xs font-medium text-foreground sm:text-sm"
             >
               Show ranking for
             </label>
@@ -387,7 +398,7 @@ function LeaderboardSection({ data }: { data: TeacherDashboardData }) {
               id="leaderboard-quiz"
               value={selected}
               onChange={(event) => setSelected(Number(event.target.value))}
-              className="mt-1 h-10 w-full max-w-xs px-3 text-sm"
+              className="mt-1 h-9 w-full max-w-xs px-3 text-sm sm:h-10"
             >
               {boards.map((option, index) => (
                 <option key={option.quiz ?? "overall"} value={index}>
@@ -406,30 +417,39 @@ function LeaderboardSection({ data }: { data: TeacherDashboardData }) {
             }
           >
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[34rem] text-left text-sm">
+              <table className="w-full text-left text-xs sm:text-sm">
                 <caption className="sr-only">
                   {board.quiz ?? "Overall"} leaderboard
                 </caption>
                 <thead>
                   <tr>
-                    <th scope="col" className="py-2 pr-3">Rank</th>
-                    <th scope="col" className="py-2 pr-3">Student</th>
-                    <th scope="col" className="py-2 pr-3">{primaryLabel}</th>
-                    <th scope="col" className="py-2 pr-3">{secondaryLabel}</th>
-                    <th scope="col" className="py-2 pr-3">Attempts</th>
-                    <th scope="col" className="py-2">Last active</th>
+                    <th scope="col" className={LB_CELL}>Rank</th>
+                    <th scope="col" className={LB_CELL}>Student</th>
+                    <th scope="col" className={LB_CELL}>{primaryLabel}</th>
+                    <th scope="col" className={`${LB_CELL} ${LB_HIDE_SM}`}>
+                      {secondaryLabel}
+                    </th>
+                    <th scope="col" className={`${LB_CELL} ${LB_HIDE_SM}`}>
+                      Attempts
+                    </th>
+                    <th
+                      scope="col"
+                      className={`py-1.5 sm:py-2 ${LB_HIDE_MD}`}
+                    >
+                      Last active
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
                   {board.entries.map((entry) => (
                     <tr key={entry.student}>
-                      <td className="py-2 pr-3">
+                      <td className={LB_CELL}>
                         <RankChip rank={entry.rank} />
                       </td>
-                      <td className="py-2 pr-3 font-semibold text-foreground">
+                      <td className={`${LB_CELL} font-semibold text-foreground`}>
                         {entry.student}
                       </td>
-                      <td className="py-2 pr-3">
+                      <td className={LB_CELL}>
                         <ScoreBar
                           value={
                             board.rankedBy === "best"
@@ -438,7 +458,7 @@ function LeaderboardSection({ data }: { data: TeacherDashboardData }) {
                           }
                         />
                       </td>
-                      <td className="py-2 pr-3">
+                      <td className={`${LB_CELL} ${LB_HIDE_SM}`}>
                         {Math.round(
                           (board.rankedBy === "best"
                             ? entry.average
@@ -446,8 +466,10 @@ function LeaderboardSection({ data }: { data: TeacherDashboardData }) {
                         ) / 10}
                         %
                       </td>
-                      <td className="py-2 pr-3">{entry.attempts}</td>
-                      <td className="py-2">
+                      <td className={`${LB_CELL} ${LB_HIDE_SM}`}>
+                        {entry.attempts}
+                      </td>
+                      <td className={`py-1.5 sm:py-2 ${LB_HIDE_MD}`}>
                         {formatDate(entry.lastCompletedAt)}
                       </td>
                     </tr>
@@ -464,7 +486,7 @@ function LeaderboardSection({ data }: { data: TeacherDashboardData }) {
 
 function SettingsSection() {
   return (
-    <div className="space-y-4">
+    <div className="space-y-2 sm:space-y-3">
       <SectionHeading
         title="Settings"
         description="Review your teacher account details and keep your password up to date."

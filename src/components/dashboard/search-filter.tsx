@@ -102,7 +102,7 @@ function DebouncedTextInput({
           300,
         );
       }}
-      className="mt-1 h-10 w-full px-3 text-sm"
+      className="mt-1 h-10 w-full px-3 text-sm md:h-9"
     />
   );
 }
@@ -181,7 +181,7 @@ function FilterFields({
 
     if (key === "status") {
       return (
-        <label key={key} htmlFor={id} className="block text-sm font-medium">
+        <label key={key} htmlFor={id} className="block text-xs font-medium sm:text-sm">
           {config.statusLabel}
           <select
             id={id}
@@ -189,7 +189,7 @@ function FilterFields({
             onChange={(event) =>
               updateQuery({ status: event.currentTarget.value || null })
             }
-            className="pixel-input mt-1 h-10 w-full px-3 text-sm"
+            className="pixel-input mt-1 h-10 w-full px-3 text-sm md:h-9"
           >
             <option value="">All statuses</option>
             {config.statusOptions.map((option) => (
@@ -204,7 +204,7 @@ function FilterFields({
 
     if (key === "from" || key === "to") {
       return (
-        <label key={key} htmlFor={id} className="block text-sm font-medium">
+        <label key={key} htmlFor={id} className="block text-xs font-medium sm:text-sm">
           {definition.label}
           <input
             id={id}
@@ -218,7 +218,7 @@ function FilterFields({
                 updateQuery({ to: value });
               }
             }}
-            className="pixel-input mt-1 h-10 w-full px-3 text-sm"
+            className="pixel-input mt-1 h-10 w-full px-3 text-sm md:h-9"
           />
         </label>
       );
@@ -232,7 +232,7 @@ function FilterFields({
           : query.session;
 
     return (
-      <label key={key} htmlFor={id} className="block text-sm font-medium">
+      <label key={key} htmlFor={id} className="block text-xs font-medium sm:text-sm">
         {definition.label}
         <DebouncedTextInput
           key={`${key}-${value}`}
@@ -255,7 +255,7 @@ function FilterFields({
   }
 
   return (
-    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+    <div className="grid grid-cols-2 gap-2 sm:gap-3 md:grid-cols-4">
       {getVisibleFilterKeys(role, entity).map(renderFilter)}
     </div>
   );
@@ -371,11 +371,11 @@ export function SearchFilter({
   }, [loading, pagination, query.page, updateQuery]);
 
   return (
-    <section aria-label={`${config.pluralLabel} search`} className="space-y-3">
-      <PixelCard className="space-y-3">
+    <section aria-label={`${config.pluralLabel} search`} className="space-y-2 sm:space-y-3">
+      <PixelCard className="space-y-2 p-2.5! sm:space-y-3 sm:p-3!">
         <label
           htmlFor={`${entity}-search`}
-          className="block text-sm font-semibold text-foreground"
+          className="block text-xs font-semibold text-foreground sm:text-sm"
         >
           Search {config.pluralLabel.toLowerCase()}
         </label>
@@ -389,11 +389,14 @@ export function SearchFilter({
           describedBy={`${entity}-search-hint`}
           onValueChange={(value) => updateQuery({ q: value })}
         />
-        <p id={`${entity}-search-hint`} className="mt-1 text-xs text-neutral-500">
+        <p
+          id={`${entity}-search-hint`}
+          className="mt-1 hidden text-xs text-neutral-500 sm:block"
+        >
           {config.searchHint}
         </p>
 
-        <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <PixelButton
             type="button"
             variant="neutral"
@@ -407,7 +410,10 @@ export function SearchFilter({
             Show filters
           </PixelButton>
           <div className="flex items-center gap-2">
-            <label htmlFor={`${entity}-sort`} className="text-sm font-medium">
+            <label
+              htmlFor={`${entity}-sort`}
+              className="sr-only text-sm font-medium sm:not-sr-only"
+            >
               Sort by
             </label>
             <select
@@ -485,7 +491,7 @@ export function SearchFilter({
             onKeyDown={handleMobileDialogKeyDown}
             className="ml-auto h-full w-full max-w-sm overflow-y-auto border-2 border-ink bg-surface p-3 text-ink shadow-[3px_3px_0_var(--color-ink)]"
           >
-            <div className="mb-5 flex items-center justify-between">
+            <div className="mb-3 flex items-center justify-between">
               <h3
                 id={`${entity}-mobile-filters-title`}
                 className="text-lg font-semibold"

@@ -12,7 +12,7 @@ export function PieChart({ distributions }: PieChartProps) {
 
   if (distributions.length === 0) {
     return (
-      <p className="rounded-lg bg-neutral-100 p-6 text-sm text-neutral-600">
+      <p className="rounded-lg bg-neutral-100 p-3 text-sm text-neutral-600 sm:p-6">
         Score distributions will appear after students complete a quiz.
       </p>
     );
@@ -28,11 +28,11 @@ export function PieChart({ distributions }: PieChartProps) {
   }));
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-2 sm:space-y-3">
       <div>
         <label
           htmlFor="score-quiz-select"
-          className="block text-sm font-medium text-neutral-600"
+          className="block text-xs font-medium text-neutral-600 sm:text-sm"
         >
           Quiz
         </label>
@@ -40,7 +40,7 @@ export function PieChart({ distributions }: PieChartProps) {
           id="score-quiz-select"
           value={selectedIndex}
           onChange={(event) => setSelectedQuiz(Number(event.target.value))}
-          className="mt-2 w-full rounded-lg border border-neutral-300 bg-white px-4 py-2.5 text-sm font-medium text-foreground outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
+          className="mt-1 w-full rounded-lg border border-neutral-300 bg-white px-3 py-1.5 text-sm font-medium text-foreground outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
         >
           {distributions.map((item, index) => (
             <option key={item.quiz} value={index}>
@@ -50,8 +50,9 @@ export function PieChart({ distributions }: PieChartProps) {
         </select>
       </div>
 
-      <div className="flex flex-col items-center gap-6 sm:flex-row sm:justify-around">
-        <div className="relative h-48 w-48 shrink-0">
+      {/* Donut and legend stay side by side on phones instead of stacking. */}
+      <div className="flex items-center justify-around gap-3">
+        <div className="relative h-28 w-28 shrink-0 sm:h-36 sm:w-36 md:h-40 md:w-40">
           <svg viewBox="0 0 100 100" className="h-full w-full -rotate-90">
             {bands.map(({ item, offset }) => {
               return (
@@ -76,16 +77,21 @@ export function PieChart({ distributions }: PieChartProps) {
           </svg>
 
           <div className="absolute inset-0 flex flex-col items-center justify-center">
-            <span className="text-2xl font-bold text-foreground">
+            <span className="text-lg font-bold text-foreground sm:text-2xl">
               {distribution.average}%
             </span>
-            <span className="text-xs text-neutral-500">Average</span>
+            <span className="text-[10px] text-neutral-500 sm:text-xs">
+              Average
+            </span>
           </div>
         </div>
 
-        <ul className="space-y-3">
+        <ul className="min-w-0 flex-1 space-y-1.5 sm:flex-none sm:space-y-2">
           {distribution.bands.map((item) => (
-            <li key={item.key} className="flex items-center gap-3 text-sm">
+            <li
+              key={item.key}
+              className="flex items-center gap-2 text-xs sm:gap-3 sm:text-sm"
+            >
               <span
                 className="h-3 w-3 shrink-0 rounded-full"
                 style={{ backgroundColor: item.color }}

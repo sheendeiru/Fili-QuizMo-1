@@ -12,6 +12,12 @@ import {
   type DashboardNavItem,
 } from "@/components/dashboard/dashboard-shell";
 import { PixelCard } from "@/components/ui/pixel-primitives";
+import {
+  ChartTabs,
+  SectionHeading,
+  StatCard,
+  StatGrid,
+} from "@/components/dashboard/compact-layout";
 import { ProfileCard } from "@/components/dashboard/profile-card";
 import { SettingsPasswordForm } from "@/components/dashboard/settings-password-form";
 import { ManageQuizzesTable } from "@/components/dashboard/manage-quizzes";
@@ -162,30 +168,6 @@ export default function AdminDashboardContent({
   );
 }
 
-function SectionHeading({
-  title,
-  description,
-}: {
-  title: string;
-  description: string;
-}) {
-  return (
-    <div>
-      <h2 className="text-xl font-bold text-foreground">{title}</h2>
-      <p className="mt-1 text-sm text-px-muted">{description}</p>
-    </div>
-  );
-}
-
-function StatCard({ label, value }: { label: string; value: string }) {
-  return (
-    <PixelCard as="article">
-      <p className="text-sm text-neutral-500">{label}</p>
-      <p className="mt-1 text-xl font-bold text-foreground">{value}</p>
-    </PixelCard>
-  );
-}
-
 function ManageQuizzesSection({ data }: { data: AdminDashboardData }) {
   const { total, ready, draft, failed } = data.quizzes;
   // 'processing' quizzes are in the total but have no stat card of their own
@@ -196,76 +178,99 @@ function ManageQuizzesSection({ data }: { data: AdminDashboardData }) {
     .slice(0, 5);
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-2 sm:space-y-3">
       <SectionHeading
         title="Manage Quizzes"
         description="Review, edit, and control quiz content across the platform."
       />
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <StatGrid columns={4}>
         <StatCard label="Total Quizzes" value={String(total)} />
         <StatCard label="Ready" value={String(ready)} />
         <StatCard label="Drafts" value={String(draft)} />
         <StatCard label="Failed" value={String(failed)} />
-      </div>
+      </StatGrid>
 
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid grid-cols-2 gap-2 sm:gap-3">
         <MeterCard label="Ready Rate" percent={percentOf(ready, total)} />
         <MeterCard label="Failed Rate" percent={percentOf(failed, total)} />
       </div>
 
-      <div className="grid gap-3 lg:grid-cols-2">
-        <BarChartCard
-          title="Quizzes by Teacher"
-          description="Top teachers by number of quizzes created."
-          total={total}
-          items={topTeachers.map((teacher) => ({
-            label: teacher.username,
-            value: teacher.quizCount,
-            color: "bg-primary",
-          }))}
-        />
-
-        <RecentScoresCard
-          title="Recent Scores"
-          description="The latest completed attempts across the platform."
-          scores={data.recentScores}
-        />
-      </div>
-
-      <div className="grid gap-3 lg:grid-cols-2">
-        <BarChartCard
-          title="Quiz Status"
-          description="How the quizzes on the platform are split by status."
-          total={total}
-          items={[
-            { label: "Ready", value: ready, color: "bg-success" },
-            { label: "Drafts", value: draft, color: "bg-px-gold" },
-            { label: "Failed", value: failed, color: "bg-danger-dark" },
-            ...(processing > 0
-              ? [
-                  {
-                    label: "Processing",
-                    value: processing,
-                    color: "bg-px-indigo",
-                  },
-                ]
-              : []),
-          ]}
-        />
-
-        <PixelCard className="h-full">
-          <h3 className="text-lg font-semibold text-foreground">
-            Score Distribution
-          </h3>
-          <p className="mt-1 text-sm text-neutral-500">
-            Completed attempt scores across the platform.
-          </p>
-          <div className="mt-3">
-            <PieChart distributions={data.distributions} />
-          </div>
-        </PixelCard>
-      </div>
+      {/* Phones: one chart at a time behind tabs. md and up: all four in a 2-column grid. */}
+      <ChartTabs
+        label="Quiz charts"
+        tabs={[
+          {
+            key: "teachers",
+            label: "By Teacher",
+            content: (
+              <BarChartCard
+                title="Quizzes by Teacher"
+                description="Top teachers by number of quizzes created."
+                total={total}
+                items={topTeachers.map((teacher) => ({
+                  label: teacher.username,
+                  value: teacher.quizCount,
+                  color: "bg-primary",
+                }))}
+              />
+            ),
+          },
+          {
+            key: "recent",
+            label: "Recent Scores",
+            content: (
+              <RecentScoresCard
+                title="Recent Scores"
+                description="The latest completed attempts across the platform."
+                scores={data.recentScores}
+              />
+            ),
+          },
+          {
+            key: "status",
+            label: "Quiz Status",
+            content: (
+              <BarChartCard
+                title="Quiz Status"
+                description="How the quizzes on the platform are split by status."
+                total={total}
+                items={[
+                  { label: "Ready", value: ready, color: "bg-success" },
+                  { label: "Drafts", value: draft, color: "bg-px-gold" },
+                  { label: "Failed", value: failed, color: "bg-danger-dark" },
+                  ...(processing > 0
+                    ? [
+                        {
+                          label: "Processing",
+                          value: processing,
+                          color: "bg-px-indigo",
+                        },
+                      ]
+                    : []),
+                ]}
+              />
+            ),
+          },
+          {
+            key: "distribution",
+            label: "Score Distribution",
+            content: (
+              <PixelCard className="h-full p-2.5! sm:p-3!">
+                <h3 className="text-base font-semibold text-foreground">
+                  Score Distribution
+                </h3>
+                <p className="mt-1 text-sm text-neutral-500">
+                  Completed attempt scores across the platform.
+                </p>
+                <div className="mt-2">
+                  <PieChart distributions={data.distributions} />
+                </div>
+              </PixelCard>
+            ),
+          },
+        ]}
+      />
 
       <ManageQuizzesTable actorRole="admin" />
     </div>
@@ -276,18 +281,18 @@ function TeacherAccountsSection({ data }: { data: AdminDashboardData }) {
   const { total, approved, pending, rejected, suspended } = data.teachers;
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-2 sm:space-y-3">
       <SectionHeading
         title="Manage Teacher Accounts"
         description="Approve, reject, or suspend teacher login access."
       />
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <StatGrid columns={4}>
         <StatCard label="Total Teachers" value={String(total)} />
         <StatCard label="Approved" value={String(approved)} />
         <StatCard label="Pending" value={String(pending)} />
         <MeterCard label="Approval Rate" percent={percentOf(approved, total)} />
-      </div>
+      </StatGrid>
 
       <BarChartCard
         title="Account Status"
@@ -319,20 +324,20 @@ function TeacherAccountsSection({ data }: { data: AdminDashboardData }) {
 
 function StudentAccountsSection({ data }: { data: AdminDashboardData }) {
   return (
-    <div className="space-y-3">
+    <div className="space-y-2 sm:space-y-3">
       <SectionHeading
         title="Manage Student Accounts"
         description="Create and remove student logins, and optionally assign a managing teacher."
       />
 
-      <div className="grid gap-3 sm:grid-cols-3">
+      <StatGrid columns={3}>
         <StatCard label="Students" value={String(data.studentCount)} />
         <StatCard label="Results" value={String(data.results.total)} />
         <MeterCard
           label="Average Score"
           percent={Number(data.results.average)}
         />
-      </div>
+      </StatGrid>
 
       <RecentScoresCard
         title="Recent Scores"
@@ -351,7 +356,7 @@ function StudentAccountsSection({ data }: { data: AdminDashboardData }) {
 
 function AdminSettingsSection() {
   return (
-    <div className="space-y-3">
+    <div className="space-y-2 sm:space-y-3">
       <SectionHeading
         title="Settings"
         description="Review your admin account details and keep your password up to date."

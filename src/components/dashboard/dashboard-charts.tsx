@@ -22,18 +22,22 @@ export function BarChartCard({
   items: { label: string; value: number; color: string }[];
 }) {
   return (
-    <PixelCard as="article" className="h-full">
-      <h3 className="text-lg font-semibold text-foreground">{title}</h3>
-      <p className="mt-1 text-sm text-neutral-500">{description}</p>
+    <PixelCard as="article" className="h-full p-2.5! sm:p-3!">
+      <h3 className="text-sm font-semibold text-foreground sm:text-base">
+        {title}
+      </h3>
+      <p className="mt-0.5 text-xs text-neutral-500 sm:text-sm">
+        {description}
+      </p>
 
       {total > 0 && items.length > 0 ? (
-        <ul className="mt-3 space-y-3">
+        <ul className="mt-2 space-y-2">
           {items.map((item) => {
             const percent = Math.round((item.value / total) * 100);
 
             return (
               <li key={item.label}>
-                <div className="flex items-baseline justify-between gap-2 text-sm">
+                <div className="flex items-baseline justify-between gap-2 text-xs sm:text-sm">
                   <span className="min-w-0 truncate font-semibold text-foreground">
                     {item.label}
                   </span>
@@ -46,7 +50,7 @@ export function BarChartCard({
                 </div>
                 <div
                   aria-hidden="true"
-                  className="mt-1 h-4 border-2 border-ink bg-px-cream"
+                  className="mt-1 h-3 border-2 border-ink bg-px-cream sm:h-4"
                 >
                   <div
                     className={`h-full ${item.color}`}
@@ -58,13 +62,16 @@ export function BarChartCard({
           })}
         </ul>
       ) : (
-        <p className="mt-3 text-sm text-neutral-500">Nothing to show yet.</p>
+        <p className="mt-2 text-sm text-neutral-500">Nothing to show yet.</p>
       )}
     </PixelCard>
   );
 }
 
-/** Stat card with a 0-100 meter, for percentages such as the average score. */
+/**
+ * Stat card with a 0-100 meter, for percentages such as the average score.
+ * Label and value share one line so the card stays short.
+ */
 export function MeterCard({
   label,
   percent,
@@ -78,16 +85,22 @@ export function MeterCard({
   const shown = Math.round(value * 10) / 10;
 
   return (
-    <PixelCard as="article">
-      <p className="text-sm text-neutral-500">{label}</p>
-      <p className="mt-1 text-xl font-bold text-foreground">{shown}%</p>
+    <PixelCard as="article" className="min-w-0 p-2.5! sm:p-3!">
+      <div className="flex items-baseline justify-between gap-2">
+        <p className="min-w-0 truncate text-xs text-neutral-500 sm:text-sm">
+          {label}
+        </p>
+        <p className="shrink-0 text-base font-bold text-foreground sm:text-xl">
+          {shown}%
+        </p>
+      </div>
       <div
         role="meter"
         aria-label={label}
         aria-valuemin={0}
         aria-valuemax={100}
         aria-valuenow={shown}
-        className="mt-2 h-3 border-2 border-ink bg-px-cream"
+        className="mt-1.5 h-2.5 border-2 border-ink bg-px-cream sm:h-3"
       >
         <div className="h-full bg-primary" style={{ width: `${value}%` }} />
       </div>
@@ -112,18 +125,22 @@ export function RecentScoresCard({
   scores: readonly DashboardScore[];
 }) {
   return (
-    <PixelCard as="article" className="h-full">
-      <h3 className="text-lg font-semibold text-foreground">{title}</h3>
-      <p className="mt-1 text-sm text-neutral-500">{description}</p>
+    <PixelCard as="article" className="h-full p-2.5! sm:p-3!">
+      <h3 className="text-sm font-semibold text-foreground sm:text-base">
+        {title}
+      </h3>
+      <p className="mt-0.5 text-xs text-neutral-500 sm:text-sm">
+        {description}
+      </p>
 
       {scores.length > 0 ? (
-        <ul className="mt-3 space-y-3">
+        <ul className="mt-2 space-y-2">
           {scores.map((entry) => {
             const percent = Math.round(Math.min(100, Math.max(0, entry.score)));
 
             return (
               <li key={entry.id}>
-                <div className="flex items-baseline justify-between gap-2 text-sm">
+                <div className="flex items-baseline justify-between gap-2 text-xs sm:text-sm">
                   <span className="min-w-0 truncate text-foreground">
                     <span className="font-semibold">{entry.student}</span>
                     <span className="text-neutral-500"> · {entry.quizTitle}</span>
@@ -134,7 +151,7 @@ export function RecentScoresCard({
                 </div>
                 <div
                   aria-hidden="true"
-                  className="mt-1 h-3 border-2 border-ink bg-px-cream"
+                  className="mt-1 h-2.5 border-2 border-ink bg-px-cream sm:h-3"
                 >
                   <div
                     className={`h-full ${scoreTone(entry.score)}`}
@@ -146,7 +163,7 @@ export function RecentScoresCard({
           })}
         </ul>
       ) : (
-        <p className="mt-3 text-sm text-neutral-500">Nothing to show yet.</p>
+        <p className="mt-2 text-sm text-neutral-500">Nothing to show yet.</p>
       )}
     </PixelCard>
   );

@@ -111,7 +111,7 @@ export function ManageQuizzesTable({ actorRole }: { actorRole: SearchRole }) {
   }
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-2 sm:space-y-3">
       {feedback ? (
         <p
           role={feedbackKind === "error" ? "alert" : "status"}
@@ -132,11 +132,14 @@ export function ManageQuizzesTable({ actorRole }: { actorRole: SearchRole }) {
         entity="quizzes"
         renderActions={(item) =>
           isQuiz(item) ? (
-            <div className="flex flex-wrap gap-2">
+            // Phones: both buttons share the cell width, compact text.
+            // sm and up: natural width, regular text.
+            <div className="flex w-full gap-1.5 sm:w-auto sm:gap-2 [&>button]:flex-1 [&>button]:px-2.5 [&>button]:text-xs sm:[&>button]:flex-none sm:[&>button]:px-3 sm:[&>button]:text-sm">
               <PixelButton
                 type="button"
-                variant="neutral"
+                variant="accent"
                 size="sm"
+                aria-label={`View ${item.title}`}
                 onClick={() => setViewTarget(item)}
               >
                 View
@@ -145,6 +148,7 @@ export function ManageQuizzesTable({ actorRole }: { actorRole: SearchRole }) {
                 type="button"
                 variant="danger"
                 size="sm"
+                aria-label={`Delete ${item.title}`}
                 onClick={() => setDeleteTarget(item)}
               >
                 Delete

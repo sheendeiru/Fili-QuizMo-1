@@ -13,7 +13,7 @@ const APK_HREF = "/assets/Fili-QuizMo-1.0.0.apk";
 
 const carouselItems = [
   {
-    src: "/assets/home_screen.jpg",
+    src: "/assets/home_screen2.jpg",
     alt: "Fili-QuizMo home screen",
     caption: "Create or join quizzes with generated code",
   },

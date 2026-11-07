@@ -20,6 +20,9 @@ export function PaginatedTable<T>({
   totalPages,
   onPageChange,
   emptyMessage,
+  pageSize,
+  pageSizeOptions,
+  onPageSizeChange,
 }: {
   caption: string;
   columns: readonly PaginatedTableColumn<T>[];
@@ -29,13 +32,26 @@ export function PaginatedTable<T>({
   totalPages: number;
   onPageChange: (page: number) => void;
   emptyMessage: string;
+  /**
+   * Optional "Rows" selector. The table only draws the control: the parent
+   * decides what a page size means (server query, client slice, ...).
+   * Nothing changes until all three props are passed.
+   */
+  pageSize?: number;
+  pageSizeOptions?: readonly number[];
+  onPageSizeChange?: (size: number) => void;
 }) {
   const validPage = Math.min(Math.max(page, 1), Math.max(totalPages, 1));
+  const showPageSize =
+    pageSize !== undefined &&
+    pageSizeOptions !== undefined &&
+    pageSizeOptions.length > 1 &&
+    onPageSizeChange !== undefined;
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-2 sm:space-y-3">
       <div className="overflow-x-auto border-2 border-ink bg-surface shadow-[3px_3px_0_var(--color-ink)]">
-        <PixelTable className="min-w-full border-0 shadow-none">
+        <PixelTable className="min-w-full border-0 text-xs! shadow-none sm:text-sm!">
           <caption className="sr-only">{caption}</caption>
           <thead className="bg-neutral-100">
             <tr>
@@ -43,7 +59,7 @@ export function PaginatedTable<T>({
                 <th
                   key={column.key}
                   scope="col"
-                  className={`whitespace-nowrap px-3 py-2 font-bold ${column.className ?? ""}`}
+                  className={`whitespace-nowrap px-2 py-1.5 font-bold sm:px-3 sm:py-2 ${column.className ?? ""}`}
                 >
                   {column.label}
                 </th>
@@ -57,7 +73,7 @@ export function PaginatedTable<T>({
                   {columns.map((column) => (
                     <td
                       key={column.key}
-                      className={`px-3 py-2 align-middle ${column.className ?? ""}`}
+                      className={`px-2 py-1.5 align-middle sm:px-3 sm:py-2 ${column.className ?? ""}`}
                     >
                       {column.render(row)}
                     </td>
@@ -68,7 +84,7 @@ export function PaginatedTable<T>({
               <tr>
                 <td
                   colSpan={Math.max(columns.length, 1)}
-                  className="px-3 py-6 text-center"
+                  className="px-3 py-4 text-center"
                 >
                   {emptyMessage}
                 </td>
@@ -78,10 +94,31 @@ export function PaginatedTable<T>({
         </PixelTable>
       </div>
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <p aria-live="polite" className="text-sm">
+        <p aria-live="polite" className="text-xs sm:text-sm">
           Page {validPage} of {Math.max(totalPages, 1)}
         </p>
-        <div className="flex gap-2">
+        <div className="flex items-center gap-2">
+          {showPageSize ? (
+            <>
+              <label htmlFor="table-page-size" className="sr-only">
+                Rows per page
+              </label>
+              <select
+                id="table-page-size"
+                value={pageSize}
+                onChange={(event) =>
+                  onPageSizeChange(Number(event.currentTarget.value))
+                }
+                className="pixel-input h-9 px-2 text-xs sm:text-sm"
+              >
+                {pageSizeOptions.map((size) => (
+                  <option key={size} value={size}>
+                    {size} rows
+                  </option>
+                ))}
+              </select>
+            </>
+          ) : null}
           <PixelButton
             type="button"
             variant="neutral"

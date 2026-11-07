@@ -3,13 +3,12 @@
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useNavigation } from "@/components/pixel";
-import { ButtonLink } from "@/components/ui/button-link";
 import { PixelButton } from "@/components/ui/pixel-primitives";
 
 type NavbarRouteButtonProps = {
   href: string;
   label: string;
-  variant: "login" | "admin";
+  variant: "home" | "login" | "admin";
   onNavigate: () => void;
 };
 
@@ -113,7 +112,7 @@ export function NavbarActions() {
         ref={menuButtonRef}
         type="button"
         size="sm"
-        variant="neutral"
+        variant="primary"
         aria-label={menuOpen ? "Close navigation menu" : "Open navigation menu"}
         aria-expanded={menuOpen}
         aria-controls="navbar-actions-menu"
@@ -144,16 +143,12 @@ export function NavbarActions() {
          id="navbar-actions-menu"
          className={`${menuOpen ? "flex" : "hidden"} absolute right-0 top-full z-50 mt-2 w-56 flex-col gap-3 border-2 border-ink bg-surface p-2 shadow-[3px_3px_0_var(--color-ink)] min-[641px]:static min-[641px]:mt-0 min-[641px]:flex min-[641px]:w-auto min-[641px]:flex-row min-[641px]:items-center min-[641px]:gap-4 min-[641px]:border-0 min-[641px]:bg-transparent min-[641px]:p-0 min-[641px]:shadow-none`}
       >
-        <ButtonLink
+        <NavbarRouteButton
           href="/"
-          variant="primary"
-          size="sm"
-          aria-current={pathname === "/" ? "page" : undefined}
-          onClick={() => setMenuState({ open: false, pathname })}
-          className="min-h-10 w-full whitespace-nowrap sm:w-auto"
-        >
-          Home
-        </ButtonLink>
+          label="Home"
+          variant="home"
+          onNavigate={() => setMenuState({ open: false, pathname })}
+        />
         <NavbarRouteButton
           href="/teacher-login"
           label="Login"

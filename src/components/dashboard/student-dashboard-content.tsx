@@ -24,6 +24,11 @@ import { useNavigation } from "@/components/pixel";
 import { Button } from "@/components/ui/button";
 import { PaginatedTable } from "@/components/ui/paginated-table";
 import { PixelCard } from "@/components/ui/pixel-primitives";
+import {
+  ChartTabs,
+  StatCard,
+  StatGrid,
+} from "@/components/dashboard/compact-layout";
 
 export type StudentHistoryRow = {
   attempt_id: string | null;
@@ -90,26 +95,6 @@ function formatDuration(value: number | null): string {
   const minutes = Math.floor(value / 60);
   const seconds = value % 60;
   return `${minutes}:${String(seconds).padStart(2, "0")}`;
-}
-
-function StatCard({
-  label,
-  value,
-  hint,
-}: {
-  label: string;
-  value: string;
-  hint: string;
-}) {
-  return (
-    <PixelCard as="article">
-      <p className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
-        {label}
-      </p>
-      <p className="mt-1 text-xl font-bold text-foreground">{value}</p>
-      <p className="mt-1 text-sm text-neutral-500">{hint}</p>
-    </PixelCard>
-  );
 }
 
 function HistoryTable({
@@ -247,7 +232,7 @@ export default function StudentDashboardContent({
       onLogout={() => logoutAndRedirect(router, navigate)}
     >
       {activeKey === "overview" ? (
-        <div className="space-y-4">
+        <div className="space-y-2 sm:space-y-3">
           <section>
             <h2 className="text-xl font-bold text-foreground">
               Welcome back, {profile.username ?? "Student"}!
@@ -257,83 +242,114 @@ export default function StudentDashboardContent({
             </p>
           </section>
 
-          <section
-            aria-label="Score summary"
-            className="grid grid-cols-2 gap-3 lg:grid-cols-4"
-          >
-            <StatCard
-              label="Recorded attempts"
-              value={String(historyTotal)}
-              hint={`Showing the latest ${summaryHistory.length} in the score summary`}
-            />
-            <StatCard
-              label="Average score"
-              value={formatPercent(analytics?.kpis.average ?? null)}
-              hint={`Latest ${summaryHistory.length} attempts`}
-            />
-            <StatCard
-              label="Best score"
-              value={formatPercent(analytics?.kpis.best ?? null)}
-              hint="Highest in latest results"
-            />
-            <StatCard
-              label="Latest score"
-              value={formatPercent(analytics?.kpis.latest ?? null)}
-              hint={analytics?.kpis.latestQuiz ?? "No completed quiz yet"}
-            />
+          <section aria-label="Score summary">
+            <StatGrid columns={4}>
+              <StatCard
+                label="Recorded attempts"
+                value={String(historyTotal)}
+                hint={`Latest ${summaryHistory.length} in the summary`}
+              />
+              <StatCard
+                label="Average score"
+                value={formatPercent(analytics?.kpis.average ?? null)}
+                hint={`Latest ${summaryHistory.length} attempts`}
+              />
+              <StatCard
+                label="Best score"
+                value={formatPercent(analytics?.kpis.best ?? null)}
+                hint="Highest in latest results"
+              />
+              <StatCard
+                label="Latest score"
+                value={formatPercent(analytics?.kpis.latest ?? null)}
+                hint={analytics?.kpis.latestQuiz ?? "No completed quiz yet"}
+              />
+            </StatGrid>
           </section>
 
           {analytics ? (
-            <section aria-label="Performance charts" className="space-y-3">
-              <div className="grid gap-3 lg:grid-cols-3">
-                <ChartCard
-                  title="Score trend"
-                  caption={`Your last ${analytics.trend.length} completed quiz${analytics.trend.length === 1 ? "" : "zes"}`}
-                  className={
-                    analytics.latestBreakdown ? "lg:col-span-2" : "lg:col-span-3"
-                  }
-                >
-                  <ScoreTrendChart points={analytics.trend} />
-                </ChartCard>
-
-                {analytics.latestBreakdown ? (
-                  <ChartCard
-                    title="Latest quiz"
-                    caption="How your most recent answers added up"
-                  >
-                    <LatestBreakdown data={analytics.latestBreakdown} />
-                  </ChartCard>
-                ) : null}
-              </div>
-
-              <div className="grid gap-3 lg:grid-cols-2">
-                <ChartCard
-                  title="Average by quiz"
-                  caption="Your strongest quizzes first"
-                >
-                  <AverageByQuiz rows={analytics.byQuiz} />
-                </ChartCard>
-                <ChartCard
-                  title="Score bands"
-                  caption="How many quizzes landed in each range"
-                >
-                  <ScoreBands bands={analytics.bands} />
-                </ChartCard>
-              </div>
-
-              {analytics.retakes.length > 0 ? (
-                <ChartCard
-                  title="Retake progress"
-                  caption="First attempt compared with your latest"
-                >
-                  <RetakeProgress rows={analytics.retakes} />
-                </ChartCard>
-              ) : null}
+            <section aria-label="Performance charts">
+              {/* Phones: one chart at a time behind tabs. md and up: 2-column grid. */}
+              <ChartTabs
+                label="Performance charts"
+                tabs={[
+                  {
+                    key: "trend",
+                    label: "Trend",
+                    wide: !analytics.latestBreakdown,
+                    content: (
+                      <ChartCard
+                        title="Score trend"
+                        caption={`Your last ${analytics.trend.length} completed quiz${analytics.trend.length === 1 ? "" : "zes"}`}
+                      >
+                        <ScoreTrendChart points={analytics.trend} />
+                      </ChartCard>
+                    ),
+                  },
+                  ...(analytics.latestBreakdown
+                    ? [
+                        {
+                          key: "latest",
+                          label: "Latest",
+                          content: (
+                            <ChartCard
+                              title="Latest quiz"
+                              caption="How your most recent answers added up"
+                            >
+                              <LatestBreakdown data={analytics.latestBreakdown} />
+                            </ChartCard>
+                          ),
+                        },
+                      ]
+                    : []),
+                  {
+                    key: "byQuiz",
+                    label: "By quiz",
+                    content: (
+                      <ChartCard
+                        title="Average by quiz"
+                        caption="Your strongest quizzes first"
+                      >
+                        <AverageByQuiz rows={analytics.byQuiz} />
+                      </ChartCard>
+                    ),
+                  },
+                  {
+                    key: "bands",
+                    label: "Bands",
+                    content: (
+                      <ChartCard
+                        title="Score bands"
+                        caption="How many quizzes landed in each range"
+                      >
+                        <ScoreBands bands={analytics.bands} />
+                      </ChartCard>
+                    ),
+                  },
+                  ...(analytics.retakes.length > 0
+                    ? [
+                        {
+                          key: "retakes",
+                          label: "Retakes",
+                          wide: true,
+                          content: (
+                            <ChartCard
+                              title="Retake progress"
+                              caption="First attempt compared with your latest"
+                            >
+                              <RetakeProgress rows={analytics.retakes} />
+                            </ChartCard>
+                          ),
+                        },
+                      ]
+                    : []),
+                ]}
+              />
             </section>
           ) : null}
 
           <section>
-            <div className="mb-3 flex items-center justify-between gap-3">
+            <div className="mb-2 flex items-center justify-between gap-3">
               <h3 className="text-lg font-semibold text-foreground">
                 Recent quiz history
               </h3>
@@ -360,7 +376,7 @@ export default function StudentDashboardContent({
       ) : null}
 
       {activeKey === "history" ? (
-        <div className="space-y-3">
+        <div className="space-y-2 sm:space-y-3">
           <div>
             <h2 className="text-xl font-bold text-foreground">
               Quiz History

@@ -60,10 +60,12 @@ export function ChartCard({
   children: ReactNode;
 }) {
   return (
-    <PixelCard as="article" className={className}>
-      <h3 className="text-base font-semibold text-foreground">{title}</h3>
-      <p className="mt-1 text-sm text-neutral-500">{caption}</p>
-      <div className="mt-3">{children}</div>
+    <PixelCard as="article" className={`p-2.5! sm:p-3! ${className}`}>
+      <h3 className="text-sm font-semibold text-foreground sm:text-base">
+        {title}
+      </h3>
+      <p className="mt-0.5 text-xs text-neutral-500 sm:text-sm">{caption}</p>
+      <div className="mt-2">{children}</div>
     </PixelCard>
   );
 }
@@ -122,7 +124,7 @@ export function ScoreTrendChart({
       viewBox={`0 0 ${width} ${height}`}
       role="img"
       aria-label={label}
-      className="h-auto w-full"
+      className="h-auto max-h-56 w-full"
     >
       {[0, 25, 50, 75, 100].map((tick) => (
         <g key={tick}>
@@ -214,7 +216,7 @@ export function LatestBreakdown({
       </p>
 
       <div
-        className="mt-3 flex h-6 w-full border-2 border-ink bg-surface"
+        className="mt-2 flex h-5 w-full border-2 border-ink bg-surface"
         role="img"
         aria-label={`${data.correct} correct, ${data.wrong} wrong, ${data.skipped} skipped out of ${data.total} questions`}
       >
@@ -229,7 +231,7 @@ export function LatestBreakdown({
           ))}
       </div>
 
-      <ul className="mt-3 space-y-1 text-sm">
+      <ul className="mt-2 space-y-0.5 text-sm">
         {segments.map((segment) => (
           <li key={segment.label} className="flex items-center justify-between gap-3">
             <span className="flex items-center gap-2">
@@ -254,7 +256,7 @@ export function AverageByQuiz({
   rows: StudentAnalytics["byQuiz"];
 }) {
   return (
-    <ul className="space-y-3">
+    <ul className="space-y-2">
       {rows.map((row) => (
         <li key={row.quiz}>
           <div className="flex items-baseline justify-between gap-3 text-sm">
@@ -267,7 +269,7 @@ export function AverageByQuiz({
             </span>
           </div>
           <div
-            className="mt-1 h-4 border-2 border-ink bg-surface"
+            className="mt-1 h-3 border-2 border-ink bg-surface sm:h-4"
             role="img"
             aria-label={`${row.quiz}: average ${Math.round(row.average)} percent`}
           >
@@ -305,7 +307,7 @@ export function ScoreBands({ bands }: { bands: StudentAnalytics["bands"] }) {
       aria-label={`Quizzes per score band: ${bands
         .map((band) => `${band.label}, ${band.count}`)
         .join("; ")}`}
-      className="h-auto w-full"
+      className="h-auto max-h-44 w-full"
     >
       <line
         x1={8}
@@ -379,7 +381,7 @@ export function RetakeProgress({
         return (
           <li
             key={row.quiz}
-            className="flex items-center justify-between gap-3 py-2 text-sm first:pt-0 last:pb-0"
+            className="flex items-center justify-between gap-3 py-1.5 text-sm first:pt-0 last:pb-0"
           >
             <span className="truncate font-semibold text-foreground" title={row.quiz}>
               {row.quiz}
