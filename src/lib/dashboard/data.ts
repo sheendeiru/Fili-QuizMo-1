@@ -56,8 +56,12 @@ export type ResultSummary = {
 export type AdminDashboardData = {
   quizzes: QuizStatusSummary;
   teachers: TeacherStatusSummary;
+  /** Admin: number of student login accounts (matches the accounts table). */
   studentCount: number;
   results: ResultSummary;
+  /** Results and recent scores of student login accounts only (accounts page). */
+  studentResults: ResultSummary;
+  studentRecentScores: DashboardScore[];
   recentQuizzes: DashboardQuiz[];
   recentScores: DashboardScore[];
   distributions: ScoreDistribution[];
@@ -66,6 +70,7 @@ export type AdminDashboardData = {
 
 export type TeacherDashboardData = {
   quizzes: QuizStatusSummary;
+  /** Teacher: distinct students who joined or finished this teacher's quizzes. */
   studentCount: number;
   results: ResultSummary;
   recentQuizzes: DashboardQuiz[];
@@ -98,6 +103,7 @@ type TeacherRow = {
 
 type ResultRow = {
   attempt_id: string;
+  session_id: string | null;
   title: string;
   participant_username: string;
   percentage: number | string;
@@ -111,7 +117,7 @@ type RosterRow = {
 
 const QUIZ_COLUMNS = "session_id, title, status, teacher_id, created_at";
 const RESULT_COLUMNS =
-  "attempt_id, title, participant_username, percentage, completed_at";
+  "attempt_id, session_id, title, participant_username, percentage, completed_at";
 const QUIZ_LIMIT = 1_000;
 const RESULT_LIMIT = 1_000;
 const ROSTER_LIMIT = 5_000;
@@ -175,6 +181,20 @@ function countDistinctStudents(
   }
 
   return names.size;
+}
+
+/**
+ * A quiz is "relevant" to the admin when its owner is an existing teacher
+ * account. Unowned or orphaned rows are left out of every admin figure; they
+ * are hidden, never deleted. The admin quiz search applies the same rule
+ * (requireColumns in lib/search/query-builder.ts: search_quizzes.teacher_id is
+ * '' when there is no teacher row) so the table matches the cards.
+ */
+export function isRelevantQuiz(
+  quiz: { teacher_id: string | null },
+  ownerIds: ReadonlySet<string>,
+): boolean {
+  return quiz.teacher_id !== null && ownerIds.has(quiz.teacher_id);
 }
 
 function quizSummary(rows: readonly { status: string }[]): QuizStatusSummary {
@@ -360,9 +380,9 @@ async function loadRosterForSessions(
 export async function loadAdminDashboardData(
   supabase: SupabaseClient<Database>,
 ): Promise<AdminDashboardData> {
-  // shortcut: summaries cap at 1,000 quizzes/results and 5,000 roster rows;
-  // switch to exact count queries when a dataset grows past that.
-  const [quizzesResult, teachersResult, rosterResult, resultsResult] =
+  // shortcut: summaries cap at 1,000 quizzes/results; switch to exact count
+  // queries when a dataset grows past that.
+  const [quizzesResult, teachersResult, studentAccountsResult, resultsResult] =
     await Promise.all([
       supabase
         .from("quiz_sessions")
@@ -374,10 +394,13 @@ export async function loadAdminDashboardData(
         .select("id, user_id, username, email, status, created_at")
         .order("created_at", { ascending: false })
         .limit(500),
+      // Same rows the "Manage Student Accounts" table lists: login accounts,
+      // not everyone who ever joined a quiz (that is the teacher-side count).
       supabase
-        .from("student_roster")
-        .select("session_id, username")
-        .limit(ROSTER_LIMIT),
+        .from("account_profiles")
+        .select("username, username_key", { count: "exact" })
+        .eq("role", "student")
+        .limit(5_000),
       supabase
         .from("student_quiz_results")
         .select(RESULT_COLUMNS)
@@ -387,17 +410,43 @@ export async function loadAdminDashboardData(
 
   throwOnError(quizzesResult.error, "quizzes");
   throwOnError(teachersResult.error, "teacher accounts");
-  throwOnError(rosterResult.error, "students");
+  throwOnError(studentAccountsResult.error, "student accounts");
   throwOnError(resultsResult.error, "quiz results");
 
-  const quizzes = normalizeQuizzes(
-    (quizzesResult.data ?? []) as unknown as QuizRow[],
-  );
   const teachers = (teachersResult.data ?? []) as unknown as TeacherRow[];
-  const roster = (rosterResult.data ?? []) as unknown as RosterRow[];
-  const results = (resultsResult.data ?? []) as unknown as ResultRow[];
 
   // quiz_sessions.teacher_id holds the teacher's auth user id.
+  const ownerIds = new Set(teachers.map((teacher) => teacher.user_id));
+  const quizzes = normalizeQuizzes(
+    (quizzesResult.data ?? []) as unknown as QuizRow[],
+  ).filter((quiz) => isRelevantQuiz(quiz, ownerIds));
+
+  // Scores only for the quizzes that are shown, so no score points at a quiz
+  // that is missing from the list.
+  const sessionIds = new Set(quizzes.map((quiz) => quiz.session_id));
+  const results = (
+    (resultsResult.data ?? []) as unknown as ResultRow[]
+  ).filter((row) => row.session_id !== null && sessionIds.has(row.session_id));
+
+  // Scores that belong to a student login account, matched by username the
+  // same way the student search view does it (username or username_key).
+  const accountRows = (studentAccountsResult.data ?? []) as unknown as {
+    username: string | null;
+    username_key: string | null;
+  }[];
+  const accountNames = new Set<string>();
+
+  for (const account of accountRows) {
+    const name = normalizeName(account.username);
+    const key = normalizeName(account.username_key);
+    if (name) accountNames.add(name);
+    if (key) accountNames.add(key);
+  }
+
+  const studentResults = results.filter((row) =>
+    accountNames.has(normalizeName(row.participant_username)),
+  );
+
   const teacherNameByUserId = new Map(
     teachers.map((teacher) => [
       teacher.user_id,
@@ -418,8 +467,10 @@ export async function loadAdminDashboardData(
   return {
     quizzes: quizSummary(quizzes),
     teachers: teacherSummary(teachers),
-    studentCount: countDistinctStudents(roster, results),
+    studentCount: studentAccountsResult.count ?? accountRows.length,
     results: resultSummary(results),
+    studentResults: resultSummary(studentResults),
+    studentRecentScores: recentScores(studentResults),
     recentQuizzes: recentQuizList(quizzes, (teacherId) =>
       !teacherId
         ? "Unassigned"

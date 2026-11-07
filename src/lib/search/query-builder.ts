@@ -122,6 +122,13 @@ export function buildSearchPlan(
     view: config.view,
     select: [...config.select],
     filters,
+    // Admin quiz list: only quizzes owned by an existing teacher account.
+    // search_quizzes.teacher_id is '' (not null) when there is no teacher row,
+    // so the repository requires a non-empty value. Same rule as
+    // isRelevantQuiz in lib/dashboard/data.ts, so the table and cards agree.
+    ...(scope.role === "admin" && query.entity === "quizzes"
+      ? { requireColumns: ["teacher_id"] }
+      : {}),
     search: query.q
       ? {
           columns: [...config.searchColumns],

@@ -62,6 +62,8 @@ export type SearchPlan = {
   view: string;
   select: string[];
   filters: SearchPlanFilter[];
+  /** Columns that must hold a value: rows where one is null or '' are left out. */
+  requireColumns?: string[];
   search: {
     columns: string[];
     pattern: string;

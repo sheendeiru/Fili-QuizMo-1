@@ -332,17 +332,17 @@ function StudentAccountsSection({ data }: { data: AdminDashboardData }) {
 
       <StatGrid columns={3}>
         <StatCard label="Students" value={String(data.studentCount)} />
-        <StatCard label="Results" value={String(data.results.total)} />
+        <StatCard label="Results" value={String(data.studentResults.total)} />
         <MeterCard
           label="Average Score"
-          percent={Number(data.results.average)}
+          percent={Number(data.studentResults.average)}
         />
       </StatGrid>
 
       <RecentScoresCard
         title="Recent Scores"
-        description="The latest completed attempts across the platform."
-        scores={data.recentScores}
+        description="The latest completed attempts by student accounts."
+        scores={data.studentRecentScores}
       />
 
       <ManageAccountsTable

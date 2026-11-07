@@ -24,6 +24,7 @@ type SearchBuilder = {
   ): SearchBuilder;
   eq(column: string, value: string): SearchBuilder;
   ilike(column: string, pattern: string): SearchBuilder;
+  neq(column: string, value: string): SearchBuilder;
   gte(column: string, value: string): SearchBuilder;
   lte(column: string, value: string): SearchBuilder;
   or(expression: string): SearchBuilder;
@@ -90,6 +91,11 @@ export class SupabaseSearchRepository implements SearchRepository {
       } else {
         query = query.lte(filter.column, filter.value);
       }
+    }
+
+    for (const column of plan.requireColumns ?? []) {
+      // neq also drops NULLs, so both null and '' values are left out.
+      query = query.neq(column, "");
     }
 
     if (plan.search) {
