@@ -4,6 +4,7 @@ import type { FormEvent } from "react";
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { FormField } from "@/components/ui/form-field";
+import { PasswordRequirements, PASSWORD_REQUIREMENTS_ID } from "@/components/ui/password-requirements";
 import { useNavigation } from "@/components/pixel";
 import { createClient } from "@/lib/supabase/client";
 import { isInvalidSession } from "@/lib/auth/session-errors";
@@ -12,6 +13,11 @@ import {
   expireSessionAndRedirect,
   SESSION_ENDED_EVENT,
 } from "@/lib/auth/session-state";
+import {
+  PASSWORD_MAX_LENGTH,
+  PASSWORD_MIN_LENGTH,
+  validatePassword,
+} from "@/lib/password-policy";
 
 export function ChangePasswordForm({
   returnTo,
@@ -24,6 +30,9 @@ export function ChangePasswordForm({
   const [errorMessage, setErrorMessage] = useState("");
   const [statusMessage, setStatusMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [accountEmail, setAccountEmail] = useState("");
   const sessionEndedRef = useRef(false);
 
   useEffect(() => {
@@ -33,6 +42,8 @@ export function ChangePasswordForm({
       setErrorMessage("");
       setStatusMessage("");
       setIsSubmitting(false);
+      setPassword("");
+      setConfirmPassword("");
     }
 
     window.addEventListener(SESSION_ENDED_EVENT, clearRecoveryState);
@@ -62,6 +73,7 @@ export function ChangePasswordForm({
           setErrorMessage(error.message);
         } else {
           setHasRecoverySession(Boolean(data.session));
+          setAccountEmail(data.session?.user.email ?? "");
         }
       } catch (error) {
         if (active) {
@@ -147,7 +159,16 @@ export function ChangePasswordForm({
 
       if (password !== confirmPassword) {
         clearSensitiveFormFields(form);
+        setPassword("");
+        setConfirmPassword("");
         setErrorMessage("The passwords do not match.");
+        return;
+      }
+
+      if (!validatePassword(password, [accountEmail]).valid) {
+        setErrorMessage(
+          "Your new password does not meet all of the requirements.",
+        );
         return;
       }
 
@@ -166,12 +187,16 @@ export function ChangePasswordForm({
           return;
         }
         clearSensitiveFormFields(form);
+        setPassword("");
+        setConfirmPassword("");
         setErrorMessage(error.message);
         return;
       }
 
       setStatusMessage("Your password has been updated. You can now sign in.");
       form.reset();
+      setPassword("");
+      setConfirmPassword("");
       setHasRecoverySession(false);
     } catch (error) {
       setErrorMessage(
@@ -200,23 +225,39 @@ export function ChangePasswordForm({
         </p>
       ) : null}
       {hasRecoverySession ? (
-        <form className="space-y-5" onSubmit={handlePasswordUpdate}>
-          <FormField
-            label="New password"
-            id="new-password"
-            name="password"
-            type="password"
-            autoComplete="new-password"
-            minLength={8}
-            required
-          />
+        <form className="space-y-3" onSubmit={handlePasswordUpdate}>
+          <div>
+            <FormField
+              label="New password"
+              id="new-password"
+              name="password"
+              type="password"
+              autoComplete="new-password"
+              minLength={PASSWORD_MIN_LENGTH}
+              maxLength={PASSWORD_MAX_LENGTH}
+              aria-describedby={PASSWORD_REQUIREMENTS_ID}
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              required
+            />
+            <PasswordRequirements
+              password={password}
+              confirmPassword={confirmPassword}
+              email={accountEmail}
+              context="reset"
+              className="mt-1"
+            />
+          </div>
           <FormField
             label="Confirm new password"
             id="confirm-new-password"
             name="confirmPassword"
             type="password"
             autoComplete="new-password"
-            minLength={8}
+            minLength={PASSWORD_MIN_LENGTH}
+            maxLength={PASSWORD_MAX_LENGTH}
+            value={confirmPassword}
+            onChange={(event) => setConfirmPassword(event.target.value)}
             required
           />
           <Button type="submit" className="w-full" disabled={isSubmitting}>

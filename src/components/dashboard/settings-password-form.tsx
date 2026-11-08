@@ -5,6 +5,7 @@ import type { FormEvent } from "react";
 import { createClient as createVerifierClient } from "@supabase/supabase-js";
 import { Button } from "@/components/ui/button";
 import { FormField } from "@/components/ui/form-field";
+import { PasswordRequirements, PASSWORD_REQUIREMENTS_ID } from "@/components/ui/password-requirements";
 import { PixelCard } from "@/components/ui/pixel-primitives";
 import { Spinner } from "@/components/ui/spinner";
 import { useNavigation } from "@/components/pixel";
@@ -15,8 +16,11 @@ import {
   expireSessionAndRedirect,
   SESSION_ENDED_EVENT,
 } from "@/lib/auth/session-state";
-
-const MIN_PASSWORD_LENGTH = 8;
+import {
+  PASSWORD_MAX_LENGTH,
+  PASSWORD_MIN_LENGTH,
+  validatePassword,
+} from "@/lib/password-policy";
 
 type AuthLikeError = { code?: string; message: string };
 
@@ -101,17 +105,37 @@ export function SettingsPasswordForm({
   const [errorMessage, setErrorMessage] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [accountEmail, setAccountEmail] = useState("");
 
   useEffect(() => {
     function clearMessages() {
       setErrorMessage("");
       setSuccessMessage("");
       setIsLoading(false);
+      setNewPassword("");
+      setConfirmPassword("");
     }
 
     window.addEventListener(SESSION_ENDED_EVENT, clearMessages);
     return () =>
       window.removeEventListener(SESSION_ENDED_EVENT, clearMessages);
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+
+    void createClient()
+      .auth.getSession()
+      .then(({ data }) => {
+        if (active) setAccountEmail(data.session?.user.email ?? "");
+      })
+      .catch(() => {});
+
+    return () => {
+      active = false;
+    };
   }, []);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -131,9 +155,9 @@ export function SettingsPasswordForm({
       return;
     }
 
-    if (newPassword.length < MIN_PASSWORD_LENGTH) {
+    if (!validatePassword(newPassword, [accountEmail]).valid) {
       setErrorMessage(
-        `Your new password must be at least ${MIN_PASSWORD_LENGTH} characters.`,
+        "Your new password does not meet all of the requirements.",
       );
       return;
     }
@@ -172,6 +196,8 @@ export function SettingsPasswordForm({
 
       if (verifyError) {
         clearSensitiveFormFields(form);
+        setNewPassword("");
+        setConfirmPassword("");
         setErrorMessage(friendlyVerifyError(verifyError));
         return;
       }
@@ -186,11 +212,15 @@ export function SettingsPasswordForm({
           return;
         }
         clearSensitiveFormFields(form);
+        setNewPassword("");
+        setConfirmPassword("");
         setErrorMessage(friendlyUpdateError(updateError));
         return;
       }
 
       clearSensitiveFormFields(form);
+      setNewPassword("");
+      setConfirmPassword("");
 
       // Sign out every other device; this one stays signed in.
       let othersSignedOut = true;
@@ -210,6 +240,8 @@ export function SettingsPasswordForm({
       );
     } catch (error) {
       clearSensitiveFormFields(form);
+      setNewPassword("");
+      setConfirmPassword("");
       setErrorMessage(
         error instanceof Error
           ? error.message
@@ -249,12 +281,20 @@ export function SettingsPasswordForm({
             type="password"
             placeholder="Create a new password"
             autoComplete="new-password"
-            minLength={MIN_PASSWORD_LENGTH}
+            minLength={PASSWORD_MIN_LENGTH}
+            maxLength={PASSWORD_MAX_LENGTH}
+            aria-describedby={PASSWORD_REQUIREMENTS_ID}
+            value={newPassword}
+            onChange={(event) => setNewPassword(event.target.value)}
             required
           />
-          <p className="mt-1.5 text-xs text-neutral-500">
-            At least {MIN_PASSWORD_LENGTH} characters.
-          </p>
+          <PasswordRequirements
+            password={newPassword}
+            confirmPassword={confirmPassword}
+            email={accountEmail}
+            context="change"
+            className="mt-1"
+          />
         </div>
 
         <FormField
@@ -264,7 +304,10 @@ export function SettingsPasswordForm({
           type="password"
           placeholder="Confirm your new password"
           autoComplete="new-password"
-          minLength={MIN_PASSWORD_LENGTH}
+          minLength={PASSWORD_MIN_LENGTH}
+          maxLength={PASSWORD_MAX_LENGTH}
+          value={confirmPassword}
+          onChange={(event) => setConfirmPassword(event.target.value)}
           required
         />
 

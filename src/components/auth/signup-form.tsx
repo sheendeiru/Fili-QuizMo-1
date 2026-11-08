@@ -6,8 +6,14 @@ import type { FormEvent } from "react";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { FormField } from "@/components/ui/form-field";
+import { PasswordRequirements, PASSWORD_REQUIREMENTS_ID } from "@/components/ui/password-requirements";
 import { Spinner } from "@/components/ui/spinner";
 import { PolicyConsent } from "@/components/auth/policy-consent";
+import {
+  PASSWORD_MAX_LENGTH,
+  PASSWORD_MIN_LENGTH,
+  validatePassword,
+} from "@/lib/password-policy";
 import {
   USERNAME_REQUIREMENTS,
   isValidUsername,
@@ -59,12 +65,20 @@ export function SignupForm() {
   const [statusMessage, setStatusMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [consentAccepted, setConsentAccepted] = useState(false);
+  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
 
   useEffect(() => {
     function clearSignupState() {
       setErrorMessage("");
       setStatusMessage("");
       setIsLoading(false);
+      setUsername("");
+      setEmail("");
+      setPassword("");
+      setConfirmPassword("");
     }
 
     window.addEventListener(SESSION_ENDED_EVENT, clearSignupState);
@@ -97,8 +111,10 @@ export function SignupForm() {
       return;
     }
 
-    if (password.length < 8) {
-      setErrorMessage("Password must be at least 8 characters.");
+    if (!validatePassword(password, [email, username]).valid) {
+      setErrorMessage(
+        "Your password does not meet all of the requirements.",
+      );
       return;
     }
 
@@ -132,12 +148,16 @@ export function SignupForm() {
 
       if (error) {
         clearSensitiveFormFields(form);
+        setPassword("");
+        setConfirmPassword("");
         setErrorMessage(friendlySignupError(error.message));
         return;
       }
 
       if (!data.session) {
         clearSensitiveFormFields(form);
+        setPassword("");
+        setConfirmPassword("");
         setStatusMessage(
           role === "teacher"
             ? "Check your email to confirm your account. Your teacher account stays pending until an administrator approves it."
@@ -147,6 +167,8 @@ export function SignupForm() {
       }
 
       clearSensitiveFormFields(form);
+      setPassword("");
+      setConfirmPassword("");
       clearSessionEndedMarker();
       const profileResponse = await fetch("/api/auth/profile", {
         method: "POST",
@@ -191,6 +213,8 @@ export function SignupForm() {
         return;
       }
       clearSensitiveFormFields(form);
+      setPassword("");
+      setConfirmPassword("");
       setErrorMessage(
         error instanceof Error
           ? error.message
@@ -229,6 +253,8 @@ export function SignupForm() {
           minLength={3}
           maxLength={15}
           pattern="[A-Za-z][A-Za-z0-9_]{2,14}"
+          value={username}
+          onChange={(event) => setUsername(event.target.value)}
           required
         />
         <p className="mt-1.5 text-xs text-neutral-500">
@@ -243,19 +269,36 @@ export function SignupForm() {
         type="email"
         placeholder="you@example.com"
         autoComplete="email"
+        value={email}
+        onChange={(event) => setEmail(event.target.value)}
         required
       />
 
-      <FormField
-        label="Password"
-        id="signup-password"
-        name="password"
-        type="password"
-        placeholder="Create a password"
-        autoComplete="new-password"
-        minLength={8}
-        required
-      />
+      <div>
+        <FormField
+          label="Password"
+          id="signup-password"
+          name="password"
+          type="password"
+          placeholder="Create a password"
+          autoComplete="new-password"
+          minLength={PASSWORD_MIN_LENGTH}
+          maxLength={PASSWORD_MAX_LENGTH}
+          aria-describedby={PASSWORD_REQUIREMENTS_ID}
+          value={password}
+          onChange={(event) => setPassword(event.target.value)}
+          required
+        />
+
+        <PasswordRequirements
+          password={password}
+          confirmPassword={confirmPassword}
+          email={email}
+          username={username}
+          context="create"
+          className="mt-1.5"
+        />
+      </div>
 
       <FormField
         label="Confirm password"
@@ -264,7 +307,10 @@ export function SignupForm() {
         type="password"
         placeholder="Confirm your password"
         autoComplete="new-password"
-        minLength={8}
+        minLength={PASSWORD_MIN_LENGTH}
+        maxLength={PASSWORD_MAX_LENGTH}
+        value={confirmPassword}
+        onChange={(event) => setConfirmPassword(event.target.value)}
         required
       />
 

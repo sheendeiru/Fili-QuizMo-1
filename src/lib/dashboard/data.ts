@@ -27,6 +27,17 @@ export type DashboardScore = {
   completedAt: string;
 };
 
+/** One finished quiz attempt, for the teacher's Assessment list. */
+export type DashboardAttempt = {
+  id: string;
+  student: string;
+  quizTitle: string;
+  correct: number | null;
+  total: number | null;
+  percentage: number;
+  completedAt: string;
+};
+
 export type DashboardTeacher = {
   id: string;
   username: string;
@@ -80,6 +91,8 @@ export type TeacherDashboardData = {
   recentScores: DashboardScore[];
   distributions: ScoreDistribution[];
   leaderboards: LeaderboardData;
+  /** Latest finished attempts on this teacher's quizzes (newest first). */
+  assessmentAttempts: DashboardAttempt[];
 };
 
 /**
@@ -289,6 +302,21 @@ function recentScores(
       completedAt: row.completed_at,
     };
   });
+}
+
+function attemptList(
+  rows: readonly ResultRow[],
+  limit = 200,
+): DashboardAttempt[] {
+  return rows.slice(0, limit).map((row) => ({
+    id: row.attempt_id,
+    student: row.participant_username,
+    quizTitle: row.title,
+    correct: readCount(row.correct_count),
+    total: readCount(row.total_questions),
+    percentage: readNumber(row.percentage),
+    completedAt: row.completed_at,
+  }));
 }
 
 function quizDistributions(
@@ -553,6 +581,7 @@ export async function loadTeacherDashboardData(
 
   return {
     leaderboards: buildLeaderboards(results),
+    assessmentAttempts: attemptList(results),
     quizzes: quizSummary(quizzes),
     studentCount: countDistinctStudents(roster, results),
     results: resultSummary(results),

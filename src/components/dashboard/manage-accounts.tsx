@@ -5,11 +5,17 @@ import type { FormEvent, ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { SearchFilter } from "@/components/dashboard/search-filter";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { PasswordRequirements, PASSWORD_REQUIREMENTS_ID } from "@/components/ui/password-requirements";
 import {
   PixelButton,
   PixelInput,
 } from "@/components/ui/pixel-primitives";
 import { PixelModal } from "@/components/ui/pixel-modal";
+import {
+  PASSWORD_MAX_LENGTH,
+  PASSWORD_MIN_LENGTH,
+  validatePassword,
+} from "@/lib/password-policy";
 import type { DashboardTeacher } from "@/lib/dashboard/data";
 import { DASHBOARD_DATA_CHANGED_EVENT } from "@/lib/dashboard/realtime-events";
 import type { SearchItem, SearchRole } from "@/lib/search/types";
@@ -63,6 +69,9 @@ export function ManageAccountsTable({
   const [feedbackKind, setFeedbackKind] = useState<
     "success" | "error" | null
   >(null);
+  const [createUsername, setCreateUsername] = useState("");
+  const [createEmail, setCreateEmail] = useState("");
+  const [createPassword, setCreatePassword] = useState("");
 
   const pageEntity = accountRole === "teacher" ? "teachers" : "student_accounts";
   const approvedTeachers = teachers.filter(
@@ -74,6 +83,16 @@ export function ManageAccountsTable({
   function refreshTable() {
     window.dispatchEvent(new Event(DASHBOARD_DATA_CHANGED_EVENT));
     router.refresh();
+  }
+
+  function closeCreateModal() {
+    if (creating) return;
+
+    setCreateOpen(false);
+    setCreateError("");
+    setCreateUsername("");
+    setCreateEmail("");
+    setCreatePassword("");
   }
 
   async function createAccount(event: FormEvent<HTMLFormElement>) {
@@ -98,6 +117,13 @@ export function ManageAccountsTable({
         ? { teacherId }
         : {}),
     };
+
+    if (password && !validatePassword(password, [email, username]).valid) {
+      setCreateError(
+        "The temporary password does not meet all of the requirements.",
+      );
+      return;
+    }
 
     setCreating(true);
     setCreateError("");
@@ -134,6 +160,9 @@ export function ManageAccountsTable({
       );
       setFeedbackKind("success");
       form.reset();
+      setCreateUsername("");
+      setCreateEmail("");
+      setCreatePassword("");
       setCreateOpen(false);
       refreshTable();
     } catch (error) {
@@ -239,11 +268,7 @@ export function ManageAccountsTable({
       {createOpen ? (
         <PixelModal
           title={`Create ${accountRole} account`}
-          onClose={() => {
-            if (!creating) {
-              setCreateOpen(false);
-            }
-          }}
+          onClose={closeCreateModal}
         >
           <form className="space-y-3" onSubmit={(event) => void createAccount(event)}>
             <label htmlFor="account-username" className="block text-sm font-semibold">
@@ -255,6 +280,8 @@ export function ManageAccountsTable({
                 minLength={3}
                 maxLength={15}
                 pattern="[A-Za-z][A-Za-z0-9_]{2,14}"
+                value={createUsername}
+                onChange={(event) => setCreateUsername(event.target.value)}
                 required
               />
             </label>
@@ -266,6 +293,8 @@ export function ManageAccountsTable({
                 type="email"
                 autoComplete="email"
                 maxLength={254}
+                value={createEmail}
+                onChange={(event) => setCreateEmail(event.target.value)}
                 required
               />
             </label>
@@ -287,21 +316,33 @@ export function ManageAccountsTable({
                 </select>
               </label>
             ) : null}
-            <label htmlFor="account-password" className="block text-sm font-semibold">
-              Temporary password
+            <div>
+              <label htmlFor="account-password" className="block text-sm font-semibold">
+                Temporary password
+              </label>
               <PixelInput
                 id="account-password"
                 name="password"
                 type="password"
                 autoComplete="new-password"
-                minLength={8}
-                maxLength={72}
-                aria-describedby="account-password-help"
+                minLength={PASSWORD_MIN_LENGTH}
+                maxLength={PASSWORD_MAX_LENGTH}
+                aria-describedby={`account-password-help ${PASSWORD_REQUIREMENTS_ID}`}
+                value={createPassword}
+                onChange={(event) => setCreatePassword(event.target.value)}
               />
               <span id="account-password-help" className="mt-1 block text-xs font-normal">
-                Leave blank to generate a one-time password.
+                Leave blank to generate a one-time password that meets the
+                rules below.
               </span>
-            </label>
+              <PasswordRequirements
+                password={createPassword}
+                email={createEmail}
+                username={createUsername}
+                context="create"
+                className="mt-1"
+              />
+            </div>
             {createError ? (
               <p role="alert" className="text-sm">{createError}</p>
             ) : null}
@@ -309,7 +350,7 @@ export function ManageAccountsTable({
               <PixelButton
                 type="button"
                 variant="danger"
-                onClick={() => setCreateOpen(false)}
+                onClick={closeCreateModal}
                 disabled={creating}
               >
                 Cancel

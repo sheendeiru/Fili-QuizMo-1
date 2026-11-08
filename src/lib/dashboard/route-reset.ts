@@ -4,24 +4,24 @@ import { useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { SESSION_ENDED_EVENT } from "@/lib/auth/session-state";
 
-// The last dashboard path per role for this page load keeps browser Back
-// working, while a reload starts clean and keeps deep-linked filters.
-const lastPathname = new Map<string, string>();
+// The first dashboard route in a page load keeps deep-linked filters. Every
+// later entry into a section starts clean.
+const lastHref = new Map<string, string>();
 
-export function takeRouteReset(
+export function shouldResetRoute(
   scope: string,
-  pathname: string,
   currentHref: string,
   cleanHref: string,
-): string | null {
-  const previous = lastPathname.get(scope);
-  lastPathname.set(scope, pathname);
+): boolean {
+  const previousHref = lastHref.get(scope);
+  lastHref.set(scope, currentHref);
 
-  if (previous === undefined || previous === pathname) {
-    return null;
+  // Ignore repeat runs for the same navigation (Strict Mode, re-renders).
+  if (previousHref === undefined || previousHref === currentHref) {
+    return false;
   }
 
-  return currentHref === cleanHref ? null : cleanHref;
+  return currentHref !== cleanHref;
 }
 
 /** Strip filter/pagination state when a dashboard section is re-entered. */
@@ -30,21 +30,16 @@ export function useResetRouteState(scope: string, cleanHref: string): void {
   const router = useRouter();
 
   useEffect(() => {
-    const target = takeRouteReset(
-      scope,
-      pathname,
-      `${window.location.pathname}${window.location.search}`,
-      cleanHref,
-    );
+    const currentHref = `${window.location.pathname}${window.location.search}`;
 
-    if (target) {
-      router.replace(target, { scroll: false });
+    if (shouldResetRoute(scope, currentHref, cleanHref)) {
+      router.replace(cleanHref, { scroll: false });
     }
   }, [cleanHref, pathname, router, scope]);
 
   useEffect(() => {
     function forgetRoute() {
-      lastPathname.delete(scope);
+      lastHref.delete(scope);
     }
 
     window.addEventListener(SESSION_ENDED_EVENT, forgetRoute);

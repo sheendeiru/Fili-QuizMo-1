@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   usePathname,
   useRouter,
@@ -25,6 +25,12 @@ import { useNavigation } from "@/components/pixel";
 import { Button } from "@/components/ui/button";
 import { PaginatedTable } from "@/components/ui/paginated-table";
 import { PixelCard } from "@/components/ui/pixel-primitives";
+import { AssessmentSection } from "@/components/dashboard/assessment-section";
+import { BadgesSection } from "@/components/dashboard/badges-section";
+import { UnreadMessagesNotice } from "@/components/dashboard/unread-messages-notice";
+import { PerformanceNotices } from "@/components/dashboard/performance-notices";
+import { buildBadges } from "@/lib/dashboard/badges";
+import { studentNotice } from "@/lib/dashboard/performance-notice";
 import {
   ChartTabs,
   StatCard,
@@ -62,6 +68,8 @@ type StudentDashboardContentProps = {
 const navItems: DashboardNavItem[] = [
   { key: "overview", label: "Overview" },
   { key: "history", label: "Quiz History" },
+  { key: "assessment", label: "Assessment" },
+  { key: "badges", label: "Badges" },
   { key: "profile", label: "Profile" },
 ];
 
@@ -242,9 +250,15 @@ export default function StudentDashboardContent({
   const activeKey =
     searchParams.get("tab") === "history"
       ? "history"
-      : searchParams.get("tab") === "profile"
-        ? "profile"
-        : "overview";
+      : searchParams.get("tab") === "assessment"
+        ? "assessment"
+        : searchParams.get("tab") === "badges"
+          ? "badges"
+          : searchParams.get("tab") === "profile"
+            ? "profile"
+            : "overview";
+  const assessmentAttemptId =
+    activeKey === "assessment" ? searchParams.get("attempt") : null;
   const analytics = useMemo(
     () => buildStudentAnalytics(summaryHistory),
     [summaryHistory],
@@ -253,8 +267,44 @@ export default function StudentDashboardContent({
     () => (analytics ? buildRawScores(summaryHistory, analytics) : null),
     [analytics, summaryHistory],
   );
-  const cleanHref =
-    activeKey === "overview" ? pathname : `${pathname}?tab=${activeKey}`;
+  const badges = useMemo(
+    () =>
+      buildBadges(
+        summaryHistory.map((row) => ({
+          title: row.quiz_title,
+          percentage: row.percentage,
+          completedAt: row.completed_at,
+        })),
+        historyTotal,
+      ),
+    [summaryHistory, historyTotal],
+  );
+  // Read once when the page opens; the notice looks at the last two weeks.
+  const [now] = useState(() => Date.now());
+  const notice = useMemo(
+    () =>
+      studentNotice(
+        summaryHistory.map((row) => ({
+          id: row.attempt_id,
+          title: row.quiz_title,
+          percentage: row.percentage,
+          correct: row.correct_count,
+          total: row.total_questions,
+          completedAt: row.completed_at,
+        })),
+        now,
+      ),
+    [summaryHistory, now],
+  );
+  const cleanParams = new URLSearchParams();
+  if (activeKey !== "overview") {
+    cleanParams.set("tab", activeKey);
+  }
+  if (activeKey === "assessment" && assessmentAttemptId) {
+    cleanParams.set("attempt", assessmentAttemptId);
+  }
+  const cleanQuery = cleanParams.toString();
+  const cleanHref = cleanQuery ? `${pathname}?${cleanQuery}` : pathname;
 
   useResetRouteState("student-dashboard", cleanHref);
 
@@ -265,6 +315,18 @@ export default function StudentDashboardContent({
     }
 
     navigate(() => router.push(target, { scroll: false }));
+  }
+
+  // Opening a quiz review (or going back to the list) only changes the URL, so
+  // it does not trigger the page loading screen. The browser back button works.
+  function openAssessment(attemptId: string | null) {
+    const params = new URLSearchParams({ tab: "assessment" });
+    if (attemptId) {
+      params.set("attempt", attemptId);
+    }
+
+    window.history.pushState(null, "", `${pathname}?${params.toString()}`);
+    window.scrollTo({ top: 0 });
   }
 
   const navigateToPage = useCallback(
@@ -313,6 +375,25 @@ export default function StudentDashboardContent({
               Here is a summary of your quiz activity.
             </p>
           </section>
+
+          <UnreadMessagesNotice
+            viewer="student"
+            onOpen={(attemptId) =>
+              attemptId
+                ? openAssessment(attemptId)
+                : navigateToSection("assessment")
+            }
+          />
+
+          <PerformanceNotices
+            notices={notice ? [notice] : []}
+            actionLabel="Review answers"
+            onAction={(item) =>
+              item.attemptId
+                ? openAssessment(item.attemptId)
+                : navigateToSection("assessment")
+            }
+          />
 
           <section aria-label="Score summary">
             <StatGrid columns={4}>
@@ -475,6 +556,19 @@ export default function StudentDashboardContent({
             emptyMessage="No quiz results yet. Your completed quizzes will appear here."
           />
         </div>
+      ) : null}
+
+      {activeKey === "assessment" ? (
+        <AssessmentSection
+          attempts={summaryHistory}
+          attemptId={assessmentAttemptId}
+          onSelect={openAssessment}
+          onBack={() => openAssessment(null)}
+        />
+      ) : null}
+
+      {activeKey === "badges" ? (
+        <BadgesSection badges={badges} basedOn={summaryHistory.length} />
       ) : null}
 
       {activeKey === "profile" ? (

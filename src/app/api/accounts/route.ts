@@ -5,6 +5,7 @@ import {
   resolveAccountAccess,
 } from "@/lib/auth/roles";
 import { isInvalidSession } from "@/lib/auth/session-errors";
+import { validatePassword } from "@/lib/password-policy";
 
 type AccountRole = "student" | "teacher";
 type RequestBody = Record<string, unknown>;
@@ -157,17 +158,22 @@ function parseCreateInput(body: RequestBody):
 
   let password: string | undefined;
   if (body.password !== undefined && body.password !== "") {
-    if (
-      typeof body.password !== "string" ||
-      body.password.length < 8 ||
-      new TextEncoder().encode(body.password).length > 72
-    ) {
+    if (typeof body.password !== "string") {
       return errorResponse(
         400,
         "INVALID_PASSWORD",
-        "Temporary passwords must be 8 to 72 bytes long.",
+        "Temporary passwords must be text.",
       );
     }
+
+    if (!validatePassword(body.password, [email, username]).valid) {
+      return errorResponse(
+        400,
+        "INVALID_PASSWORD",
+        "Temporary password does not meet the password requirements.",
+      );
+    }
+
     password = body.password;
   }
 

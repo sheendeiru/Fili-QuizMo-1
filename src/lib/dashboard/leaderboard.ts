@@ -1,8 +1,42 @@
 // lib/dashboard/leaderboard.ts
 // Pure helpers: rank students from quiz_results rows. Scores are 0-100 percentages.
 // Ranking still uses the percentage; `bestRaw` is only for display (e.g. "8/10").
+// `points` is a separate, display-only column (see POINTS below for the rule).
 
 import { formatRawScore } from "./raw-score";
+
+/**
+ * How points are earned. Every number here is shown to teachers on the
+ * leaderboard, so change them here and the explanation stays in step.
+ *
+ * Per quiz a student has taken (only their BEST attempt on that quiz counts,
+ * so retaking over and over cannot pile up points):
+ *   best score % / 10, rounded   -> 0 to 10 points for how well they did
+ *   + completion                  -> for finishing the quiz at all
+ *   + perfect                     -> extra for a 100% score
+ * A student's points are the sum over the quizzes on that board, so the
+ * overall board adds up every quiz and a single-quiz board is at most
+ * MAX_POINTS_PER_QUIZ.
+ */
+export const POINTS = {
+  scoreDivisor: 10,
+  completion: 2,
+  perfect: 3,
+} as const;
+
+export const MAX_POINTS_PER_QUIZ =
+  100 / POINTS.scoreDivisor + POINTS.completion + POINTS.perfect;
+
+/** Points one quiz is worth, from the student's best percentage on it. */
+export function quizPoints(bestPercentage: number): number {
+  const clamped = Math.min(100, Math.max(0, bestPercentage));
+
+  return (
+    Math.round(clamped / POINTS.scoreDivisor) +
+    POINTS.completion +
+    (clamped >= 100 ? POINTS.perfect : 0)
+  );
+}
 
 export type LeaderboardEntry = {
   rank: number;
@@ -15,6 +49,8 @@ export type LeaderboardEntry = {
   bestRaw: string | null;
   attempts: number;
   lastCompletedAt: string;
+  /** Points earned on this board. See POINTS for the rule. */
+  points: number;
 };
 
 export type Leaderboard = {
@@ -63,6 +99,8 @@ function rankStudents(
       lastIso: string;
       bestScore: number;
       bestRaw: string | null;
+      /** Best percentage per quiz title, for points. */
+      bestByQuiz: Map<string, number>;
     }
   >();
 
@@ -78,6 +116,7 @@ function rankStudents(
       lastIso: row.completed_at,
       bestScore: Number.NEGATIVE_INFINITY,
       bestRaw: null,
+      bestByQuiz: new Map<string, number>(),
     };
     const time = Date.parse(row.completed_at) || 0;
     const score = toScore(row.percentage);
@@ -88,6 +127,11 @@ function rankStudents(
       entry.bestScore = score;
       entry.bestRaw = raw;
     }
+
+    entry.bestByQuiz.set(
+      row.title,
+      Math.max(entry.bestByQuiz.get(row.title) ?? 0, score),
+    );
 
     entry.scores.push(score);
     if (time >= entry.lastTime) {
@@ -106,6 +150,10 @@ function rankStudents(
     bestRaw: entry.bestRaw,
     attempts: entry.scores.length,
     lastCompletedAt: entry.lastIso,
+    points: [...entry.bestByQuiz.values()].reduce(
+      (sum, best) => sum + quizPoints(best),
+      0,
+    ),
   }));
 
   const primary = (s: (typeof stats)[number]) =>

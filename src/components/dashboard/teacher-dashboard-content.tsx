@@ -6,7 +6,7 @@ import {
   useSearchParams,
 } from "next/navigation";
 import dynamic from "next/dynamic";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import {
   DashboardShell,
@@ -29,12 +29,24 @@ import {
   RecentScoresCard,
 } from "@/components/dashboard/dashboard-charts";
 import { ManageAccountsTable } from "@/components/dashboard/manage-accounts";
+import { TeacherAssessmentSection } from "@/components/dashboard/assessment-section";
+import { PerformanceNotices } from "@/components/dashboard/performance-notices";
+import { UnreadMessagesNotice } from "@/components/dashboard/unread-messages-notice";
+import {
+  teacherNotices,
+  type PerformanceNotice,
+} from "@/lib/dashboard/performance-notice";
 import { ProfileCard } from "@/components/dashboard/profile-card";
 import { SettingsPasswordForm } from "@/components/dashboard/settings-password-form";
 import { useResetRouteState } from "@/lib/dashboard/route-reset";
 import { logoutAndRedirect } from "@/lib/auth/logout";
 import { useRealtimeRefresh } from "@/lib/realtime/use-realtime-refresh";
 import type { TeacherDashboardData } from "@/lib/dashboard/data";
+import {
+  MAX_POINTS_PER_QUIZ,
+  POINTS,
+  quizPoints,
+} from "@/lib/dashboard/leaderboard";
 
 const PieChart = dynamic(
   () =>
@@ -50,6 +62,7 @@ const navItems: DashboardNavItem[] = [
   { key: "quizzes", label: "View Quizzes" },
   { key: "students", label: "Manage Student Info" },
   { key: "scores", label: "View Scores" },
+  { key: "assessment", label: "Assessment" },
   { key: "leaderboard", label: "Leaderboard" },
 ];
 
@@ -82,16 +95,25 @@ const SECTION_ROUTES = {
   quizzes: { slug: "quizzes", entity: "quizzes" },
   students: { slug: "students", entity: "student_accounts" },
   scores: { slug: "scores", entity: "students" },
+  assessment: { slug: "assessment", entity: null },
   leaderboard: { slug: "leaderboard", entity: null },
   settings: { slug: "settings", entity: null },
 } as const;
 
 type SectionKey = keyof typeof SECTION_ROUTES;
 
-function sectionHref(key: SectionKey): string {
+function sectionHref(key: SectionKey, attemptId: string | null = null): string {
   const route = SECTION_ROUTES[key];
+  const params = new URLSearchParams();
+  if (route.entity) {
+    params.set("entity", route.entity);
+  }
+  if (attemptId) {
+    params.set("attempt", attemptId);
+  }
+  const query = params.toString();
 
-  return `${BASE_PATH}/${route.slug}${route.entity ? `?entity=${route.entity}` : ""}`;
+  return `${BASE_PATH}/${route.slug}${query ? `?${query}` : ""}`;
 }
 
 function isSectionKey(key: string): key is SectionKey {
@@ -126,8 +148,59 @@ export default function TeacherDashboardContent({
   const router = useRouter();
   const { navigate } = useNavigation();
 
-  useResetRouteState("teacher-dashboard", sectionHref(activeKey));
+  const assessmentAttemptId =
+    activeKey === "assessment" ? searchParams.get("attempt") : null;
+
+  // Read once when the page opens; the notices look at the last two weeks.
+  const [now] = useState(() => Date.now());
+  const notices = useMemo(
+    () =>
+      teacherNotices(
+        data.assessmentAttempts.map((attempt) => ({
+          id: attempt.id,
+          student: attempt.student,
+          title: attempt.quizTitle,
+          percentage: attempt.percentage,
+          correct: attempt.correct,
+          total: attempt.total,
+          completedAt: attempt.completedAt,
+        })),
+        now,
+      ),
+    [data.assessmentAttempts, now],
+  );
+
+  useResetRouteState(
+    "teacher-dashboard",
+    sectionHref(activeKey, assessmentAttemptId),
+  );
   useRealtimeRefresh(LIVE_TABLES);
+
+  // Opening a student's answers (or going back to the list) only changes the
+  // URL, so it does not trigger the page loading screen. Browser back works.
+  function openAssessment(attemptId: string | null) {
+    const query = attemptId ? `?attempt=${encodeURIComponent(attemptId)}` : "";
+
+    window.history.pushState(null, "", `${pathname}${query}`);
+    window.scrollTo({ top: 0 });
+  }
+
+  // "Review" on a warning: one student opens their answers, several open the list.
+  function reviewNotice(notice: PerformanceNotice) {
+    navigate(() =>
+      router.push(sectionHref("assessment", notice.attemptId), {
+        scroll: false,
+      }),
+    );
+  }
+
+  // "Read" on the new-message notice: one attempt opens its messages, several
+  // open the Assessment list.
+  function openMessages(attemptId: string | null) {
+    navigate(() =>
+      router.push(sectionHref("assessment", attemptId), { scroll: false }),
+    );
+  }
 
   function navigateToSection(key: string) {
     if (!isSectionKey(key)) return;
@@ -169,9 +242,24 @@ export default function TeacherDashboardContent({
           Unable to log out: {logoutError}
         </p>
       ) : null}
-      {activeKey === "quizzes" && <QuizzesSection data={data} />}
+      {activeKey === "quizzes" && (
+        <QuizzesSection
+          data={data}
+          notices={notices}
+          onReviewNotice={reviewNotice}
+          onOpenMessages={openMessages}
+        />
+      )}
       {activeKey === "students" && <StudentsSection />}
       {activeKey === "scores" && <ScoresSection data={data} />}
+      {activeKey === "assessment" && (
+        <TeacherAssessmentSection
+          attempts={data.assessmentAttempts}
+          attemptId={assessmentAttemptId}
+          onSelect={openAssessment}
+          onBack={() => openAssessment(null)}
+        />
+      )}
       {activeKey === "leaderboard" && <LeaderboardSection data={data} />}
       {activeKey === "settings" && <SettingsSection />}
     </DashboardShell>
@@ -199,12 +287,30 @@ function ChartPanel({
   );
 }
 
-function QuizzesSection({ data }: { data: TeacherDashboardData }) {
+function QuizzesSection({
+  data,
+  notices,
+  onReviewNotice,
+  onOpenMessages,
+}: {
+  data: TeacherDashboardData;
+  notices: PerformanceNotice[];
+  onReviewNotice: (notice: PerformanceNotice) => void;
+  onOpenMessages: (attemptId: string | null) => void;
+}) {
   return (
     <div className="space-y-2 sm:space-y-3">
       <SectionHeading
         title="View Quizzes"
         description="Review your quiz library and overall class performance."
+      />
+
+      <UnreadMessagesNotice viewer="teacher" onOpen={onOpenMessages} />
+
+      <PerformanceNotices
+        notices={notices}
+        actionLabel="Review"
+        onAction={onReviewNotice}
       />
 
       <StatGrid columns={3}>
@@ -429,6 +535,7 @@ function LeaderboardSection({ data }: { data: TeacherDashboardData }) {
                     <th scope="col" className={LB_CELL}>Rank</th>
                     <th scope="col" className={LB_CELL}>Student</th>
                     <th scope="col" className={LB_CELL}>{primaryLabel}</th>
+                    <th scope="col" className={LB_CELL}>Points</th>
                     <th scope="col" className={`${LB_CELL} ${LB_HIDE_SM}`}>
                       {secondaryLabel}
                     </th>
@@ -464,6 +571,9 @@ function LeaderboardSection({ data }: { data: TeacherDashboardData }) {
                           }
                         />
                       </td>
+                      <td className={`${LB_CELL} font-bold text-foreground`}>
+                        {entry.points}
+                      </td>
                       <td className={`${LB_CELL} ${LB_HIDE_SM}`}>
                         {board.rankedBy === "best"
                           ? `${Math.round(entry.average * 10) / 10}%`
@@ -481,10 +591,108 @@ function LeaderboardSection({ data }: { data: TeacherDashboardData }) {
                 </tbody>
               </table>
             </div>
+            <PointsMethod />
           </ChartPanel>
         </>
       )}
     </div>
+  );
+}
+
+/** One box of the points equation: a big value with a short caption. */
+function PointsTerm({
+  value,
+  label,
+  tone = "bg-surface",
+}: {
+  value: string;
+  label: string;
+  tone?: string;
+}) {
+  return (
+    <div
+      className={`min-w-0 flex-1 basis-24 border-2 border-ink px-2 py-1 text-center ${tone}`}
+    >
+      <p className="text-sm font-bold leading-tight text-ink sm:text-base">
+        {value}
+      </p>
+      <p className="text-[11px] leading-tight text-neutral-700 sm:text-xs">
+        {label}
+      </p>
+    </div>
+  );
+}
+
+function PointsOperator({ symbol }: { symbol: string }) {
+  return (
+    <span
+      aria-hidden="true"
+      className="flex w-4 shrink-0 items-center justify-center text-base font-bold text-ink"
+    >
+      {symbol}
+    </span>
+  );
+}
+
+/** "8/10 → 8 + 2 = 10 points", built from the same rule the table uses. */
+function pointsExample(percentage: number, raw: string): string {
+  const parts = [
+    Math.round(percentage / POINTS.scoreDivisor),
+    POINTS.completion,
+    ...(percentage >= 100 ? [POINTS.perfect] : []),
+  ];
+
+  return `${raw} → ${parts.join(" + ")} = ${quizPoints(percentage)} points`;
+}
+
+/**
+ * The points rule, always visible under the table: each quiz is
+ * (score part) + (finished) + (perfect bonus), drawn as a small equation so it
+ * reads at a glance. Every number comes from POINTS in leaderboard.ts.
+ */
+function PointsMethod() {
+  return (
+    <section
+      aria-label="How points are calculated"
+      className="mt-3 space-y-2 border-2 border-ink bg-neutral-100 p-2.5"
+    >
+      <h4 className="text-sm font-bold text-foreground">
+        How points work{" "}
+        <span className="font-normal text-neutral-600">(for each quiz)</span>
+      </h4>
+
+      <div className="flex flex-wrap items-stretch gap-1.5">
+        <PointsTerm
+          value={`0–${100 / POINTS.scoreDivisor}`}
+          label={`Best score ÷ ${POINTS.scoreDivisor}`}
+        />
+        <PointsOperator symbol="+" />
+        <PointsTerm value={`+${POINTS.completion}`} label="Finished the quiz" />
+        <PointsOperator symbol="+" />
+        <PointsTerm
+          value={`+${POINTS.perfect}`}
+          label="Perfect score (100%)"
+          tone="bg-primary"
+        />
+        <PointsOperator symbol="=" />
+        <PointsTerm
+          value={`Up to ${MAX_POINTS_PER_QUIZ}`}
+          label="Per quiz"
+          tone="bg-accent"
+        />
+      </div>
+
+      <p className="text-xs text-foreground sm:text-sm">
+        <strong>Examples:</strong> {pointsExample(80, "8/10")} ·{" "}
+        {pointsExample(100, "10/10")} · {pointsExample(30, "3/10")}
+      </p>
+
+      <p className="text-xs text-neutral-600 sm:text-sm">
+        Only the best try on each quiz counts, so retakes add no extra points.
+        The overall board adds up every quiz. Rank order still follows the
+        score shown.
+      </p>
+    </section>
   );
 }
 
