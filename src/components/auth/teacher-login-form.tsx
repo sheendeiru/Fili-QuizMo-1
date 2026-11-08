@@ -28,7 +28,7 @@ function initialErrorMessage(status?: string): string {
   }
 
   if (status === "blocked") {
-    return "Your teacher account is not active. Contact an administrator.";
+    return "Your teacher account has been suspended. Contact an administrator.";
   }
 
   if (status === "session_expired") {

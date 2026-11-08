@@ -27,7 +27,7 @@ function initialErrorMessage(status?: string): string {
   }
 
   if (status === "blocked") {
-    return "Your account is not active. Contact an administrator.";
+    return "Your account has been suspended. Contact an administrator.";
   }
 
   if (status === "session_expired") {
