@@ -4,6 +4,7 @@ import { useState } from "react";
 import type { FormEvent, ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { SearchFilter } from "@/components/dashboard/search-filter";
+import { StudentQuizzesModal } from "@/components/dashboard/student-quizzes-modal";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { PasswordRequirements, PASSWORD_REQUIREMENTS_ID } from "@/components/ui/password-requirements";
 import {
@@ -16,6 +17,10 @@ import {
   PASSWORD_MIN_LENGTH,
   validatePassword,
 } from "@/lib/password-policy";
+import {
+  deleteAccountsOneByOne,
+  summarizeBulkDelete,
+} from "@/lib/dashboard/bulk-delete";
 import type { DashboardTeacher } from "@/lib/dashboard/data";
 import { DASHBOARD_DATA_CHANGED_EVENT } from "@/lib/dashboard/realtime-events";
 import type { SearchItem, SearchRole } from "@/lib/search/types";
@@ -48,6 +53,41 @@ function apiError(body: unknown): string | null {
   return null;
 }
 
+/**
+ * Which actions a table offers. Student rows get View (the quizzes that
+ * student took) and are deleted in bulk with the Delete button beside Create,
+ * which lets the teacher or admin tick several students first. Teacher rows
+ * keep their own Delete button.
+ */
+export function rowActionsFor(accountRole: ManagedRole): {
+  canView: boolean;
+  canDelete: boolean;
+  canBulkDelete: boolean;
+} {
+  return {
+    canView: accountRole === "student",
+    canDelete: accountRole === "teacher",
+    canBulkDelete: accountRole === "student",
+  };
+}
+
+async function deleteAccountRequest(
+  accountRole: ManagedRole,
+  accountId: string,
+): Promise<void> {
+  const response = await fetch("/api/accounts", {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ action: "delete", accountRole, accountId }),
+    cache: "no-store",
+  });
+  const result: unknown = await response.json().catch(() => null);
+
+  if (!response.ok) {
+    throw new Error(apiError(result) ?? "Unable to delete the account.");
+  }
+}
+
 export function ManageAccountsTable({
   actorRole,
   accountRole,
@@ -65,6 +105,17 @@ export function ManageAccountsTable({
   const [createError, setCreateError] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<SearchItem | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [viewTarget, setViewTarget] = useState<{
+    id: string;
+    username: string;
+  } | null>(null);
+  // Bulk delete: pressing Delete turns on selection; students stay ticked
+  // across pages until deleted or cancelled.
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<ReadonlySet<string>>(
+    () => new Set(),
+  );
+  const [bulkConfirmOpen, setBulkConfirmOpen] = useState(false);
   const [feedback, setFeedback] = useState("");
   const [feedbackKind, setFeedbackKind] = useState<
     "success" | "error" | null
@@ -74,6 +125,8 @@ export function ManageAccountsTable({
   const [createPassword, setCreatePassword] = useState("");
 
   const pageEntity = accountRole === "teacher" ? "teachers" : "student_accounts";
+  const { canView, canDelete, canBulkDelete } = rowActionsFor(accountRole);
+  const selectedCount = selectedIds.size;
   const approvedTeachers = teachers.filter(
     (teacher) => teacher.status === "approved",
   );
@@ -184,23 +237,7 @@ export function ManageAccountsTable({
     setFeedbackKind(null);
 
     try {
-      const response = await fetch("/api/accounts", {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "delete",
-          accountRole,
-          accountId: deleteTarget.id,
-        }),
-        cache: "no-store",
-      });
-      const result: unknown = await response.json();
-
-      if (!response.ok) {
-        throw new Error(
-          apiError(result) ?? "Unable to delete the account.",
-        );
-      }
+      await deleteAccountRequest(accountRole, deleteTarget.id);
 
       setDeleteTarget(null);
       setFeedback("Account deleted.");
@@ -214,6 +251,61 @@ export function ManageAccountsTable({
       setDeleteTarget(null);
     } finally {
       setDeleting(false);
+    }
+  }
+
+  function toggleSelected(id: string, selected: boolean) {
+    setSelectedIds((current) => {
+      const next = new Set(current);
+
+      if (selected) {
+        next.add(id);
+      } else {
+        next.delete(id);
+      }
+
+      return next;
+    });
+  }
+
+  function exitSelectMode() {
+    if (deleting) return;
+
+    setSelectMode(false);
+    setSelectedIds(new Set());
+    setBulkConfirmOpen(false);
+    // An earlier "could not be deleted" message no longer applies once the
+    // teacher backs out of selecting.
+    setFeedback("");
+    setFeedbackKind(null);
+  }
+
+  async function deleteSelected() {
+    if (deleting || selectedIds.size === 0) {
+      return;
+    }
+
+    setDeleting(true);
+    setFeedback("");
+    setFeedbackKind(null);
+
+    const result = await deleteAccountsOneByOne([...selectedIds], (id) =>
+      deleteAccountRequest("student", id),
+    );
+    const summary = summarizeBulkDelete(result);
+
+    setBulkConfirmOpen(false);
+    setFeedback(summary.message);
+    setFeedbackKind(summary.kind);
+    // Whatever could not be deleted stays ticked so it can be retried.
+    setSelectedIds(new Set(result.failed.map((failure) => failure.id)));
+    if (result.failed.length === 0) {
+      setSelectMode(false);
+    }
+    setDeleting(false);
+
+    if (result.deleted.length > 0) {
+      refreshTable();
     }
   }
 
@@ -232,35 +324,122 @@ export function ManageAccountsTable({
           {feedback}
         </p>
       ) : null}
+      {canBulkDelete && selectMode ? (
+        <p
+          role="status"
+          aria-live="polite"
+          className="border-2 border-ink bg-accent/20 p-3 text-sm"
+        >
+          {`Tick the students you want to delete, then press Delete. ${
+            selectedCount === 1
+              ? "1 student is selected."
+              : `${selectedCount} students are selected.`
+          }`}
+        </p>
+      ) : null}
       <SearchFilter
         role={actorRole}
         entity={pageEntity}
         toolbar={
-          <PixelButton
-            type="button"
-            variant="primary"
-            onClick={() => {
-              setCreateError("");
-              setCreateOpen(true);
-            }}
-          >
-            Create
-          </PixelButton>
+          // The toolbar is right-aligned over the table, so Delete ends flush
+          // with the table's right edge and Create sits just to its left.
+          <>
+            <PixelButton
+              type="button"
+              variant="primary"
+              onClick={() => {
+                setCreateError("");
+                setCreateOpen(true);
+              }}
+            >
+              Create
+            </PixelButton>
+            {canBulkDelete && selectMode ? (
+              <PixelButton
+                type="button"
+                variant="neutral"
+                onClick={exitSelectMode}
+                disabled={deleting}
+              >
+                Cancel
+              </PixelButton>
+            ) : null}
+            {canBulkDelete ? (
+              <PixelButton
+                type="button"
+                variant="danger"
+                disabled={deleting || (selectMode && selectedCount === 0)}
+                onClick={() => {
+                  if (selectMode) {
+                    setBulkConfirmOpen(true);
+                  } else {
+                    setFeedback("");
+                    setFeedbackKind(null);
+                    setSelectMode(true);
+                  }
+                }}
+              >
+                {selectMode ? `Delete (${selectedCount})` : "Delete"}
+              </PixelButton>
+            ) : null}
+          </>
         }
         renderActions={(item) => (
           // Phones: buttons stack and share one width, and the labels never
           // wrap ("Suspen/d"). From sm up they sit side by side.
-          <div className="flex w-full min-w-28 flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap">
+          <div className="flex w-full min-w-28 flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center">
             {renderExtraActions?.(item)}
-            <PixelButton
-              type="button"
-              variant="danger"
-              size="sm"
-              onClick={() => setDeleteTarget(item)}
-              className="w-full whitespace-nowrap sm:w-auto"
-            >
-              Delete
-            </PixelButton>
+            {canBulkDelete && selectMode ? (
+              <label className="flex cursor-pointer items-center gap-2 text-xs font-semibold">
+                <input
+                  type="checkbox"
+                  checked={selectedIds.has(item.id)}
+                  disabled={deleting}
+                  onChange={(event) =>
+                    toggleSelected(item.id, event.currentTarget.checked)
+                  }
+                  aria-label={
+                    "username" in item
+                      ? `Select ${item.username} for deletion`
+                      : "Select for deletion"
+                  }
+                  className="h-5 w-5 shrink-0 accent-danger-dark focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                />
+                Select
+              </label>
+            ) : null}
+            {canView ? (
+              <PixelButton
+                type="button"
+                variant="primary"
+                size="sm"
+                onClick={() =>
+                  setViewTarget({
+                    id: item.id,
+                    username: "username" in item ? item.username : "",
+                  })
+                }
+                aria-label={
+                  "username" in item
+                    ? `View quizzes taken by ${item.username}`
+                    : "View quizzes taken"
+                }
+                className="w-full whitespace-nowrap sm:w-auto"
+              >
+                View
+              </PixelButton>
+            ) : null}
+            {canDelete ? (
+              <PixelButton
+                type="button"
+                variant="danger"
+                size="sm"
+                onClick={() => setDeleteTarget(item)}
+                className="w-full whitespace-nowrap sm:w-auto"
+              >
+                Delete
+              </PixelButton>
+            ) : null}
           </div>
         )}
       />
@@ -367,6 +546,29 @@ export function ManageAccountsTable({
           </form>
         </PixelModal>
       ) : null}
+
+      {viewTarget ? (
+        <StudentQuizzesModal
+          key={viewTarget.id}
+          studentId={viewTarget.id}
+          username={viewTarget.username}
+          onClose={() => setViewTarget(null)}
+        />
+      ) : null}
+
+      <ConfirmDialog
+        open={bulkConfirmOpen}
+        title={selectedCount === 1 ? "Delete student" : "Delete students"}
+        message={
+          selectedCount === 1
+            ? "Delete the selected student? Their account is permanently removed and cannot be restored. Their saved quiz results stay on record."
+            : `Delete the ${selectedCount} selected students? Their accounts are permanently removed and cannot be restored. Their saved quiz results stay on record.`
+        }
+        confirmLabel={`Confirm Delete (${selectedCount})`}
+        pending={deleting}
+        onCancel={() => setBulkConfirmOpen(false)}
+        onConfirm={() => void deleteSelected()}
+      />
 
       <ConfirmDialog
         open={deleteTarget !== null}
