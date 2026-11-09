@@ -78,6 +78,19 @@ export function DashboardShell({
     );
   }, [pathname, search]);
 
+  // The drawer is for phones and tablets. If the window grows to desktop size
+  // (the navbar shows the sections instead), close it so it is not left open.
+  useEffect(() => {
+    const desktop = window.matchMedia("(min-width: 1024px)");
+
+    function closeOnDesktop(event: MediaQueryListEvent) {
+      if (event.matches) setSidebarOpen(false);
+    }
+
+    desktop.addEventListener("change", closeOnDesktop);
+    return () => desktop.removeEventListener("change", closeOnDesktop);
+  }, []);
+
   // Escape closes the sidebar, the profile menu and the log out confirmation.
   useEffect(() => {
     if (!sidebarOpen && !profileOpen && !confirmLogoutOpen) return;
@@ -154,17 +167,19 @@ export function DashboardShell({
         <button
           type="button"
           aria-label="Close sidebar"
-          className="fixed inset-0 z-30 bg-black/40"
+          className="fixed inset-0 z-30 bg-black/40 lg:hidden"
           onClick={() => setSidebarOpen(false)}
         />
       ) : null}
 
-      {/* Slide-in drawer on every screen size, closed by default. `inert` keeps its buttons out of the tab order while hidden. */}
+      {/* Slide-in drawer for phones and tablets, closed by default. From lg up
+          the same sections are in the navbar and the drawer is not rendered
+          at all. `inert` keeps its buttons out of the tab order while hidden. */}
       <aside
         id="dashboard-sidebar"
         ref={asideRef}
         inert={!sidebarOpen}
-        className={`fixed inset-y-0 left-0 z-40 flex w-56 shrink-0 flex-col overflow-y-auto bg-ink text-surface transition-transform duration-200 ${
+        className={`fixed inset-y-0 left-0 z-40 flex w-56 shrink-0 flex-col overflow-y-auto bg-ink text-surface transition-transform duration-200 lg:hidden ${
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
@@ -205,8 +220,8 @@ export function DashboardShell({
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-20 flex h-14 items-center justify-between border-b-2 border-ink bg-surface px-3 shadow-[0_3px_0_var(--color-ink)] sm:px-4">
-          <div className="flex items-center gap-3">
+        <header className="sticky top-0 z-20 flex h-14 items-center gap-3 border-b-2 border-ink bg-surface px-3 shadow-[0_3px_0_var(--color-ink)] sm:px-4">
+          <div className="flex shrink-0 items-center gap-3">
             <button
               ref={hamburgerRef}
               type="button"
@@ -214,7 +229,7 @@ export function DashboardShell({
               aria-label="Open sidebar"
               aria-controls="dashboard-sidebar"
               aria-expanded={sidebarOpen}
-              className="inline-flex h-9 w-9 items-center justify-center text-ink transition-colors border-2 border-ink hover:bg-neutral-100"
+              className="inline-flex h-9 w-9 items-center justify-center border-2 border-ink text-ink transition-colors hover:bg-neutral-100 lg:hidden"
             >
               <svg
                 className="h-4 w-4"
@@ -235,7 +250,34 @@ export function DashboardShell({
             </h1>
           </div>
 
-          <div className="relative">
+          {/* Desktop: the sections live in the navbar. The current one is gold
+              with an outline; the others stay quiet until hovered. */}
+          <nav
+            aria-label="Dashboard sections"
+            className="hidden min-w-0 flex-1 items-center gap-1.5 overflow-x-auto border-l-2 border-ink/20 py-1 pl-3 lg:flex [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          >
+            {navItems.map((item) => {
+              const isActive = item.key === activeKey;
+
+              return (
+                <button
+                  key={item.key}
+                  type="button"
+                  aria-current={isActive ? "page" : undefined}
+                  onClick={() => handleNavigate(item.key)}
+                  className={`shrink-0 whitespace-nowrap border-2 px-3 py-1.5 text-sm font-semibold text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink ${
+                    isActive
+                      ? "border-ink bg-accent shadow-[2px_2px_0_var(--color-ink)]"
+                      : "border-transparent hover:border-ink hover:bg-neutral-100"
+                  }`}
+                >
+                  {item.label}
+                </button>
+              );
+            })}
+          </nav>
+
+          <div className="relative ml-auto shrink-0 lg:ml-0">
             <button
               ref={profileButtonRef}
               type="button"

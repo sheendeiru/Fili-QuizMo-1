@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { PixelButton } from "./pixel-primitives";
 import { PixelTable } from "./pixel-primitives";
@@ -23,6 +24,7 @@ export function PaginatedTable<T>({
   pageSize,
   pageSizeOptions,
   onPageSizeChange,
+  stickyFirstColumn = false,
 }: {
   caption: string;
   columns: readonly PaginatedTableColumn<T>[];
@@ -40,7 +42,36 @@ export function PaginatedTable<T>({
   pageSize?: number;
   pageSizeOptions?: readonly number[];
   onPageSizeChange?: (size: number) => void;
+  /**
+   * Keep the first column (the name) in view while the rest scrolls sideways,
+   * so every row stays identifiable on a narrow screen.
+   */
+  stickyFirstColumn?: boolean;
 }) {
+  // Wide tables scroll sideways inside their own box. Track whether this one
+  // actually overflows so the keyboard can reach it and a hint can be shown.
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [canScroll, setCanScroll] = useState(false);
+
+  useEffect(() => {
+    const box = scrollRef.current;
+    if (!box) return;
+
+    const check = () => setCanScroll(box.scrollWidth > box.clientWidth + 1);
+    check();
+
+    const observer =
+      typeof ResizeObserver === "undefined" ? null : new ResizeObserver(check);
+    observer?.observe(box);
+    if (box.firstElementChild) observer?.observe(box.firstElementChild);
+    window.addEventListener("resize", check);
+
+    return () => {
+      observer?.disconnect();
+      window.removeEventListener("resize", check);
+    };
+  }, [rows, columns.length]);
+
   const validPage = Math.min(Math.max(page, 1), Math.max(totalPages, 1));
   const showPageSize =
     pageSize !== undefined &&
@@ -50,16 +81,28 @@ export function PaginatedTable<T>({
 
   return (
     <div className="space-y-2 sm:space-y-3">
-      <div className="overflow-x-auto border-2 border-ink bg-surface shadow-[3px_3px_0_var(--color-ink)]">
-        <PixelTable className="min-w-full border-0 text-xs! shadow-none sm:text-sm!">
+      <div
+        ref={scrollRef}
+        role="region"
+        aria-label={`${caption}${canScroll ? " (scrolls sideways)" : ""}`}
+        tabIndex={canScroll ? 0 : undefined}
+        className="w-full max-w-full overflow-x-auto overscroll-x-contain border-2 border-ink bg-surface shadow-[3px_3px_0_var(--color-ink)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink [-webkit-overflow-scrolling:touch]"
+      >
+        {/* w-max lets the table be as wide as its columns need; the box above
+            scrolls instead of squeezing or clipping them. */}
+        <PixelTable className="w-max min-w-full border-0 text-xs! shadow-none sm:text-sm!">
           <caption className="sr-only">{caption}</caption>
           <thead className="bg-neutral-100">
             <tr>
-              {columns.map((column) => (
+              {columns.map((column, columnIndex) => (
                 <th
                   key={column.key}
                   scope="col"
-                  className={`whitespace-nowrap px-2 py-1.5 font-bold sm:px-3 sm:py-2 ${column.className ?? ""}`}
+                  className={`whitespace-nowrap px-2 py-1.5 font-bold sm:px-3 sm:py-2 ${
+                    stickyFirstColumn && columnIndex === 0
+                      ? "sticky left-0 z-[1] border-r border-neutral-300 bg-neutral-100"
+                      : ""
+                  } ${column.className ?? ""}`}
                 >
                   {column.label}
                 </th>
@@ -70,10 +113,14 @@ export function PaginatedTable<T>({
             {rows.length ? (
               rows.map((row) => (
                 <tr key={rowKey(row)} className="border-t border-neutral-200">
-                  {columns.map((column) => (
+                  {columns.map((column, columnIndex) => (
                     <td
                       key={column.key}
-                      className={`px-2 py-1.5 align-middle sm:px-3 sm:py-2 ${column.className ?? ""}`}
+                      className={`px-2 py-1.5 align-middle sm:px-3 sm:py-2 ${
+                        stickyFirstColumn && columnIndex === 0
+                          ? "sticky left-0 z-[1] border-r border-neutral-300 bg-surface"
+                          : ""
+                      } ${column.className ?? ""}`}
                     >
                       {column.render(row)}
                     </td>
@@ -93,6 +140,12 @@ export function PaginatedTable<T>({
           </tbody>
         </PixelTable>
       </div>
+      {canScroll ? (
+        <p className="text-xs text-neutral-700 sm:text-sm">
+          <span aria-hidden="true">↔ </span>
+          Scroll sideways to see all columns.
+        </p>
+      ) : null}
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p aria-live="polite" className="text-xs sm:text-sm">
           Page {validPage} of {Math.max(totalPages, 1)}

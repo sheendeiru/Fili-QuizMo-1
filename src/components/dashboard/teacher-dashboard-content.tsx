@@ -401,65 +401,6 @@ function QuizzesSection({
         <StatCard label="Failed" value={String(failed)} />
       </StatGrid>
 
-      {/* Phones: one chart at a time behind tabs. md and up: 2-column grid. */}
-      <ChartTabs
-        label="Quiz charts"
-        tabs={[
-          {
-            key: "status",
-            label: "Quiz Status",
-            content: (
-              <BarChartCard
-                title="Quiz Status"
-                description="How your quizzes are split by status."
-                total={data.quizzes.total}
-                items={[
-                  {
-                    label: "Ready",
-                    value: data.quizzes.ready,
-                    color: "bg-success",
-                  },
-                  {
-                    label: "Drafts",
-                    value: data.quizzes.draft,
-                    color: "bg-px-gold",
-                  },
-                  {
-                    label: "Failed",
-                    value: data.quizzes.failed,
-                    color: "bg-danger-dark",
-                  },
-                ]}
-              />
-            ),
-          },
-          {
-            key: "recent",
-            label: "Recent Scores",
-            content: (
-              <RecentScoresCard
-                title="Recent Scores"
-                description="The latest completed attempts on your quizzes."
-                scores={data.recentScores}
-              />
-            ),
-          },
-          {
-            key: "distribution",
-            label: "Score Distribution",
-            wide: true,
-            content: (
-              <ChartPanel
-                title="Student Score Distribution"
-                caption="Latest quiz performance across score bands."
-              >
-                <PieChart distributions={data.distributions} />
-              </ChartPanel>
-            ),
-          },
-        ]}
-      />
-
       <ManageQuizzesTable actorRole="teacher" />
     </div>
   );
@@ -485,15 +426,41 @@ function ScoresSection({ data }: { data: TeacherDashboardData }) {
         title="Students & Scores"
         description="How your students are doing on your quizzes."
       />
-      <div className="grid gap-2 sm:gap-3 md:grid-cols-[minmax(0,1fr)_minmax(0,2fr)] md:items-start">
-        <MeterCard label="Average Score" percent={data.results.average} />
-        <ChartPanel
-          title="Score Distribution"
-          caption="Student score distribution per quiz."
-        >
-          <PieChart distributions={data.distributions} />
-        </ChartPanel>
-      </div>
+
+      <StatGrid columns={3}>
+        <StatCard label="Average Score" value={`${data.results.average}%`} />
+        <StatCard label="Active Students" value={String(data.studentCount)} />
+        <StatCard
+          label="Quizzes Taken"
+          value={String(data.distributions.length)}
+        />
+      </StatGrid>
+
+      {/* Phones: one chart at a time behind tabs. md and up: side by side. */}
+      <ChartTabs
+        label="Score charts"
+        tabs={[
+          {
+            key: "distribution",
+            label: "Score Distribution",
+            content: (
+              <ChartPanel title="Score Distribution">
+                <PieChart distributions={data.distributions} />
+              </ChartPanel>
+            ),
+          },
+          {
+            key: "recent",
+            label: "Recent Scores",
+            content: (
+              <ChartPanel title="Recent Scores">
+                <RecentScoresList scores={data.recentScores} />
+              </ChartPanel>
+            ),
+          },
+        ]}
+      />
+
       <SearchFilter role="teacher" entity="students" />
     </div>
   );

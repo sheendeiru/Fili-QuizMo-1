@@ -37,11 +37,7 @@ type SearchFilterProps = {
   entity: SearchEntity;
   toolbar?: ReactNode;
   renderActions?: (item: SearchItem) => ReactNode;
-  /** The teacher's classes. Without any, the Class filter is not shown. */
-  classOptions?: readonly ClassFilterOption[];
 };
-
-export type ClassFilterOption = { id: string; name: string };
 
 function DebouncedTextInput({
   id,
@@ -165,120 +161,6 @@ function itemValues(item: SearchItem): string[] {
   ];
 }
 
-function shortDate(value: string): string {
-  const date = new Date(value);
-
-  return Number.isNaN(date.getTime())
-    ? "—"
-    : date.toLocaleDateString("en-PH", {
-        dateStyle: "medium",
-        timeZone: "Asia/Manila",
-      });
-}
-
-/** A main value with one smaller line under it, shown only on small screens. */
-function WithExtra({
-  children,
-  extra,
-  below,
-}: {
-  children: ReactNode;
-  extra: string;
-  /** The breakpoint where the extra line is no longer needed. */
-  below: "sm" | "md";
-}) {
-  return (
-    <>
-      {children}
-      {extra ? (
-        <span
-          className={`mt-0.5 block text-sm font-normal text-neutral-600 ${
-            below === "sm" ? "sm:hidden" : "md:hidden"
-          }`}
-        >
-          {extra}
-        </span>
-      ) : null}
-    </>
-  );
-}
-
-// Columns that make way on small screens. Their information moves under the
-// main cell of the row (see cellFor), so nothing is lost on a phone.
-const SMALL_SCREEN_HIDDEN: Partial<
-  Record<SearchEntity, Record<string, string>>
-> = {
-  quizzes: {
-    Questions: "hidden sm:table-cell",
-    Created: "hidden sm:table-cell",
-  },
-  students: {
-    Session: "hidden md:table-cell",
-    Email: "hidden md:table-cell",
-    Joined: "hidden sm:table-cell",
-  },
-  student_accounts: {
-    Email: "hidden sm:table-cell",
-    Created: "hidden sm:table-cell",
-  },
-};
-
-function cellFor(item: SearchItem, index: number): ReactNode {
-  const value = itemValues(item)[index] || "—";
-
-  if (item.entity === "quizzes" && index === 0) {
-    const count = Number(item.questionCount);
-    return (
-      <WithExtra
-        below="sm"
-        extra={`${count} ${count === 1 ? "question" : "questions"} · ${shortDate(item.createdAt)}`}
-      >
-        {value}
-      </WithExtra>
-    );
-  }
-
-  if (item.entity === "student_accounts" && index === 0) {
-    return (
-      <WithExtra
-        below="sm"
-        extra={`${item.email || ""} · Joined ${shortDate(item.createdAt)}`}
-      >
-        {value}
-      </WithExtra>
-    );
-  }
-
-  if (item.entity === "students") {
-    if (index === 0) {
-      return (
-        <WithExtra below="md" extra={item.studentEmail || ""}>
-          {value}
-        </WithExtra>
-      );
-    }
-    if (index === 1) {
-      return (
-        <WithExtra
-          below="md"
-          extra={item.sessionCode ? `Code ${item.sessionCode}` : ""}
-        >
-          {value}
-        </WithExtra>
-      );
-    }
-    if (index === 5) {
-      return (
-        <WithExtra below="sm" extra={shortDate(item.joinedAt)}>
-          {value}
-        </WithExtra>
-      );
-    }
-  }
-
-  return value;
-}
-
 /**
  * Filters a person can actually use. A teacher only sees their own records,
  * so the teacher filter is pointless, and the session code is something only
@@ -309,14 +191,12 @@ function FilterFields({
   query,
   updateQuery,
   idPrefix,
-  classOptions,
 }: {
   role: SearchRole;
   entity: SearchEntity;
   query: SearchQuery;
   updateQuery: (patch: Partial<SearchQuery>) => void;
   idPrefix: string;
-  classOptions: readonly ClassFilterOption[];
 }) {
   const config = getEntityConfig(entity);
 
@@ -340,31 +220,6 @@ function FilterFields({
             {config.statusOptions.map((option) => (
               <option key={option.value} value={option.value}>
                 {option.label}
-              </option>
-            ))}
-          </select>
-        </label>
-      );
-    }
-
-    if (key === "class") {
-      if (classOptions.length === 0 && !query.class) return null;
-
-      return (
-        <label key={key} htmlFor={id} className="block text-xs font-medium sm:text-sm">
-          {definition.label}
-          <select
-            id={id}
-            value={query.class}
-            onChange={(event) =>
-              updateQuery({ class: event.currentTarget.value })
-            }
-            className="pixel-input mt-1 h-10 w-full px-3 text-sm md:h-9"
-          >
-            <option value="">All classes</option>
-            {classOptions.map((option) => (
-              <option key={option.id} value={option.id}>
-                {option.name}
               </option>
             ))}
           </select>
@@ -436,7 +291,6 @@ export function SearchFilter({
   entity,
   toolbar,
   renderActions,
-  classOptions = [],
 }: SearchFilterProps) {
   const {
     query,
@@ -468,10 +322,6 @@ export function SearchFilter({
       updateQuery({ status: null });
       return;
     }
-    if (key === "class") {
-      updateQuery({ class: "" });
-      return;
-    }
     if (key === "teacher" || key === "quiz" || key === "session") {
       if (key === "teacher") {
         updateQuery({ teacher: "" });
@@ -485,10 +335,7 @@ export function SearchFilter({
     updateQuery({ [key]: null });
   }
 
-  const chips = getActiveFilterChips(
-    query,
-    Object.fromEntries(classOptions.map((option) => [option.id, option.name])),
-  );
+  const chips = getActiveFilterChips(query);
   const items = visibleResults?.items ?? [];
   const pagination = results?.pagination;
   const visiblePagination = visibleResults?.pagination;
@@ -590,58 +437,14 @@ export function SearchFilter({
           ) : null}
         </div>
 
-            <div className="hidden md:block">
-          <FilterFields
-            role={role}
-            entity={entity}
-            query={query}
-            updateQuery={updateQuery}
-            idPrefix={`${entity}-desktop`}
-          />
-        </div>
-      </PixelCard>
-
-      {mobileFiltersOpen ? (
-        <div
-          className="fixed inset-0 z-40 bg-black/40 p-4 md:hidden"
-          role="presentation"
-          onClick={(event) => {
-            if (event.target === event.currentTarget) {
-              closeMobileFilters();
-            }
-          }}
-        >
-          <section
-            id={`${entity}-mobile-filters`}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby={`${entity}-mobile-filters-title`}
-            onKeyDown={handleMobileDialogKeyDown}
-            className="ml-auto h-full w-full max-w-sm overflow-y-auto border-2 border-ink bg-surface p-3 text-ink shadow-[3px_3px_0_var(--color-ink)]"
-          >
-            <div className="mb-3 flex items-center justify-between">
-              <h3
-                id={`${entity}-mobile-filters-title`}
-                className="text-lg font-semibold"
-              >
-                Filters
-              </h3>
-              <PixelButton
-                type="button"
-                variant="neutral"
-                size="sm"
-                autoFocus
-                onClick={closeMobileFilters}
-              >
-                Close filters
-              </PixelButton>
-            </div>
+        {filtersOpen && hasFilters ? (
+          <div id={`${entity}-filters`} className="border-t-2 border-ink/20 pt-2">
             <FilterFields
               role={role}
               entity={entity}
               query={query}
               updateQuery={updateQuery}
-              idPrefix={`${entity}-mobile`}
+              idPrefix={`${entity}-filter`}
             />
           </div>
         ) : null}
@@ -702,6 +505,7 @@ export function SearchFilter({
           className={loading ? "pointer-events-none opacity-60 transition-opacity" : undefined}
         >
         <PaginatedTable
+          stickyFirstColumn
           caption={`${config.pluralLabel} search results`}
           columns={[
             ...resultHeaders(entity)
@@ -713,10 +517,11 @@ export function SearchFilter({
                 ({ label, index }): PaginatedTableColumn<SearchItem> => ({
                   key: `${entity}-${index}`,
                   label,
-                  render: (item) => cellFor(item, index),
-                  className: `${
-                    index === 0 ? "min-w-32" : "whitespace-nowrap"
-                  } ${SMALL_SCREEN_HIDDEN[entity]?.[label] ?? ""}`.trim(),
+                  render: (item) => itemValues(item)[index] || "—",
+                  // The name wraps (up to a width); everything else stays on
+                  // one line and the table scrolls sideways.
+                  className:
+                    index === 0 ? "min-w-32 max-w-56" : "whitespace-nowrap",
                 }),
               ),
             ...(renderActions
