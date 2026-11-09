@@ -29,7 +29,6 @@ import { AssessmentSection } from "@/components/dashboard/assessment-section";
 import { BadgesSection } from "@/components/dashboard/badges-section";
 import { UnreadMessagesNotice } from "@/components/dashboard/unread-messages-notice";
 import { PerformanceNotices } from "@/components/dashboard/performance-notices";
-import { buildBadges } from "@/lib/dashboard/badges";
 import { studentNotice } from "@/lib/dashboard/performance-notice";
 import {
   ChartTabs,
@@ -69,7 +68,7 @@ const navItems: DashboardNavItem[] = [
   { key: "overview", label: "Overview" },
   { key: "history", label: "Quiz History" },
   { key: "assessment", label: "Assessment" },
-  { key: "badges", label: "Badges" },
+  { key: "badges", label: "Achievements" },
   { key: "profile", label: "Profile" },
 ];
 
@@ -266,18 +265,6 @@ export default function StudentDashboardContent({
   const rawScores = useMemo(
     () => (analytics ? buildRawScores(summaryHistory, analytics) : null),
     [analytics, summaryHistory],
-  );
-  const badges = useMemo(
-    () =>
-      buildBadges(
-        summaryHistory.map((row) => ({
-          title: row.quiz_title,
-          percentage: row.percentage,
-          completedAt: row.completed_at,
-        })),
-        historyTotal,
-      ),
-    [summaryHistory, historyTotal],
   );
   // Read once when the page opens; the notice looks at the last two weeks.
   const [now] = useState(() => Date.now());
@@ -568,7 +555,7 @@ export default function StudentDashboardContent({
       ) : null}
 
       {activeKey === "badges" ? (
-        <BadgesSection badges={badges} basedOn={summaryHistory.length} />
+        <BadgesSection />
       ) : null}
 
       {activeKey === "profile" ? (
