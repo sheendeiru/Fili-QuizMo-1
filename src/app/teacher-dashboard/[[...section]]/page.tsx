@@ -7,11 +7,23 @@ import { DashboardRealtime } from "@/components/dashboard/dashboard-realtime";
 import { DashboardSkeleton } from "@/components/dashboard/dashboard-skeleton";
 import { requireTeacherAccess } from "@/lib/auth/require-dashboard-access";
 import { loadTeacherDashboardData } from "@/lib/dashboard/data";
+import {
+  loadTeacherAssignments,
+  loadTeacherClasses,
+} from "@/lib/classes/server";
 import { createClient } from "@/lib/supabase/server";
 
 async function TeacherDashboardData({ teacherId }: { teacherId: number }) {
   const supabase = await createClient();
-  const data = await loadTeacherDashboardData(supabase, teacherId);
+  // Started first so the request to the quiz server overlaps the database reads.
+  const classes = loadTeacherClasses();
+  const assignments = loadTeacherAssignments();
+  const data = await loadTeacherDashboardData(
+    supabase,
+    teacherId,
+    classes,
+    assignments,
+  );
   return <TeacherDashboardContent data={data} />;
 }
 

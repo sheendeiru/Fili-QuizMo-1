@@ -29,6 +29,8 @@ import {
   RecentScoresCard,
 } from "@/components/dashboard/dashboard-charts";
 import { ManageAccountsTable } from "@/components/dashboard/manage-accounts";
+import { ClassProgress } from "@/components/dashboard/class-progress";
+import { ManageClasses } from "@/components/dashboard/manage-classes";
 import { TeacherAssessmentSection } from "@/components/dashboard/assessment-section";
 import { PerformanceNotices } from "@/components/dashboard/performance-notices";
 import { UnreadMessagesNotice } from "@/components/dashboard/unread-messages-notice";
@@ -61,6 +63,7 @@ const PieChart = dynamic(
 const navItems: DashboardNavItem[] = [
   { key: "quizzes", label: "View Quizzes" },
   { key: "students", label: "Manage Student Info" },
+  { key: "classes", label: "My Classes" },
   { key: "scores", label: "View Scores" },
   { key: "assessment", label: "Assessment" },
   { key: "leaderboard", label: "Leaderboard" },
@@ -94,6 +97,7 @@ const BASE_PATH = "/teacher-dashboard";
 const SECTION_ROUTES = {
   quizzes: { slug: "quizzes", entity: "quizzes" },
   students: { slug: "students", entity: "student_accounts" },
+  classes: { slug: "classes", entity: null },
   scores: { slug: "scores", entity: "students" },
   assessment: { slug: "assessment", entity: null },
   leaderboard: { slug: "leaderboard", entity: null },
@@ -251,6 +255,7 @@ export default function TeacherDashboardContent({
         />
       )}
       {activeKey === "students" && <StudentsSection />}
+      {activeKey === "classes" && <ClassesSection />}
       {activeKey === "scores" && <ScoresSection data={data} />}
       {activeKey === "assessment" && (
         <TeacherAssessmentSection
@@ -378,7 +383,7 @@ function QuizzesSection({
         ]}
       />
 
-      <ManageQuizzesTable actorRole="teacher" />
+      <ManageQuizzesTable actorRole="teacher" assignedTo={data.assignedTo} />
     </div>
   );
 }
@@ -396,7 +401,27 @@ function StudentsSection() {
   );
 }
 
+function ClassesSection() {
+  return (
+    <div className="space-y-2 sm:space-y-3">
+      <SectionHeading
+        title="My Classes"
+        description="Group your students into classes. A quiz sent to a class reaches every student in it."
+      />
+
+      <ManageClasses />
+    </div>
+  );
+}
+
 function ScoresSection({ data }: { data: TeacherDashboardData }) {
+  // The class filter lives in the URL (?class=...), shared with the table
+  // below, so the cards and the table always describe the same students.
+  const classId = useSearchParams().get("class") ?? "";
+  const classView = data.classViews.find((item) => item.classId === classId);
+  const results = classView?.results ?? data.results;
+  const distributions = classView?.distributions ?? data.distributions;
+
   return (
     <div className="space-y-2 sm:space-y-3">
       <SectionHeading
@@ -404,15 +429,30 @@ function ScoresSection({ data }: { data: TeacherDashboardData }) {
         description="Search students and review their quiz performances."
       />
       <div className="grid gap-2 sm:gap-3 md:grid-cols-[minmax(0,1fr)_minmax(0,2fr)] md:items-start">
-        <MeterCard label="Average Score" percent={data.results.average} />
+        <MeterCard
+          label={classView ? `Average Score (${classView.name})` : "Average Score"}
+          percent={results.average}
+        />
         <ChartPanel
           title="Score Distribution"
-          caption="Student score distribution per quiz."
+          caption={
+            classView
+              ? `Score distribution per quiz for ${classView.name}.`
+              : "Student score distribution per quiz."
+          }
         >
-          <PieChart distributions={data.distributions} />
+          <PieChart distributions={distributions} />
         </ChartPanel>
       </div>
-      <SearchFilter role="teacher" entity="students" />
+      <ClassProgress classViews={data.classViews} selectedClassId={classId} />
+      <SearchFilter
+        role="teacher"
+        entity="students"
+        classOptions={data.classViews.map((item) => ({
+          id: item.classId,
+          name: item.name,
+        }))}
+      />
     </div>
   );
 }
@@ -473,7 +513,9 @@ const LB_HIDE_SM = "hidden sm:table-cell";
 const LB_HIDE_MD = "hidden md:table-cell";
 
 function LeaderboardSection({ data }: { data: TeacherDashboardData }) {
-  const { overall, byQuiz } = data.leaderboards;
+  const [classId, setClassId] = useState("");
+  const classView = data.classViews.find((item) => item.classId === classId);
+  const { overall, byQuiz } = classView?.leaderboards ?? data.leaderboards;
   const boards = [overall, ...byQuiz];
   const [selected, setSelected] = useState(0);
   const board = boards[selected] ?? overall;
@@ -487,11 +529,39 @@ function LeaderboardSection({ data }: { data: TeacherDashboardData }) {
         description="See which students are scoring highest across your quizzes."
       />
 
+      {data.classViews.length > 0 ? (
+        <div>
+          <label
+            htmlFor="leaderboard-class"
+            className="block text-xs font-medium text-foreground sm:text-sm"
+          >
+            Show students from
+          </label>
+          <select
+            id="leaderboard-class"
+            value={classId}
+            onChange={(event) => {
+              setClassId(event.target.value);
+              setSelected(0);
+            }}
+            className="mt-1 h-9 w-full max-w-xs px-3 text-sm sm:h-10"
+          >
+            <option value="">All students</option>
+            {data.classViews.map((item) => (
+              <option key={item.classId} value={item.classId}>
+                {item.name} ({item.studentCount})
+              </option>
+            ))}
+          </select>
+        </div>
+      ) : null}
+
       {overall.entries.length === 0 ? (
         <PixelCard>
           <p className="text-sm text-neutral-600">
-            No quiz results yet. Student rankings will appear here once
-            quizzes are completed.
+            {classView
+              ? `No quiz results from students in ${classView.name} yet. Rankings will appear once they finish a quiz.`
+              : "No quiz results yet. Student rankings will appear here once quizzes are completed."}
           </p>
         </PixelCard>
       ) : (

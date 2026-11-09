@@ -1,4 +1,7 @@
-import { buildPostgrestOrFilter } from "./query-builder";
+import {
+  buildPostgrestOrFilter,
+  quotePostgrestValue,
+} from "./query-builder";
 import { SearchError } from "./errors";
 import type {
   SearchPlan,
@@ -86,6 +89,22 @@ export class SupabaseSearchRepository implements SearchRepository {
         query = query.eq(filter.column, filter.value);
       } else if (filter.operator === "ilike") {
         query = query.ilike(filter.column, filter.value);
+      } else if (filter.operator === "ilike_any") {
+        const values = filter.values ?? [];
+
+        // Nothing can match an empty list (a class with no students).
+        if (values.length === 0) {
+          return { rows: [], total: 0 };
+        }
+
+        query = query.or(
+          values
+            .map(
+              (value) =>
+                `${filter.column}.ilike.${quotePostgrestValue(value)}`,
+            )
+            .join(","),
+        );
       } else if (filter.operator === "gte") {
         query = query.gte(filter.column, filter.value);
       } else {

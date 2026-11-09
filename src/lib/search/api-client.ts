@@ -45,6 +45,9 @@ export function buildSearchApiParams(
   if (query.session) {
     params.set("session", query.session);
   }
+  if (query.class) {
+    params.set("class", query.class);
+  }
   if (query.from) {
     params.set("from", query.from);
   }

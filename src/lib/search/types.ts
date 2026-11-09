@@ -24,6 +24,7 @@ export type SearchFilterKey =
   | "teacher"
   | "quiz"
   | "session"
+  | "class"
   | "from"
   | "to";
 
@@ -34,6 +35,8 @@ export type SearchQuery = {
   teacher: string;
   quiz: string;
   session: string;
+  /** A class id (teachers only). Resolved to the class usernames on the server. */
+  class: string;
   from: string | null;
   to: string | null;
   sort: SearchSortField;
@@ -49,12 +52,23 @@ export type SearchScope = {
   teacherLabel: string | null;
 };
 
-export type SearchPlanFilterOperator = "eq" | "ilike" | "gte" | "lte";
+/**
+ * `ilike_any` matches a column against any of `values` (each an escaped LIKE
+ * pattern), ignoring case. An empty list matches nothing.
+ */
+export type SearchPlanFilterOperator =
+  | "eq"
+  | "ilike"
+  | "ilike_any"
+  | "gte"
+  | "lte";
 
 export type SearchPlanFilter = {
   column: string;
   operator: SearchPlanFilterOperator;
   value: string;
+  /** Only for `ilike_any`. */
+  values?: readonly string[];
 };
 
 export type SearchPlan = {
@@ -148,6 +162,7 @@ export type SearchAppliedFilters = {
   teacher: string;
   quiz: string;
   session: string;
+  class: string;
   from: string | null;
   to: string | null;
 };

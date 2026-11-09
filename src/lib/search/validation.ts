@@ -7,6 +7,9 @@ import {
   getEntityConfig,
 } from "./config";
 import { SearchError } from "./errors";
+
+const CLASS_ID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 import { assertEntityAllowed, assertFilterAllowed } from "./scope";
 import {
   SEARCH_ENTITIES,
@@ -219,6 +222,25 @@ export function parseSearchQuery(
     );
   }
 
+  let classId = "";
+  if (params.has("class")) {
+    assertFilterAllowed(role, entity, "class");
+    const rawClass = params.get("class")?.trim().toLowerCase() ?? "";
+
+    if (rawClass) {
+      if (!CLASS_ID_PATTERN.test(rawClass)) {
+        throw new SearchError(
+          400,
+          "INVALID_FILTER",
+          "Choose a class from the list.",
+          { field: "class" },
+        );
+      }
+
+      classId = rawClass;
+    }
+  }
+
   let from: string | null = null;
   if (params.has("from")) {
     assertFilterAllowed(role, entity, "from");
@@ -296,6 +318,7 @@ export function parseSearchQuery(
     teacher,
     quiz,
     session,
+    class: classId,
     from,
     to,
     sort,

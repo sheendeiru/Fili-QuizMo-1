@@ -38,7 +38,11 @@ type SearchFilterProps = {
   entity: SearchEntity;
   toolbar?: ReactNode;
   renderActions?: (item: SearchItem) => ReactNode;
+  /** The teacher's classes. Without any, the Class filter is not shown. */
+  classOptions?: readonly ClassFilterOption[];
 };
+
+export type ClassFilterOption = { id: string; name: string };
 
 function DebouncedTextInput({
   id,
@@ -166,12 +170,14 @@ function FilterFields({
   query,
   updateQuery,
   idPrefix,
+  classOptions,
 }: {
   role: SearchRole;
   entity: SearchEntity;
   query: SearchQuery;
   updateQuery: (patch: Partial<SearchQuery>) => void;
   idPrefix: string;
+  classOptions: readonly ClassFilterOption[];
 }) {
   const config = getEntityConfig(entity);
 
@@ -195,6 +201,31 @@ function FilterFields({
             {config.statusOptions.map((option) => (
               <option key={option.value} value={option.value}>
                 {option.label}
+              </option>
+            ))}
+          </select>
+        </label>
+      );
+    }
+
+    if (key === "class") {
+      if (classOptions.length === 0 && !query.class) return null;
+
+      return (
+        <label key={key} htmlFor={id} className="block text-xs font-medium sm:text-sm">
+          {definition.label}
+          <select
+            id={id}
+            value={query.class}
+            onChange={(event) =>
+              updateQuery({ class: event.currentTarget.value })
+            }
+            className="pixel-input mt-1 h-10 w-full px-3 text-sm md:h-9"
+          >
+            <option value="">All classes</option>
+            {classOptions.map((option) => (
+              <option key={option.id} value={option.id}>
+                {option.name}
               </option>
             ))}
           </select>
@@ -266,6 +297,7 @@ export function SearchFilter({
   entity,
   toolbar,
   renderActions,
+  classOptions = [],
 }: SearchFilterProps) {
   const {
     query,
@@ -342,6 +374,10 @@ export function SearchFilter({
       updateQuery({ status: null });
       return;
     }
+    if (key === "class") {
+      updateQuery({ class: "" });
+      return;
+    }
     if (key === "teacher" || key === "quiz" || key === "session") {
       if (key === "teacher") {
         updateQuery({ teacher: "" });
@@ -355,7 +391,10 @@ export function SearchFilter({
     updateQuery({ [key]: null });
   }
 
-  const chips = getActiveFilterChips(query);
+  const chips = getActiveFilterChips(
+    query,
+    Object.fromEntries(classOptions.map((option) => [option.id, option.name])),
+  );
   const items = visibleResults?.items ?? [];
   const pagination = results?.pagination;
   const visiblePagination = visibleResults?.pagination;
@@ -469,6 +508,7 @@ export function SearchFilter({
             query={query}
             updateQuery={updateQuery}
             idPrefix={`${entity}-desktop`}
+            classOptions={classOptions}
           />
         </div>
       </PixelCard>
@@ -514,6 +554,7 @@ export function SearchFilter({
               query={query}
               updateQuery={updateQuery}
               idPrefix={`${entity}-mobile`}
+              classOptions={classOptions}
             />
           </section>
         </div>

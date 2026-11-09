@@ -83,6 +83,12 @@ export const FILTER_DEFINITIONS: Record<
     maxLength: 100,
     placeholder: "e.g. FMBFE4",
   },
+  class: {
+    label: "Class",
+    type: "select",
+    roles: ["teacher"],
+    entities: ["students"],
+  },
   from: {
     label: "From date",
     type: "date",
@@ -185,7 +191,7 @@ export const entityConfigs: Record<SearchEntity, SearchEntityConfig> = {
       "teacher_id",
       "teacher_username",
     ],
-    filters: ["status", "teacher", "quiz", "session", "from", "to"],
+    filters: ["status", "teacher", "quiz", "session", "class", "from", "to"],
   },
   student_accounts: {
     label: "Student account",
