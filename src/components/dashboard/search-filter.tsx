@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import type { KeyboardEvent } from "react";
 import type { ReactNode } from "react";
 import {
   FILTER_DEFINITIONS,
@@ -37,7 +38,11 @@ type SearchFilterProps = {
   entity: SearchEntity;
   toolbar?: ReactNode;
   renderActions?: (item: SearchItem) => ReactNode;
+  /** The teacher's classes. Without any, the Class filter is not shown. */
+  classOptions?: readonly ClassFilterOption[];
 };
+
+export type ClassFilterOption = { id: string; name: string };
 
 function DebouncedTextInput({
   id,
@@ -46,7 +51,6 @@ function DebouncedTextInput({
   maxLength,
   type = "text",
   describedBy,
-  className = "mt-0.5 h-9 w-full px-3 text-sm",
   onValueChange,
 }: {
   id: string;
@@ -55,7 +59,6 @@ function DebouncedTextInput({
   maxLength?: number;
   type?: "search" | "text";
   describedBy?: string;
-  className?: string;
   onValueChange: (value: string) => void;
 }) {
   const [draft, setDraft] = useState(value);
@@ -103,7 +106,7 @@ function DebouncedTextInput({
           300,
         );
       }}
-      className={className}
+      className="mt-1 h-10 w-full px-3 text-sm md:h-9"
     />
   );
 }
@@ -161,42 +164,20 @@ function itemValues(item: SearchItem): string[] {
   ];
 }
 
-/**
- * Filters a person can actually use. A teacher only sees their own records,
- * so the teacher filter is pointless, and the session code is something only
- * the app uses. Those two stay for admins.
- */
-function filterKeysFor(role: SearchRole, entity: SearchEntity): SearchFilterKey[] {
-  return getVisibleFilterKeys(role, entity).filter(
-    (key) => !(role === "teacher" && (key === "teacher" || key === "session")),
-  );
-}
-
-/** "Date" + "desc" -> one choice such as "Date: newest first". */
-function sortChoiceLabel(
-  field: string,
-  label: string,
-  direction: "asc" | "desc",
-): string {
-  if (field === "date") {
-    return `${label}: ${direction === "desc" ? "newest first" : "oldest first"}`;
-  }
-
-  return `${label}: ${direction === "asc" ? "A to Z" : "Z to A"}`;
-}
-
 function FilterFields({
   role,
   entity,
   query,
   updateQuery,
   idPrefix,
+  classOptions,
 }: {
   role: SearchRole;
   entity: SearchEntity;
   query: SearchQuery;
   updateQuery: (patch: Partial<SearchQuery>) => void;
   idPrefix: string;
+  classOptions: readonly ClassFilterOption[];
 }) {
   const config = getEntityConfig(entity);
 
@@ -206,7 +187,7 @@ function FilterFields({
 
     if (key === "status") {
       return (
-        <label key={key} htmlFor={id} className="block text-sm font-medium">
+        <label key={key} htmlFor={id} className="block text-xs font-medium sm:text-sm">
           {config.statusLabel}
           <select
             id={id}
@@ -214,7 +195,7 @@ function FilterFields({
             onChange={(event) =>
               updateQuery({ status: event.currentTarget.value || null })
             }
-            className="pixel-input mt-0.5 h-9 w-full px-3 text-sm"
+            className="pixel-input mt-1 h-10 w-full px-3 text-sm md:h-9"
           >
             <option value="">All statuses</option>
             {config.statusOptions.map((option) => (
@@ -227,9 +208,34 @@ function FilterFields({
       );
     }
 
+    if (key === "class") {
+      if (classOptions.length === 0 && !query.class) return null;
+
+      return (
+        <label key={key} htmlFor={id} className="block text-xs font-medium sm:text-sm">
+          {definition.label}
+          <select
+            id={id}
+            value={query.class}
+            onChange={(event) =>
+              updateQuery({ class: event.currentTarget.value })
+            }
+            className="pixel-input mt-1 h-10 w-full px-3 text-sm md:h-9"
+          >
+            <option value="">All classes</option>
+            {classOptions.map((option) => (
+              <option key={option.id} value={option.id}>
+                {option.name}
+              </option>
+            ))}
+          </select>
+        </label>
+      );
+    }
+
     if (key === "from" || key === "to") {
       return (
-        <label key={key} htmlFor={id} className="block text-sm font-medium">
+        <label key={key} htmlFor={id} className="block text-xs font-medium sm:text-sm">
           {definition.label}
           <input
             id={id}
@@ -243,7 +249,7 @@ function FilterFields({
                 updateQuery({ to: value });
               }
             }}
-            className="pixel-input mt-0.5 h-9 w-full px-3 text-sm"
+            className="pixel-input mt-1 h-10 w-full px-3 text-sm md:h-9"
           />
         </label>
       );
@@ -257,7 +263,7 @@ function FilterFields({
           : query.session;
 
     return (
-      <label key={key} htmlFor={id} className="block text-sm font-medium">
+      <label key={key} htmlFor={id} className="block text-xs font-medium sm:text-sm">
         {definition.label}
         <DebouncedTextInput
           key={`${key}-${value}`}
@@ -280,8 +286,8 @@ function FilterFields({
   }
 
   return (
-    <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
-      {filterKeysFor(role, entity).map(renderFilter)}
+    <div className="grid grid-cols-2 gap-2 sm:gap-3 md:grid-cols-4">
+      {getVisibleFilterKeys(role, entity).map(renderFilter)}
     </div>
   );
 }
@@ -291,6 +297,7 @@ export function SearchFilter({
   entity,
   toolbar,
   renderActions,
+  classOptions = [],
 }: SearchFilterProps) {
   const {
     query,
@@ -300,7 +307,8 @@ export function SearchFilter({
     updateQuery,
   } = useSearchFilters(role, entity);
   const config = getEntityConfig(entity);
-  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
+  const mobileFilterButtonRef = useRef<HTMLButtonElement>(null);
   // Keep the last loaded page on screen while the next one loads, so moving
   // between pages (or editing a filter) never swaps the table for a loader.
   const [lastResults, setLastResults] = useState(results);
@@ -311,6 +319,50 @@ export function SearchFilter({
 
   function clearAllFilters() {
     updateQuery(defaultSearchQuery(role, entity));
+    if (mobileFiltersOpen) {
+      closeMobileFilters();
+    }
+  }
+
+  function closeMobileFilters() {
+    setMobileFiltersOpen(false);
+    window.requestAnimationFrame(() => mobileFilterButtonRef.current?.focus());
+  }
+
+  function handleMobileDialogKeyDown(event: KeyboardEvent<HTMLElement>) {
+    if (event.key === "Escape") {
+      closeMobileFilters();
+      return;
+    }
+
+    if (event.key !== "Tab") {
+      return;
+    }
+
+    const dialog = event.currentTarget;
+    const focusable = Array.from(
+      dialog.querySelectorAll<HTMLElement>(
+        'button:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])',
+      ),
+    );
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+
+    if (
+      event.shiftKey &&
+      first &&
+      document.activeElement === first
+    ) {
+      event.preventDefault();
+      last?.focus();
+    } else if (
+      !event.shiftKey &&
+      last &&
+      document.activeElement === last
+    ) {
+      event.preventDefault();
+      first?.focus();
+    }
   }
 
   function removeFilter(key: SearchFilterKey | "q") {
@@ -320,6 +372,10 @@ export function SearchFilter({
     }
     if (key === "status") {
       updateQuery({ status: null });
+      return;
+    }
+    if (key === "class") {
+      updateQuery({ class: "" });
       return;
     }
     if (key === "teacher" || key === "quiz" || key === "session") {
@@ -335,7 +391,10 @@ export function SearchFilter({
     updateQuery({ [key]: null });
   }
 
-  const chips = getActiveFilterChips(query);
+  const chips = getActiveFilterChips(
+    query,
+    Object.fromEntries(classOptions.map((option) => [option.id, option.name])),
+  );
   const items = visibleResults?.items ?? [];
   const pagination = results?.pagination;
   const visiblePagination = visibleResults?.pagination;
@@ -350,108 +409,159 @@ export function SearchFilter({
     }
   }, [loading, pagination, query.page, updateQuery]);
 
-  const sortChoices = SORT_OPTIONS.filter((option) =>
-    config.sortFields.includes(option.value),
-  ).flatMap((option) =>
-    (option.value === "date" ? (["desc", "asc"] as const) : (["asc", "desc"] as const)).map(
-      (direction) => ({
-        value: `${option.value}:${direction}`,
-        label: sortChoiceLabel(option.value, option.label, direction),
-      }),
-    ),
-  );
-  const filterCount = chips.filter((chip) => chip.key !== "q").length;
-  const hasFilters = filterKeysFor(role, entity).length > 0;
-
   return (
-    <section aria-label={`${config.pluralLabel} search`} className="space-y-2">
-      {/* One compact row: search, sort, filters and the page's own button. */}
-      <PixelCard className="space-y-2 p-2! sm:p-2.5!">
-        <div className="flex flex-wrap items-center gap-2">
-          <label htmlFor={`${entity}-search`} className="sr-only">
-            Search {config.pluralLabel.toLowerCase()}
-          </label>
-          <div className="min-w-0 flex-1 basis-40 sm:max-w-64 sm:flex-none sm:basis-64">
-            <DebouncedTextInput
-              key={`q-${query.q}`}
-              id={`${entity}-search`}
-              type="search"
-              value={query.q}
-              maxLength={200}
-              placeholder={config.searchPlaceholder}
-              className="h-9 w-full px-3 text-sm"
-              onValueChange={(value) => updateQuery({ q: value })}
-            />
-          </div>
+    <section aria-label={`${config.pluralLabel} search`} className="space-y-2 sm:space-y-3">
+      <PixelCard className="space-y-2 p-2.5! sm:space-y-3 sm:p-3!">
+        <label
+          htmlFor={`${entity}-search`}
+          className="block text-xs font-semibold text-foreground sm:text-sm"
+        >
+          Search {config.pluralLabel.toLowerCase()}
+        </label>
+        <DebouncedTextInput
+          key={`q-${query.q}`}
+          id={`${entity}-search`}
+          type="search"
+          value={query.q}
+          maxLength={200}
+          placeholder={config.searchPlaceholder}
+          describedBy={`${entity}-search-hint`}
+          onValueChange={(value) => updateQuery({ q: value })}
+        />
+        <p
+          id={`${entity}-search-hint`}
+          className="mt-1 hidden text-xs text-neutral-500 sm:block"
+        >
+          {config.searchHint}
+        </p>
 
-          <label htmlFor={`${entity}-sort`} className="sr-only">
-            Sort by
-          </label>
-          <select
-            id={`${entity}-sort`}
-            value={`${query.sort}:${query.dir}`}
-            onChange={(event) => {
-              const [sort, dir] = event.currentTarget.value.split(":");
-              updateQuery({
-                sort: sort as SearchQuery["sort"],
-                dir: dir as SearchQuery["dir"],
-              });
-            }}
-            className="pixel-input h-9 min-w-0 flex-1 px-2 text-sm sm:flex-none"
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <PixelButton
+            type="button"
+            variant="neutral"
+            size="sm"
+            ref={mobileFilterButtonRef}
+            className="md:hidden"
+            aria-expanded={mobileFiltersOpen}
+            aria-controls={`${entity}-mobile-filters`}
+            onClick={() => setMobileFiltersOpen(true)}
           >
-            {sortChoices.map((choice) => (
-              <option key={choice.value} value={choice.value}>
-                {choice.label}
-              </option>
-            ))}
-          </select>
-
-          {hasFilters ? (
-            <PixelButton
-              type="button"
-              variant="accent"
-              size="sm"
-              aria-expanded={filtersOpen}
-              aria-controls={`${entity}-filters`}
-              onClick={() => setFiltersOpen((open) => !open)}
-              className="inline-flex shrink-0 items-center gap-2 whitespace-nowrap"
+            Show filters
+          </PixelButton>
+          <div className="flex items-center gap-2">
+            <label
+              htmlFor={`${entity}-sort`}
+              className="sr-only text-sm font-medium sm:not-sr-only"
             >
-              Filters{filterCount > 0 ? ` (${filterCount})` : ""}
-              {/* A solid pixel arrow: points down when closed, up when open. */}
-              <svg
-                width="16"
-                height="16"
-                viewBox="0 0 16 16"
-                fill="currentColor"
-                shapeRendering="crispEdges"
-                aria-hidden="true"
-                className={`h-4 w-4 shrink-0 ${filtersOpen ? "rotate-180" : ""}`}
-              >
-                <path d="M1 4h14v3H1zM3 7h10v3H3zM5 10h6v3H5zM7 13h2v1H7z" />
-              </svg>
-            </PixelButton>
-          ) : null}
-
-          {toolbar ? (
-            <div className="ml-auto flex flex-wrap gap-2">{toolbar}</div>
-          ) : null}
+              Sort by
+            </label>
+            <select
+              id={`${entity}-sort`}
+              value={query.sort}
+              onChange={(event) =>
+                updateQuery({
+                  sort: event.currentTarget.value as SearchQuery["sort"],
+                })
+              }
+              className="pixel-input h-9 px-2 text-sm"
+            >
+              {SORT_OPTIONS.filter((option) =>
+                config.sortFields.includes(option.value),
+              ).map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+            <label htmlFor={`${entity}-direction`} className="sr-only">
+              Sort direction
+            </label>
+            <select
+              id={`${entity}-direction`}
+              value={query.dir}
+              onChange={(event) =>
+                updateQuery({
+                  dir: event.currentTarget.value as SearchQuery["dir"],
+                })
+              }
+              className="pixel-input h-9 px-2 text-sm"
+            >
+              <option value="asc">Ascending</option>
+              <option value="desc">Descending</option>
+            </select>
+          </div>
+          <PixelButton
+            type="button"
+            variant="accent"
+            size="sm"
+            onClick={clearAllFilters}
+            disabled={chips.length === 0}
+          >
+            Clear all filters
+          </PixelButton>
         </div>
 
-        {filtersOpen && hasFilters ? (
-          <div id={`${entity}-filters`} className="border-t-2 border-ink/20 pt-2">
+            <div className="hidden md:block">
+          <FilterFields
+            role={role}
+            entity={entity}
+            query={query}
+            updateQuery={updateQuery}
+            idPrefix={`${entity}-desktop`}
+            classOptions={classOptions}
+          />
+        </div>
+      </PixelCard>
+
+      {mobileFiltersOpen ? (
+        <div
+          className="fixed inset-0 z-40 bg-black/40 p-4 md:hidden"
+          role="presentation"
+          onClick={(event) => {
+            if (event.target === event.currentTarget) {
+              closeMobileFilters();
+            }
+          }}
+        >
+          <section
+            id={`${entity}-mobile-filters`}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={`${entity}-mobile-filters-title`}
+            onKeyDown={handleMobileDialogKeyDown}
+            className="ml-auto h-full w-full max-w-sm overflow-y-auto border-2 border-ink bg-surface p-3 text-ink shadow-[3px_3px_0_var(--color-ink)]"
+          >
+            <div className="mb-3 flex items-center justify-between">
+              <h3
+                id={`${entity}-mobile-filters-title`}
+                className="text-lg font-semibold"
+              >
+                Filters
+              </h3>
+              <PixelButton
+                type="button"
+                variant="neutral"
+                size="sm"
+                autoFocus
+                onClick={closeMobileFilters}
+              >
+                Close filters
+              </PixelButton>
+            </div>
             <FilterFields
               role={role}
               entity={entity}
               query={query}
               updateQuery={updateQuery}
-              idPrefix={`${entity}-filter`}
+              idPrefix={`${entity}-mobile`}
+              classOptions={classOptions}
             />
-          </div>
-        ) : null}
-      </PixelCard>
+          </section>
+        </div>
+      ) : null}
 
       {chips.length > 0 ? (
-        <div className="flex flex-wrap items-center gap-1.5" aria-label="Active filters">
+        <div className="flex flex-wrap gap-2" aria-label="Active filters">
           {chips.map((chip) => (
             <PixelBadge
               key={chip.key}
@@ -469,13 +579,6 @@ export function SearchFilter({
               </button>
             </PixelBadge>
           ))}
-          <button
-            type="button"
-            onClick={clearAllFilters}
-            className="px-1 text-sm font-semibold text-ink underline"
-          >
-            Clear all
-          </button>
         </div>
       ) : null}
 
@@ -499,31 +602,26 @@ export function SearchFilter({
         </div>
       ) : null}
 
+      {toolbar ? (
+        <div className="flex flex-wrap justify-end gap-2">{toolbar}</div>
+      ) : null}
+
       {!error && visibleResults ? (
         <div
           aria-busy={loading}
           className={loading ? "pointer-events-none opacity-60 transition-opacity" : undefined}
         >
         <PaginatedTable
-          stickyFirstColumn
           caption={`${config.pluralLabel} search results`}
           columns={[
-            ...resultHeaders(entity)
-              .map((label, index) => ({ label, index }))
-              .filter(
-                ({ label }) => !(role === "teacher" && label === "Teacher"),
-              )
-              .map(
-                ({ label, index }): PaginatedTableColumn<SearchItem> => ({
-                  key: `${entity}-${index}`,
-                  label,
-                  render: (item) => itemValues(item)[index] || "—",
-                  // The name wraps (up to a width); everything else stays on
-                  // one line and the table scrolls sideways.
-                  className:
-                    index === 0 ? "min-w-32 max-w-56" : "whitespace-nowrap",
-                }),
-              ),
+            ...resultHeaders(entity).map(
+              (label, index): PaginatedTableColumn<SearchItem> => ({
+                key: `${entity}-${index}`,
+                label,
+                render: (item) => itemValues(item)[index] || "—",
+                className: "whitespace-nowrap",
+              }),
+            ),
             ...(renderActions
               ? [{
                   key: "actions",
