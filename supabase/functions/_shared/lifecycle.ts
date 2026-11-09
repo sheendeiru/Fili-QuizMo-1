@@ -59,10 +59,29 @@ export function optionalPassword(body: Body): string | null {
   if (v === undefined || v === null) return null;
   if (typeof v !== "string") throw new HttpError(400, "password must be a string");
   // bcrypt only uses the first 72 bytes
-  if (v.length < 8 || new TextEncoder().encode(v).length > 72) {
-    throw new HttpError(400, "password must be 8 to 72 bytes long");
+  if (new TextEncoder().encode(v).length > 72) {
+    throw new HttpError(400, "password is too long (72 bytes at most)");
+  }
+  if (!meetsPasswordRule(v)) {
+    throw new HttpError(
+      400,
+      "password needs 15 or more characters, or 8 or more with a lowercase letter and a number",
+    );
   }
   return v;
+}
+
+/**
+ * Same rule as lib/password-policy.ts in the app: 15+ characters, OR 8+
+ * characters with a lowercase letter and a number. Keep the two in step.
+ * (The app also rejects very common passwords and ones containing the
+ * person's name or email before the request gets here.)
+ */
+export function meetsPasswordRule(password: string): boolean {
+  return (
+    password.length >= 15 ||
+    (password.length >= 8 && /[a-z]/.test(password) && /[0-9]/.test(password))
+  );
 }
 
 // ---------------------------------------------------------------------
@@ -88,7 +107,8 @@ const pick = (set: string) => set[randInt(set.length)];
 
 export function generatePassword(length = 14): string {
   const all = LOWER + UPPER + DIGIT + SYMBOL;
-  // one of each class so strict project password rules are satisfied
+  // one of each class, so this always meets the password rule (8+ with a lowercase
+  // letter and a number) and any stricter project setting
   const chars = [pick(LOWER), pick(UPPER), pick(DIGIT), pick(SYMBOL)];
   while (chars.length < length) chars.push(pick(all));
   for (let i = chars.length - 1; i > 0; i--) {

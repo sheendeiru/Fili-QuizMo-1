@@ -23,11 +23,6 @@ import {
 } from "@/components/dashboard/compact-layout";
 import { SearchFilter } from "@/components/dashboard/search-filter";
 import { ManageQuizzesTable } from "@/components/dashboard/manage-quizzes";
-import {
-  BarChartCard,
-  MeterCard,
-  RecentScoresCard,
-} from "@/components/dashboard/dashboard-charts";
 import { ManageAccountsTable } from "@/components/dashboard/manage-accounts";
 import { TeacherAssessmentSection } from "@/components/dashboard/assessment-section";
 import { PerformanceNotices } from "@/components/dashboard/performance-notices";
@@ -42,6 +37,7 @@ import { useResetRouteState } from "@/lib/dashboard/route-reset";
 import { logoutAndRedirect } from "@/lib/auth/logout";
 import { useRealtimeRefresh } from "@/lib/realtime/use-realtime-refresh";
 import type { TeacherDashboardData } from "@/lib/dashboard/data";
+import { formatRawScore } from "@/lib/dashboard/raw-score";
 import {
   MAX_POINTS_PER_QUIZ,
   POINTS,
@@ -273,17 +269,98 @@ function ChartPanel({
   children,
 }: {
   title: string;
-  caption: string;
+  /** Only when it says something the title does not. */
+  caption?: string;
   children: ReactNode;
 }) {
   return (
-    <PixelCard as="article" className="p-2.5! sm:p-3!">
+    <PixelCard as="article" className="h-full p-2! sm:p-2.5!">
       <h3 className="text-sm font-semibold text-foreground sm:text-base">
         {title}
       </h3>
-      <p className="mt-0.5 text-xs text-neutral-500 sm:text-sm">{caption}</p>
-      <div className="mt-2">{children}</div>
+      {caption ? (
+        <p className="text-sm leading-snug text-neutral-600">{caption}</p>
+      ) : null}
+      <div className="mt-1.5">{children}</div>
     </PixelCard>
+  );
+}
+
+const RECENT_SCORES_SHOWN = 5;
+
+function recentScoreTone(score: number): string {
+  if (score >= 75) return "bg-success";
+  if (score >= 50) return "bg-px-gold";
+  return "bg-danger-dark";
+}
+
+/**
+ * The latest attempts, one tight row each: who and which quiz on the left,
+ * the raw score on the right, and a thin bar underneath. Shows the newest few
+ * and tucks the rest behind one button.
+ */
+function RecentScoresList({
+  scores,
+}: {
+  scores: TeacherDashboardData["recentScores"];
+}) {
+  const [showAll, setShowAll] = useState(false);
+  const visible = showAll ? scores : scores.slice(0, RECENT_SCORES_SHOWN);
+  const hidden = scores.length - RECENT_SCORES_SHOWN;
+
+  if (scores.length === 0) {
+    return (
+      <p className="text-sm text-neutral-700">
+        Scores will appear after students finish a quiz.
+      </p>
+    );
+  }
+
+  return (
+    <>
+      <ul className="space-y-1.5">
+        {visible.map((entry) => {
+          const percent = Math.round(Math.min(100, Math.max(0, entry.score)));
+          const raw = formatRawScore(entry.correct, entry.total);
+
+          return (
+            <li key={entry.id}>
+              <div className="flex items-baseline justify-between gap-2 text-sm">
+                <span className="min-w-0 truncate text-foreground">
+                  <span className="font-semibold">{entry.student}</span>
+                  <span className="text-neutral-600"> · {entry.quizTitle}</span>
+                </span>
+                <span
+                  className="shrink-0 font-semibold text-foreground"
+                  title={`${percent}%`}
+                >
+                  {raw ?? `${percent}%`}
+                </span>
+              </div>
+              <div
+                aria-hidden="true"
+                className="mt-0.5 h-2 border border-ink bg-px-cream"
+              >
+                <div
+                  className={`h-full ${recentScoreTone(entry.score)}`}
+                  style={{ width: `${percent}%` }}
+                />
+              </div>
+            </li>
+          );
+        })}
+      </ul>
+      {hidden > 0 ? (
+        <button
+          type="button"
+          aria-expanded={showAll}
+          onClick={() => setShowAll((open) => !open)}
+          className="mt-1.5 text-sm font-semibold text-ink underline"
+        >
+          {showAll ? "Show fewer" : `Show ${hidden} more`}
+        </button>
+      ) : null}
+    </>
   );
 }
 
@@ -298,13 +375,17 @@ function QuizzesSection({
   onReviewNotice: (notice: PerformanceNotice) => void;
   onOpenMessages: (attemptId: string | null) => void;
 }) {
+  const { total, ready, draft, failed } = data.quizzes;
+
   return (
     <div className="space-y-2 sm:space-y-3">
       <SectionHeading
         title="View Quizzes"
-        description="Review your quiz library and overall class performance."
+        description="Your quiz library and what state each quiz is in."
       />
 
+      {/* Alerts stay on the page you land on. Each one has a button that
+          opens the right place (Assessment) for the details. */}
       <UnreadMessagesNotice viewer="teacher" onOpen={onOpenMessages} />
 
       <PerformanceNotices
@@ -313,70 +394,12 @@ function QuizzesSection({
         onAction={onReviewNotice}
       />
 
-      <StatGrid columns={3}>
-        <StatCard label="Total Quizzes" value={String(data.quizzes.total)} />
-        <StatCard label="Active Students" value={String(data.studentCount)} />
-        <StatCard label="Average Score" value={`${data.results.average}%`} />
+      <StatGrid columns={4}>
+        <StatCard label="Total Quizzes" value={String(total)} />
+        <StatCard label="Ready" value={String(ready)} />
+        <StatCard label="Drafts" value={String(draft)} />
+        <StatCard label="Failed" value={String(failed)} />
       </StatGrid>
-
-      {/* Phones: one chart at a time behind tabs. md and up: 2-column grid. */}
-      <ChartTabs
-        label="Quiz charts"
-        tabs={[
-          {
-            key: "status",
-            label: "Quiz Status",
-            content: (
-              <BarChartCard
-                title="Quiz Status"
-                description="How your quizzes are split by status."
-                total={data.quizzes.total}
-                items={[
-                  {
-                    label: "Ready",
-                    value: data.quizzes.ready,
-                    color: "bg-success",
-                  },
-                  {
-                    label: "Drafts",
-                    value: data.quizzes.draft,
-                    color: "bg-px-gold",
-                  },
-                  {
-                    label: "Failed",
-                    value: data.quizzes.failed,
-                    color: "bg-danger-dark",
-                  },
-                ]}
-              />
-            ),
-          },
-          {
-            key: "recent",
-            label: "Recent Scores",
-            content: (
-              <RecentScoresCard
-                title="Recent Scores"
-                description="The latest completed attempts on your quizzes."
-                scores={data.recentScores}
-              />
-            ),
-          },
-          {
-            key: "distribution",
-            label: "Score Distribution",
-            wide: true,
-            content: (
-              <ChartPanel
-                title="Student Score Distribution"
-                caption="Latest quiz performance across score bands."
-              >
-                <PieChart distributions={data.distributions} />
-              </ChartPanel>
-            ),
-          },
-        ]}
-      />
 
       <ManageQuizzesTable actorRole="teacher" />
     </div>
@@ -401,20 +424,51 @@ function ScoresSection({ data }: { data: TeacherDashboardData }) {
     <div className="space-y-2 sm:space-y-3">
       <SectionHeading
         title="Students & Scores"
-        description="Search students and review their quiz performances."
+        description="How your students are doing on your quizzes."
       />
-      <div className="grid gap-2 sm:gap-3 md:grid-cols-[minmax(0,1fr)_minmax(0,2fr)] md:items-start">
-        <MeterCard label="Average Score" percent={data.results.average} />
-        <ChartPanel
-          title="Score Distribution"
-          caption="Student score distribution per quiz."
-        >
-          <PieChart distributions={data.distributions} />
-        </ChartPanel>
-      </div>
+
+      <StatGrid columns={3}>
+        <StatCard label="Average Score" value={`${data.results.average}%`} />
+        <StatCard label="Active Students" value={String(data.studentCount)} />
+        <StatCard
+          label="Quizzes Taken"
+          value={String(data.distributions.length)}
+        />
+      </StatGrid>
+
+      {/* Phones: one chart at a time behind tabs. md and up: side by side. */}
+      <ChartTabs
+        label="Score charts"
+        tabs={[
+          {
+            key: "distribution",
+            label: "Score Distribution",
+            content: (
+              <ChartPanel title="Score Distribution">
+                <PieChart distributions={data.distributions} />
+              </ChartPanel>
+            ),
+          },
+          {
+            key: "recent",
+            label: "Recent Scores",
+            content: (
+              <ChartPanel title="Recent Scores">
+                <RecentScoresList scores={data.recentScores} />
+              </ChartPanel>
+            ),
+          },
+        ]}
+      />
+
       <SearchFilter role="teacher" entity="students" />
     </div>
   );
+}
+
+/** "1 attempt" / "3 attempts", so the number always reads as a count. */
+function attemptsText(count: number): string {
+  return `${count} ${count === 1 ? "attempt" : "attempts"}`;
 }
 
 function ordinal(rank: number): string {
@@ -468,7 +522,7 @@ function ScoreBar({ value, label }: { value: number; label?: string | null }) {
 
 // Leaderboard table: tight cells on phones, with the extra columns tucked
 // away until there is room (secondary score + attempts from sm, date from md).
-const LB_CELL = "py-1.5 pr-2 sm:py-2 sm:pr-3";
+const LB_CELL = "py-2 pr-2 align-top sm:pr-3";
 const LB_HIDE_SM = "hidden sm:table-cell";
 const LB_HIDE_MD = "hidden md:table-cell";
 
@@ -499,7 +553,7 @@ function LeaderboardSection({ data }: { data: TeacherDashboardData }) {
           <div>
             <label
               htmlFor="leaderboard-quiz"
-              className="block text-xs font-medium text-foreground sm:text-sm"
+              className="block text-sm font-medium text-foreground"
             >
               Show ranking for
             </label>
@@ -526,7 +580,7 @@ function LeaderboardSection({ data }: { data: TeacherDashboardData }) {
             }
           >
             <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs sm:text-sm">
+              <table className="w-full text-left text-sm">
                 <caption className="sr-only">
                   {board.quiz ?? "Overall"} leaderboard
                 </caption>
@@ -544,7 +598,7 @@ function LeaderboardSection({ data }: { data: TeacherDashboardData }) {
                     </th>
                     <th
                       scope="col"
-                      className={`py-1.5 sm:py-2 ${LB_HIDE_MD}`}
+                      className={`py-2 ${LB_HIDE_MD}`}
                     >
                       Last active
                     </th>
@@ -558,6 +612,21 @@ function LeaderboardSection({ data }: { data: TeacherDashboardData }) {
                       </td>
                       <td className={`${LB_CELL} font-semibold text-foreground`}>
                         {entry.student}
+                        {/* Phones hide the extra columns, so the same facts
+                            sit under the name instead. */}
+                        <span className="mt-0.5 block text-sm font-normal text-neutral-600 sm:hidden">
+                          {secondaryLabel}{" "}
+                          {board.rankedBy === "best"
+                            ? `${Math.round(entry.average * 10) / 10}%`
+                            : (entry.bestRaw ??
+                              `${Math.round(entry.best * 10) / 10}%`)}
+                          {" · "}
+                          {attemptsText(entry.attempts)}
+                        </span>
+                        <span className="mt-0.5 hidden text-sm font-normal text-neutral-600 sm:block md:hidden">
+                          {attemptsText(entry.attempts)} · Last active{" "}
+                          {formatDate(entry.lastCompletedAt)}
+                        </span>
                       </td>
                       <td className={LB_CELL}>
                         <ScoreBar
@@ -581,9 +650,9 @@ function LeaderboardSection({ data }: { data: TeacherDashboardData }) {
                             `${Math.round(entry.best * 10) / 10}%`)}
                       </td>
                       <td className={`${LB_CELL} ${LB_HIDE_SM}`}>
-                        {entry.attempts}
+                        {attemptsText(entry.attempts)}
                       </td>
-                      <td className={`py-1.5 sm:py-2 ${LB_HIDE_MD}`}>
+                      <td className={`py-2 align-top ${LB_HIDE_MD}`}>
                         {formatDate(entry.lastCompletedAt)}
                       </td>
                     </tr>
@@ -616,7 +685,7 @@ function PointsTerm({
       <p className="text-sm font-bold leading-tight text-ink sm:text-base">
         {value}
       </p>
-      <p className="text-[11px] leading-tight text-neutral-700 sm:text-xs">
+      <p className="text-xs leading-tight text-neutral-700 sm:text-sm">
         {label}
       </p>
     </div>
@@ -682,12 +751,12 @@ function PointsMethod() {
         />
       </div>
 
-      <p className="text-xs text-foreground sm:text-sm">
+      <p className="text-sm text-foreground">
         <strong>Examples:</strong> {pointsExample(80, "8/10")} ·{" "}
         {pointsExample(100, "10/10")} · {pointsExample(30, "3/10")}
       </p>
 
-      <p className="text-xs text-neutral-600 sm:text-sm">
+      <p className="text-sm text-neutral-700">
         Only the best try on each quiz counts, so retakes add no extra points.
         The overall board adds up every quiz. Rank order still follows the
         score shown.

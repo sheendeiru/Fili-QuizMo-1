@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useId, useState } from "react";
 import type { ScoreDistribution } from "@/lib/dashboard/score-bands";
 
 type PieChartProps = {
@@ -9,10 +9,11 @@ type PieChartProps = {
 
 export function PieChart({ distributions }: PieChartProps) {
   const [selectedQuiz, setSelectedQuiz] = useState(0);
+  const selectId = useId();
 
   if (distributions.length === 0) {
     return (
-      <p className="rounded-lg bg-neutral-100 p-3 text-sm text-neutral-600 sm:p-6">
+      <p className="border-2 border-ink bg-neutral-100 p-3 text-sm text-neutral-700 sm:p-4">
         Score distributions will appear after students complete a quiz.
       </p>
     );
@@ -26,34 +27,37 @@ export function PieChart({ distributions }: PieChartProps) {
       .slice(0, index)
       .reduce((total, band) => total + band.value, 0),
   }));
+  const attempts = distribution.sampleSize;
 
   return (
-    <div className="space-y-2 sm:space-y-3">
+    <div className="space-y-2">
       <div>
-        <label
-          htmlFor="score-quiz-select"
-          className="block text-xs font-medium text-neutral-600 sm:text-sm"
-        >
+        <label htmlFor={selectId} className="sr-only">
           Quiz
         </label>
         <select
-          id="score-quiz-select"
+          id={selectId}
           value={selectedIndex}
           onChange={(event) => setSelectedQuiz(Number(event.target.value))}
-          className="mt-1 w-full rounded-lg border border-neutral-300 bg-white px-3 py-1.5 text-sm font-medium text-foreground outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
+          className="pixel-input h-9 w-full px-3 text-sm font-medium"
         >
           {distributions.map((item, index) => (
-            <option key={item.quiz} value={index}>
+            <option key={`${item.quiz}-${index}`} value={index}>
               {item.quiz}
             </option>
           ))}
         </select>
       </div>
 
-      {/* Donut and legend stay side by side on phones instead of stacking. */}
-      <div className="flex items-center justify-around gap-3">
-        <div className="relative h-28 w-28 shrink-0 sm:h-36 sm:w-36 md:h-40 md:w-40">
-          <svg viewBox="0 0 100 100" className="h-full w-full -rotate-90">
+      {/* Donut and legend side by side, on phones too. */}
+      <div className="flex items-center gap-3">
+        <div className="relative h-24 w-24 shrink-0 sm:h-28 sm:w-28">
+          <svg
+            viewBox="0 0 100 100"
+            className="h-full w-full -rotate-90"
+            role="img"
+            aria-label={`Score distribution for ${distribution.quiz}, average ${distribution.average}%`}
+          >
             {bands.map(({ item, offset }) => {
               return (
                 <circle
@@ -76,39 +80,39 @@ export function PieChart({ distributions }: PieChartProps) {
             })}
           </svg>
 
-          <div className="absolute inset-0 flex flex-col items-center justify-center">
-            <span className="text-lg font-bold text-foreground sm:text-2xl">
+          <div className="absolute inset-0 flex flex-col items-center justify-center leading-tight">
+            <span className="text-lg font-bold text-foreground sm:text-xl">
               {distribution.average}%
             </span>
-            <span className="text-[10px] text-neutral-500 sm:text-xs">
+            <span className="text-xs font-medium text-neutral-700">
               Average
             </span>
           </div>
         </div>
 
-        <ul className="min-w-0 flex-1 space-y-1.5 sm:flex-none sm:space-y-2">
-          {distribution.bands.map((item) => (
-            <li
-              key={item.key}
-              className="flex items-center gap-2 text-xs sm:gap-3 sm:text-sm"
-            >
-              <span
-                className="h-3 w-3 shrink-0 rounded-full"
-                style={{ backgroundColor: item.color }}
-              />
-              <span className="text-neutral-600">{item.label}</span>
-              <span className="ml-auto font-semibold text-foreground">
-                {item.value}%
-              </span>
-            </li>
-          ))}
-        </ul>
+        <div className="min-w-0 flex-1">
+          <ul className="space-y-1">
+            {distribution.bands.map((item) => (
+              <li key={item.key} className="flex items-center gap-2 text-sm">
+                <span
+                  aria-hidden="true"
+                  className="h-3 w-3 shrink-0 border border-ink"
+                  style={{ backgroundColor: item.color }}
+                />
+                <span className="min-w-0 text-neutral-700">{item.label}</span>
+                <span className="ml-auto pl-2 font-semibold text-foreground">
+                  {item.value}%
+                </span>
+              </li>
+            ))}
+          </ul>
+          {/* The count sits under the legend instead of taking a row of its own. */}
+          <p className="mt-1.5 border-t border-ink/30 pt-1 text-sm text-foreground">
+            <strong>Based on {attempts}</strong>{" "}
+            {attempts === 1 ? "completed attempt" : "completed attempts"}
+          </p>
+        </div>
       </div>
-
-      <p className="text-xs text-neutral-500">
-        Based on {distribution.sampleSize}{" "}
-        {distribution.sampleSize === 1 ? "completed attempt" : "completed attempts"}.
-      </p>
     </div>
   );
 }
