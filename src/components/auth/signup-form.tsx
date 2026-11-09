@@ -12,6 +12,7 @@ import { PolicyConsent } from "@/components/auth/policy-consent";
 import {
   PASSWORD_MAX_LENGTH,
   PASSWORD_MIN_LENGTH,
+  passwordProblem,
   validatePassword,
 } from "@/lib/password-policy";
 import {
@@ -111,10 +112,9 @@ export function SignupForm() {
       return;
     }
 
-    if (!validatePassword(password, [email, username]).valid) {
-      setErrorMessage(
-        "Your password does not meet all of the requirements.",
-      );
+    const passwordCheck = validatePassword(password, [email, username]);
+    if (!passwordCheck.valid) {
+      setErrorMessage(passwordProblem(passwordCheck));
       return;
     }
 
