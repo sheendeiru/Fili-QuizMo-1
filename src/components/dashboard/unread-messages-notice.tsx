@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { PixelButton } from "@/components/ui/pixel-primitives";
 import {
   parseUnreadSummary,
@@ -9,10 +9,34 @@ import {
 } from "@/lib/dashboard/unread-messages";
 
 /**
+ * Runs `refresh` when the person comes back to this tab or window, and every
+ * `everyMs` while it is open and visible, so a dashboard that was left open
+ * still picks up messages that arrived in the meantime.
+ */
+export function useRefreshOnReturn(refresh: () => void, everyMs = 30_000) {
+  useEffect(() => {
+    const run = () => {
+      if (document.visibilityState === "visible") refresh();
+    };
+
+    window.addEventListener("focus", run);
+    document.addEventListener("visibilitychange", run);
+    const timer = window.setInterval(run, everyMs);
+
+    return () => {
+      window.removeEventListener("focus", run);
+      document.removeEventListener("visibilitychange", run);
+      window.clearInterval(timer);
+    };
+  }, [refresh, everyMs]);
+}
+
+/**
  * One slim line on the dashboard when someone has written to you since you last
- * opened that quiz's messages. It checks every time the page is shown, stays
- * until the messages are opened, and shows nothing when there is nothing new
- * (or when the check fails, so it never gets in the way).
+ * opened that quiz's messages. It checks when the page is shown and again when
+ * you return to it or every 30 seconds, stays until the messages are opened, and
+ * shows nothing when there is nothing new (or when the check fails, so it never
+ * gets in the way).
  */
 export function UnreadMessagesNotice({
   viewer,
@@ -23,18 +47,19 @@ export function UnreadMessagesNotice({
   onOpen: (attemptId: string | null) => void;
 }) {
   const [summary, setSummary] = useState<UnreadSummary | null>(null);
+  const latestRequest = useRef(0);
 
-  useEffect(() => {
-    const controller = new AbortController();
+  const load = useCallback((signal?: AbortSignal) => {
+    const request = ++latestRequest.current;
 
-    fetch("/api/assessment/messages", {
-      signal: controller.signal,
-      cache: "no-store",
-    })
+    fetch("/api/assessment/messages", { signal, cache: "no-store" })
       .then(async (response) => {
         if (!response.ok) return;
 
         const body: unknown = await response.json();
+
+        // An older, slower answer must not replace a newer one.
+        if (request !== latestRequest.current) return;
 
         if (typeof body === "object" && body !== null && "unread" in body) {
           setSummary(parseUnreadSummary(body.unread));
@@ -43,9 +68,16 @@ export function UnreadMessagesNotice({
       .catch(() => {
         /* the notice is optional */
       });
-
-    return () => controller.abort();
   }, []);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    load(controller.signal);
+    return () => controller.abort();
+  }, [load]);
+
+  const refresh = useCallback(() => load(), [load]);
+  useRefreshOnReturn(refresh);
 
   const notice = useMemo(
     () => (summary ? unreadNotice(summary, viewer) : null),

@@ -30,6 +30,11 @@ function whole(value: unknown): number {
   return Number.isFinite(parsed) && parsed > 0 ? Math.trunc(parsed) : 0;
 }
 
+/**
+ * Reads the summary from the database (snake_case) and also from our own API
+ * response (camelCase), so parsing an already-parsed summary gives the same
+ * result instead of silently dropping every item.
+ */
 export function parseUnreadSummary(raw: unknown): UnreadSummary {
   if (!isRecord(raw)) return { total: 0, items: [] };
 
@@ -37,17 +42,17 @@ export function parseUnreadSummary(raw: unknown): UnreadSummary {
     ? raw.items.flatMap((entry): UnreadItem[] => {
         if (!isRecord(entry)) return [];
 
-        const attemptId = text(entry.attempt_id);
+        const attemptId = text(entry.attempt_id) || text(entry.attemptId);
         const unread = whole(entry.unread);
         if (!attemptId || unread === 0) return [];
 
         return [
           {
             attemptId,
-            quizTitle: text(entry.quiz_title, "your quiz"),
-            student: text(entry.student, "A student"),
+            quizTitle: text(entry.quiz_title) || text(entry.quizTitle) || "your quiz",
+            student: text(entry.student) || "A student",
             unread,
-            latestAt: text(entry.latest_at),
+            latestAt: text(entry.latest_at) || text(entry.latestAt),
           },
         ];
       })

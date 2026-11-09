@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/database.types";
+import { MAX_ATTEMPTS_PER_STUDENT_QUIZ } from "./attempt-history";
 import { buildLeaderboards, type LeaderboardData } from "./leaderboard";
 import {
   buildScoreDistribution,
@@ -36,6 +37,8 @@ export type DashboardAttempt = {
   total: number | null;
   percentage: number;
   completedAt: string;
+  /** 1 for the student's first try on this quiz. Null when unknown. */
+  attemptNumber: number | null;
 };
 
 export type DashboardTeacher = {
@@ -126,6 +129,7 @@ type ResultRow = {
   correct_count: number | string | null;
   total_questions: number | string | null;
   completed_at: string;
+  attempt_number?: number | string | null;
 };
 
 type RosterRow = {
@@ -135,7 +139,7 @@ type RosterRow = {
 
 const QUIZ_COLUMNS = "session_id, title, status, teacher_id, created_at";
 const RESULT_COLUMNS =
-  "attempt_id, session_id, title, participant_username, percentage, correct_count, total_questions, completed_at";
+  "attempt_id, session_id, title, participant_username, attempt_number, percentage, correct_count, total_questions, completed_at";
 const QUIZ_LIMIT = 1_000;
 const RESULT_LIMIT = 1_000;
 const ROSTER_LIMIT = 5_000;
@@ -304,19 +308,39 @@ function recentScores(
   });
 }
 
+/**
+ * The latest attempts for the Assessment list (newest first). Quizzes can allow
+ * unlimited retakes, so one student could otherwise fill the whole list: each
+ * student keeps at most MAX_ATTEMPTS_PER_STUDENT_QUIZ attempts per quiz.
+ */
 function attemptList(
   rows: readonly ResultRow[],
   limit = 200,
 ): DashboardAttempt[] {
-  return rows.slice(0, limit).map((row) => ({
-    id: row.attempt_id,
-    student: row.participant_username,
-    quizTitle: row.title,
-    correct: readCount(row.correct_count),
-    total: readCount(row.total_questions),
-    percentage: readNumber(row.percentage),
-    completedAt: row.completed_at,
-  }));
+  const perStudentQuiz = new Map<string, number>();
+  const list: DashboardAttempt[] = [];
+
+  for (const row of rows) {
+    if (list.length >= limit) break;
+
+    const key = `${row.participant_username.trim().toLowerCase()}\u0000${row.title}`;
+    const kept = perStudentQuiz.get(key) ?? 0;
+    if (kept >= MAX_ATTEMPTS_PER_STUDENT_QUIZ) continue;
+    perStudentQuiz.set(key, kept + 1);
+
+    list.push({
+      id: row.attempt_id,
+      student: row.participant_username,
+      quizTitle: row.title,
+      correct: readCount(row.correct_count),
+      total: readCount(row.total_questions),
+      percentage: readNumber(row.percentage),
+      completedAt: row.completed_at,
+      attemptNumber: readCount(row.attempt_number ?? null),
+    });
+  }
+
+  return list;
 }
 
 function quizDistributions(
