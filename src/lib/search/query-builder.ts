@@ -39,6 +39,11 @@ export function buildPostgrestOrFilter(
 export function buildSearchPlan(
   query: SearchQuery,
   scope: SearchScope,
+  /**
+   * Usernames of the students in `query.class`, looked up by the caller from
+   * the signed-in teacher classes. Required whenever `query.class` is set.
+   */
+  classUsernames?: readonly string[],
 ): SearchPlan {
   assertEntityAllowed(scope.role, query.entity);
 
@@ -96,6 +101,23 @@ export function buildSearchPlan(
       column: "session_code",
       operator: "ilike",
       value: containsPattern(query.session),
+    });
+  }
+
+  if (query.class && config.filters.includes("class")) {
+    if (!classUsernames) {
+      throw new SearchError(
+        500,
+        "CLASS_NOT_RESOLVED",
+        "The class filter could not be applied.",
+      );
+    }
+
+    filters.push({
+      column: "username",
+      operator: "ilike_any",
+      value: "",
+      values: classUsernames.map(escapeLikePattern),
     });
   }
 

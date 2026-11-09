@@ -139,8 +139,14 @@ export async function executeSearch(input: {
   context: SearchScope;
   query: SearchQuery;
   repository: SearchRepository;
+  /** Usernames in the selected class; see buildSearchPlan. */
+  classUsernames?: readonly string[];
 }): Promise<SearchResponse> {
-  const plan = buildSearchPlan(input.query, input.context);
+  const plan = buildSearchPlan(
+    input.query,
+    input.context,
+    input.classUsernames,
+  );
 
   if (!hasTeacherScope(plan, input.context)) {
     throw new SearchError(
@@ -179,6 +185,7 @@ export async function executeSearch(input: {
         teacher: input.query.teacher,
         quiz: input.query.quiz,
         session: input.query.session,
+        class: input.query.class,
         from: input.query.from,
         to: input.query.to,
       },

@@ -26,6 +26,8 @@ import { Button } from "@/components/ui/button";
 import { PaginatedTable } from "@/components/ui/paginated-table";
 import { PixelCard } from "@/components/ui/pixel-primitives";
 import { AssessmentSection } from "@/components/dashboard/assessment-section";
+import { AssignedQuizzesSection } from "@/components/dashboard/assigned-quizzes-section";
+import type { AssignedQuiz } from "@/lib/classes/client";
 import { BadgesSection } from "@/components/dashboard/badges-section";
 import { UnreadMessagesNotice } from "@/components/dashboard/unread-messages-notice";
 import { PerformanceNotices } from "@/components/dashboard/performance-notices";
@@ -52,6 +54,8 @@ export type StudentHistoryRow = {
 };
 
 type StudentDashboardContentProps = {
+  /** Quizzes sent to this student; null when the quiz server is unreachable. */
+  assignedQuizzes: readonly AssignedQuiz[] | null;
   profile: {
     username: string | null;
     email: string | null;
@@ -66,6 +70,7 @@ type StudentDashboardContentProps = {
 
 const navItems: DashboardNavItem[] = [
   { key: "overview", label: "Overview" },
+  { key: "quizzes", label: "My Quizzes" },
   { key: "history", label: "Quiz History" },
   { key: "assessment", label: "Assessment" },
   { key: "badges", label: "Achievements" },
@@ -234,6 +239,7 @@ function HistoryTable({
 }
 
 export default function StudentDashboardContent({
+  assignedQuizzes,
   profile,
   history,
   summaryHistory,
@@ -247,7 +253,9 @@ export default function StudentDashboardContent({
   const { navigate } = useNavigation();
   const search = searchParams.toString();
   const activeKey =
-    searchParams.get("tab") === "history"
+    searchParams.get("tab") === "quizzes"
+      ? "quizzes"
+      : searchParams.get("tab") === "history"
       ? "history"
       : searchParams.get("tab") === "assessment"
         ? "assessment"
@@ -522,6 +530,10 @@ export default function StudentDashboardContent({
             />
           </section>
         </div>
+      ) : null}
+
+      {activeKey === "quizzes" ? (
+        <AssignedQuizzesSection quizzes={assignedQuizzes} />
       ) : null}
 
       {activeKey === "history" ? (

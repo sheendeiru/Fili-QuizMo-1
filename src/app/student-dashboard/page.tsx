@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import StudentDashboardContent from "@/components/dashboard/student-dashboard-content";
 import { DashboardSkeleton } from "@/components/dashboard/dashboard-skeleton";
 import { requireStudentAccess } from "@/lib/auth/require-dashboard-access";
+import { loadStudentAssignedQuizzes } from "@/lib/classes/server";
 import { createClient } from "@/lib/supabase/server";
 
 const HISTORY_PAGE_SIZE = 5;
@@ -20,7 +21,7 @@ async function StudentDashboardData({
   const historyColumns =
     "attempt_id, session_id, quiz_title, attempt_number, correct_count, total_questions, answered_count, final_score, percentage, started_at, completed_at, duration_seconds";
   const from = (page - 1) * HISTORY_PAGE_SIZE;
-  const [profileResult, summaryResult, historyResult] = await Promise.all([
+  const [profileResult, summaryResult, historyResult, assignedQuizzes] = await Promise.all([
     supabase
       .from("account_profiles")
       .select("username, email, created_at")
@@ -36,6 +37,8 @@ async function StudentDashboardData({
       .select(historyColumns, { count: "exact" })
       .order("completed_at", { ascending: false, nullsFirst: false })
       .range(from, from + HISTORY_PAGE_SIZE - 1),
+    // Quizzes sent by the teacher come from the quiz server, not the database.
+    loadStudentAssignedQuizzes(),
   ]);
 
   if (profileResult.error) {
@@ -56,6 +59,7 @@ async function StudentDashboardData({
 
   return (
     <StudentDashboardContent
+      assignedQuizzes={assignedQuizzes}
       profile={{
         username: profileResult.data?.username ?? null,
         email: profileResult.data?.email ?? email,

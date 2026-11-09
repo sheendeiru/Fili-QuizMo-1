@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/database.types";
+import type { QuizAssignment, TeacherClass } from "@/lib/classes/client";
 import { MAX_ATTEMPTS_PER_STUDENT_QUIZ } from "./attempt-history";
 import { buildLeaderboards, type LeaderboardData } from "./leaderboard";
 import {
@@ -85,6 +86,36 @@ export type AdminDashboardData = {
   teacherAccounts: DashboardTeacher[];
 };
 
+/**
+ * The scores of one class: the same cards and rankings as the whole-teacher
+ * view, limited to the students currently in the class.
+ */
+export type ClassQuizProgress = {
+  sessionId: string;
+  title: string;
+  /** Students in the class right now. */
+  assignedCount: number;
+  /** Students who finished the quiz at least once. */
+  takenCount: number;
+  /** Average of each student's best score on this quiz, null if nobody took it. */
+  average: number | null;
+  /** Usernames of class students with no finished attempt, A to Z. */
+  notTaken: string[];
+};
+
+export type ClassDashboardView = {
+  classId: string;
+  name: string;
+  studentCount: number;
+  /** Quizzes sent to this class, newest assignment last. */
+  quizProgress: ClassQuizProgress[];
+  results: ResultSummary;
+  distributions: ScoreDistribution[];
+  leaderboards: LeaderboardData;
+};
+
+export type QuizSentTo = { classes: string[]; students: string[] };
+
 export type TeacherDashboardData = {
   quizzes: QuizStatusSummary;
   /** Teacher: distinct students who joined or finished this teacher's quizzes. */
@@ -94,6 +125,10 @@ export type TeacherDashboardData = {
   recentScores: DashboardScore[];
   distributions: ScoreDistribution[];
   leaderboards: LeaderboardData;
+  /** One entry per class, empty when classes are not available. */
+  classViews: ClassDashboardView[];
+  /** Where each quiz was sent, by quiz id. Quizzes sent nowhere are absent. */
+  assignedTo: Record<string, QuizSentTo>;
   /** Latest finished attempts on this teacher's quizzes (newest first). */
   assessmentAttempts: DashboardAttempt[];
 };
@@ -559,9 +594,112 @@ export async function loadAdminDashboardData(
   };
 }
 
+/**
+ * Splits finished attempts by class. Results are matched to class members by
+ * username, ignoring case: that is how this dashboard identifies a student
+ * everywhere (the leaderboard, the scores table). A student in several
+ * classes appears in each of them.
+ */
+export function buildClassViews(
+  classes: readonly TeacherClass[],
+  results: readonly ResultRow[],
+  assignments: readonly QuizAssignment[] = [],
+  /** Quiz titles by quiz id; assignments to quizzes not listed are skipped. */
+  titles: ReadonlyMap<string, string> = new Map(),
+): ClassDashboardView[] {
+  return classes.map((item) => {
+    const members = new Set(
+      item.students.map((student) => normalizeName(student.username)),
+    );
+    const rows = results.filter((row) =>
+      members.has(normalizeName(row.participant_username)),
+    );
+
+    const quizProgress = assignments
+      .filter((assignment) => assignment.classIds.includes(item.classId))
+      .flatMap((assignment): ClassQuizProgress[] => {
+        const title = titles.get(assignment.sessionId);
+        if (title === undefined) return [];
+
+        // Each student's best score on this quiz.
+        const best = new Map<string, number>();
+        for (const row of rows) {
+          if (row.session_id !== assignment.sessionId) continue;
+          const key = normalizeName(row.participant_username);
+          best.set(key, Math.max(best.get(key) ?? 0, readNumber(row.percentage)));
+        }
+
+        const scores = [...best.values()];
+
+        return [
+          {
+            sessionId: assignment.sessionId,
+            title,
+            assignedCount: item.students.length,
+            takenCount: item.students.filter((student) =>
+              best.has(normalizeName(student.username)),
+            ).length,
+            average:
+              scores.length === 0
+                ? null
+                : Math.round(
+                    (scores.reduce((sum, score) => sum + score, 0) /
+                      scores.length) *
+                      10,
+                  ) / 10,
+            notTaken: item.students
+              .filter((student) => !best.has(normalizeName(student.username)))
+              .map((student) => student.username)
+              .sort((a, b) => a.localeCompare(b, "en", { sensitivity: "base" })),
+          },
+        ];
+      });
+
+    return {
+      classId: item.classId,
+      name: item.name,
+      studentCount: item.students.length,
+      quizProgress,
+      results: resultSummary(rows),
+      distributions: quizDistributions(rows),
+      leaderboards: buildLeaderboards(rows),
+    };
+  });
+}
+
+/** Class names and student usernames each quiz was sent to, by quiz id. */
+export function buildAssignedTo(
+  classes: readonly TeacherClass[],
+  assignments: readonly QuizAssignment[],
+): Record<string, QuizSentTo> {
+  const classNames = new Map(classes.map((item) => [item.classId, item.name]));
+  const result: Record<string, QuizSentTo> = {};
+
+  for (const assignment of assignments) {
+    const sentTo: QuizSentTo = {
+      // A class deleted since then is no longer in the list.
+      classes: assignment.classIds.flatMap((id) => classNames.get(id) ?? []),
+      students: assignment.students.map((student) => student.username),
+    };
+
+    if (sentTo.classes.length > 0 || sentTo.students.length > 0) {
+      result[assignment.sessionId] = sentTo;
+    }
+  }
+
+  return result;
+}
+
 export async function loadTeacherDashboardData(
   supabase: SupabaseClient<Database>,
   teacherId: number,
+  /**
+   * The teacher's classes, started by the caller so the request runs while the
+   * results load. null (or omitted) means classes are unavailable.
+   */
+  classes?: Promise<readonly TeacherClass[] | null>,
+  /** Where the teacher's quizzes were sent; started by the caller like classes. */
+  assignments?: Promise<readonly QuizAssignment[] | null>,
 ): Promise<TeacherDashboardData> {
   // quiz_sessions.teacher_id is the auth user id, but this function receives
   // teachers.id, so look the user id up first (falling back to the signed-in
@@ -603,8 +741,23 @@ export async function loadTeacherDashboardData(
     loadRosterForSessions(supabase, sessionIds),
   ]);
 
+  const [teacherClasses, teacherAssignments] = await Promise.all([
+    classes ?? null,
+    assignments ?? null,
+  ]).then(([c, a]) => [c ?? [], a ?? []] as const);
+  const titles = new Map(
+    quizzes.map((quiz) => [quiz.session_id, quiz.title ?? "Untitled quiz"]),
+  );
+
   return {
     leaderboards: buildLeaderboards(results),
+    classViews: buildClassViews(
+      teacherClasses,
+      results,
+      teacherAssignments,
+      titles,
+    ),
+    assignedTo: buildAssignedTo(teacherClasses, teacherAssignments),
     assessmentAttempts: attemptList(results),
     quizzes: quizSummary(quizzes),
     studentCount: countDistinctStudents(roster, results),

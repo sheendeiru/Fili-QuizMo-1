@@ -6,6 +6,7 @@ import { SearchFilter } from "@/components/dashboard/search-filter";
 import { PixelButton, PixelInput } from "@/components/ui/pixel-primitives";
 import { PixelModal } from "@/components/ui/pixel-modal";
 import { getStatusLabel } from "@/lib/search/config";
+import type { QuizSentTo } from "@/lib/dashboard/data";
 import type { SearchItem, SearchRole } from "@/lib/search/types";
 
 type QuizItem = Extract<SearchItem, { entity: "quizzes" }>;
@@ -43,11 +44,30 @@ function formatDate(value: string): string {
   return Number.isNaN(date.getTime()) ? "—" : dateFormatter.format(date);
 }
 
+/** "Classes: A, B. Students: x, y." or a note that it was sent nowhere. */
+function sentToText(sentTo: QuizSentTo | undefined): string {
+  if (!sentTo) return "Not sent to any class or student";
+
+  return [
+    sentTo.classes.length > 0 ? `Classes: ${sentTo.classes.join(", ")}` : "",
+    sentTo.students.length > 0 ? `Students: ${sentTo.students.join(", ")}` : "",
+  ]
+    .filter(Boolean)
+    .join(". ");
+}
+
 /**
  * The quizzes table for the admin and teacher dashboards: the usual search,
  * filters and pagination, plus a View and a Delete button on every row.
  */
-export function ManageQuizzesTable({ actorRole }: { actorRole: SearchRole }) {
+export function ManageQuizzesTable({
+  actorRole,
+  assignedTo = {},
+}: {
+  actorRole: SearchRole;
+  /** Where each quiz was sent, by quiz id (teacher dashboard only). */
+  assignedTo?: Readonly<Record<string, QuizSentTo>>;
+}) {
   const router = useRouter();
   const [refreshKey, setRefreshKey] = useState(0);
   const [viewTarget, setViewTarget] = useState<QuizItem | null>(null);
@@ -193,6 +213,14 @@ export function ManageQuizzesTable({ actorRole }: { actorRole: SearchRole }) {
                 </dd>
               </div>
             </div>
+            {actorRole === "teacher" ? (
+              <div>
+                <dt className="text-neutral-500">Sent to</dt>
+                <dd className="font-semibold text-foreground">
+                  {sentToText(assignedTo[viewTarget.id])}
+                </dd>
+              </div>
+            ) : null}
           </dl>
           <div className="mt-4 flex justify-end">
             <PixelButton

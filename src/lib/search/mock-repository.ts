@@ -43,6 +43,10 @@ function matchesFilter(
       return value === filter.value;
     case "ilike":
       return likeRegExp(filter.value).test(value);
+    case "ilike_any":
+      return (filter.values ?? []).some((pattern) =>
+        likeRegExp(pattern).test(value),
+      );
     case "gte":
       return value >= filter.value;
     case "lte":

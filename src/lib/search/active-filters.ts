@@ -12,6 +12,8 @@ export type ActiveFilterChip = {
 
 export function getActiveFilterChips(
   query: SearchQuery,
+  /** Class names by id, so the chip shows a name instead of an id. */
+  classNames: Readonly<Record<string, string>> = {},
 ): ActiveFilterChip[] {
   const config = getEntityConfig(query.entity);
   const chips: ActiveFilterChip[] = [];
@@ -45,6 +47,14 @@ export function getActiveFilterChips(
       key: "session",
       label: "Session code",
       value: query.session,
+    });
+  }
+
+  if (query.class) {
+    chips.push({
+      key: "class",
+      label: "Class",
+      value: classNames[query.class] ?? "Selected class",
     });
   }
 
