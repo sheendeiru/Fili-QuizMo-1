@@ -27,7 +27,6 @@ import { PaginatedTable } from "@/components/ui/paginated-table";
 import { PixelCard } from "@/components/ui/pixel-primitives";
 import { AssessmentSection } from "@/components/dashboard/assessment-section";
 import { AssignedQuizzesSection } from "@/components/dashboard/assigned-quizzes-section";
-import type { AssignedQuiz } from "@/lib/classes/client";
 import { BadgesSection } from "@/components/dashboard/badges-section";
 import { UnreadMessagesNotice } from "@/components/dashboard/unread-messages-notice";
 import { PerformanceNotices } from "@/components/dashboard/performance-notices";
@@ -54,8 +53,6 @@ export type StudentHistoryRow = {
 };
 
 type StudentDashboardContentProps = {
-  /** Quizzes sent to this student; null when the quiz server is unreachable. */
-  assignedQuizzes: readonly AssignedQuiz[] | null;
   profile: {
     username: string | null;
     email: string | null;
@@ -73,7 +70,6 @@ const navItems: DashboardNavItem[] = [
   { key: "quizzes", label: "My Quizzes" },
   { key: "history", label: "Quiz History" },
   { key: "assessment", label: "Assessment" },
-  { key: "badges", label: "Achievements" },
   { key: "profile", label: "Profile" },
 ];
 
@@ -239,7 +235,6 @@ function HistoryTable({
 }
 
 export default function StudentDashboardContent({
-  assignedQuizzes,
   profile,
   history,
   summaryHistory,
@@ -260,7 +255,7 @@ export default function StudentDashboardContent({
       : searchParams.get("tab") === "assessment"
         ? "assessment"
         : searchParams.get("tab") === "badges"
-          ? "badges"
+          ? "profile"
           : searchParams.get("tab") === "profile"
             ? "profile"
             : "overview";
@@ -533,7 +528,7 @@ export default function StudentDashboardContent({
       ) : null}
 
       {activeKey === "quizzes" ? (
-        <AssignedQuizzesSection quizzes={assignedQuizzes} />
+        <AssignedQuizzesSection />
       ) : null}
 
       {activeKey === "history" ? (
@@ -566,12 +561,8 @@ export default function StudentDashboardContent({
         />
       ) : null}
 
-      {activeKey === "badges" ? (
-        <BadgesSection />
-      ) : null}
-
       {activeKey === "profile" ? (
-        <div className="max-w-xl space-y-3">
+        <div className="space-y-6">
           <h2 className="text-xl font-bold text-foreground">Profile</h2>
           <PixelCard as="article" className="divide-y divide-neutral-200">
             <dl>
@@ -595,6 +586,7 @@ export default function StudentDashboardContent({
               </div>
             </dl>
           </PixelCard>
+          <BadgesSection />
         </div>
       ) : null}
     </DashboardShell>
