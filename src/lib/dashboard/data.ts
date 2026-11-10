@@ -378,6 +378,65 @@ function attemptList(
   return list;
 }
 
+type DurationRow = {
+  attempt_id: string | null;
+  started_at: string | null;
+  completed_at: string | null;
+  duration_seconds: number | string | null;
+};
+
+/**
+ * How long each attempt took, by attempt id. The Assessment rows
+ * (student_quiz_results) do not carry timing, so it comes from the
+ * teacher_student_scores view, which does. It only decorates attempts that were
+ * already found, so it never adds or removes a row; if it fails, durations are
+ * simply left out and the popup shows a dash.
+ */
+async function loadAttemptDurations(
+  supabase: SupabaseClient<Database>,
+  attemptIds: readonly string[],
+): Promise<Map<string, number>> {
+  const durations = new Map<string, number>();
+
+  if (attemptIds.length === 0) {
+    return durations;
+  }
+
+  const responses = await Promise.all(
+    chunk(attemptIds).map((ids) =>
+      supabase
+        .from("teacher_student_scores")
+        .select("attempt_id, started_at, completed_at, duration_seconds")
+        .in("attempt_id", ids),
+    ),
+  );
+
+  for (const response of responses) {
+    if (response.error) {
+      console.error("Attempt durations unavailable.", response.error.message);
+      continue;
+    }
+
+    for (const row of (response.data ?? []) as unknown as DurationRow[]) {
+      if (!row.attempt_id) continue;
+
+      let seconds = readCount(row.duration_seconds);
+
+      if (seconds === null && row.started_at && row.completed_at) {
+        const elapsed =
+          (Date.parse(row.completed_at) - Date.parse(row.started_at)) / 1000;
+        seconds = Number.isFinite(elapsed) ? elapsed : null;
+      }
+
+      if (seconds !== null && seconds >= 0) {
+        durations.set(row.attempt_id, seconds);
+      }
+    }
+  }
+
+  return durations;
+}
+
 /** One finished attempt in the "student's quizzes" popup (Manage Student Info). */
 export type StudentQuizAttempt = {
   attemptId: string;
@@ -387,6 +446,8 @@ export type StudentQuizAttempt = {
   totalQuestions: number | null;
   percentage: number;
   completedAt: string;
+  /** Seconds the student took, or null when it was not recorded. */
+  durationSeconds: number | null;
 };
 
 /** teacher: only quizzes this teacher owns (auth user id). admin: relevant quizzes only. */
@@ -498,8 +559,14 @@ export async function loadStudentQuizAttempts(
       (Date.parse(left.completed_at) || 0),
   );
 
+  const list = attemptList(rows);
+  const durations = await loadAttemptDurations(
+    supabase,
+    list.map((attempt) => attempt.id),
+  );
+
   return {
-    attempts: attemptList(rows).map((attempt) => ({
+    attempts: list.map((attempt) => ({
       attemptId: attempt.id,
       quizTitle: attempt.quizTitle,
       attemptNumber: attempt.attemptNumber,
@@ -507,6 +574,7 @@ export async function loadStudentQuizAttempts(
       totalQuestions: attempt.total,
       percentage: attempt.percentage,
       completedAt: attempt.completedAt,
+      durationSeconds: durations.get(attempt.id) ?? null,
     })),
     truncated,
   };

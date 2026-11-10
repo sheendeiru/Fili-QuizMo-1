@@ -17,6 +17,8 @@ export type StudentQuizAttempt = {
   totalQuestions: number | null;
   percentage: number | null;
   completedAt: string | null;
+  /** Seconds the student took on this attempt, null when not recorded. */
+  durationSeconds: number | null;
 };
 
 export type StudentQuizzesPayload = {
@@ -38,6 +40,20 @@ export function formatAttemptDate(value: string | null): string {
   const date = new Date(value);
 
   return Number.isNaN(date.getTime()) ? "—" : dateFormatter.format(date);
+}
+
+export function formatDuration(seconds: number | null | undefined): string {
+  if (typeof seconds !== "number" || !Number.isFinite(seconds) || seconds < 0) {
+    return "—";
+  }
+
+  const total = Math.round(seconds);
+  const minutes = Math.floor(total / 60);
+  const rest = total % 60;
+
+  return minutes === 0
+    ? `${rest}s`
+    : `${minutes}m ${String(rest).padStart(2, "0")}s`;
 }
 
 export function scoreVariant(
@@ -151,6 +167,9 @@ export function StudentQuizzesList({
               <th scope="col" className="px-2 py-1.5 text-left font-bold">
                 Finished
               </th>
+              <th scope="col" className="px-2 py-1.5 text-left font-bold">
+                Time
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -177,6 +196,9 @@ export function StudentQuizzesList({
                 </td>
                 <td className="whitespace-nowrap px-2 py-1.5 align-middle">
                   {formatAttemptDate(quiz.completedAt)}
+                </td>
+                <td className="whitespace-nowrap px-2 py-1.5 align-middle">
+                  {formatDuration(quiz.durationSeconds)}
                 </td>
               </tr>
             ))}

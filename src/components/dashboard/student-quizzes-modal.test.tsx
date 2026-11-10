@@ -14,13 +14,11 @@ import { rowActionsFor } from "./manage-accounts";
 function attempt(overrides: Partial<StudentQuizAttempt> = {}): StudentQuizAttempt {
   return {
     attemptId: "a1",
-    sessionId: "s1",
     quizTitle: "Alamat ng Pinya",
     attemptNumber: 2,
     correctCount: 4,
     totalQuestions: 5,
     percentage: 80,
-    startedAt: "2026-11-01T01:00:00Z",
     completedAt: "2026-11-01T01:05:00Z",
     durationSeconds: 125,
     ...overrides,
@@ -120,6 +118,8 @@ describe("student quizzes list", () => {
 describe("helpers", () => {
   it.each([
     [null, "—"],
+    [undefined, "—"],
+    [Number.NaN, "—"],
     [-1, "—"],
     [0, "0s"],
     [45, "45s"],
