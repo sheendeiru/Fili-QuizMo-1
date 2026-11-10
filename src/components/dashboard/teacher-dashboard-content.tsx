@@ -19,13 +19,11 @@ import {
   ChartTabs,
   SectionHeading,
   StatCard,
-  StatGrid,
 } from "@/components/dashboard/compact-layout";
 import { SearchFilter } from "@/components/dashboard/search-filter";
 import { ManageQuizzesTable } from "@/components/dashboard/manage-quizzes";
 import {
   BarChartCard,
-  MeterCard,
   RecentScoresCard,
 } from "@/components/dashboard/dashboard-charts";
 import { ManageAccountsTable } from "@/components/dashboard/manage-accounts";
@@ -320,11 +318,10 @@ function QuizzesSection({
         onAction={onReviewNotice}
       />
 
-      <StatGrid columns={3}>
+      <div className="grid grid-cols-2 gap-2 sm:gap-3">
         <StatCard label="Total Quizzes" value={String(data.quizzes.total)} />
         <StatCard label="Active Students" value={String(data.studentCount)} />
-        <StatCard label="Average Score" value={`${data.results.average}%`} />
-      </StatGrid>
+      </div>
 
       {/* Phones: one chart at a time behind tabs. md and up: 2-column grid. */}
       <ChartTabs
@@ -421,7 +418,6 @@ function ScoresSection({ data }: { data: TeacherDashboardData }) {
   // below, so the cards and the table always describe the same students.
   const classId = useSearchParams().get("class") ?? "";
   const classView = data.classViews.find((item) => item.classId === classId);
-  const results = classView?.results ?? data.results;
   const distributions = classView?.distributions ?? data.distributions;
 
   return (
@@ -430,22 +426,16 @@ function ScoresSection({ data }: { data: TeacherDashboardData }) {
         title="Students & Scores"
         description="Search students and review their quiz performances."
       />
-      <div className="grid gap-2 sm:gap-3 md:grid-cols-[minmax(0,1fr)_minmax(0,2fr)] md:items-start">
-        <MeterCard
-          label={classView ? `Average Score (${classView.name})` : "Average Score"}
-          percent={results.average}
-        />
-        <ChartPanel
-          title="Score Distribution"
-          caption={
-            classView
-              ? `Score distribution per quiz for ${classView.name}.`
-              : "Student score distribution per quiz."
-          }
-        >
-          <PieChart distributions={distributions} />
-        </ChartPanel>
-      </div>
+      <ChartPanel
+        title="Score Distribution"
+        caption={
+          classView
+            ? `Score distribution per quiz for ${classView.name}.`
+            : "Student score distribution per quiz."
+        }
+      >
+        <PieChart distributions={distributions} />
+      </ChartPanel>
       <ClassProgress classViews={data.classViews} selectedClassId={classId} />
       <SearchFilter
         role="teacher"
