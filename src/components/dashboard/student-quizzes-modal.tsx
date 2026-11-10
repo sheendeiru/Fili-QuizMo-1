@@ -8,17 +8,15 @@ import {
   PixelTable,
 } from "@/components/ui/pixel-primitives";
 
+/** Same fields the Assessment list shows for an attempt. */
 export type StudentQuizAttempt = {
   attemptId: string;
-  sessionId: string;
   quizTitle: string;
   attemptNumber: number | null;
   correctCount: number | null;
   totalQuestions: number | null;
   percentage: number | null;
-  startedAt: string | null;
   completedAt: string | null;
-  durationSeconds: number | null;
 };
 
 export type StudentQuizzesPayload = {
@@ -28,9 +26,9 @@ export type StudentQuizzesPayload = {
   quizzes: StudentQuizAttempt[];
 };
 
+// Date only, like the Assessment list.
 const dateFormatter = new Intl.DateTimeFormat("en-PH", {
   dateStyle: "medium",
-  timeStyle: "short",
   timeZone: "Asia/Manila",
 });
 
@@ -40,18 +38,6 @@ export function formatAttemptDate(value: string | null): string {
   const date = new Date(value);
 
   return Number.isNaN(date.getTime()) ? "—" : dateFormatter.format(date);
-}
-
-export function formatDuration(seconds: number | null): string {
-  if (seconds === null || seconds < 0) return "—";
-
-  const total = Math.round(seconds);
-  const minutes = Math.floor(total / 60);
-  const rest = total % 60;
-
-  return minutes === 0
-    ? `${rest}s`
-    : `${minutes}m ${String(rest).padStart(2, "0")}s`;
 }
 
 export function scoreVariant(
@@ -165,9 +151,6 @@ export function StudentQuizzesList({
               <th scope="col" className="px-2 py-1.5 text-left font-bold">
                 Finished
               </th>
-              <th scope="col" className="px-2 py-1.5 text-left font-bold">
-                Time
-              </th>
             </tr>
           </thead>
           <tbody>
@@ -194,9 +177,6 @@ export function StudentQuizzesList({
                 </td>
                 <td className="whitespace-nowrap px-2 py-1.5 align-middle">
                   {formatAttemptDate(quiz.completedAt)}
-                </td>
-                <td className="whitespace-nowrap px-2 py-1.5 align-middle">
-                  {formatDuration(quiz.durationSeconds)}
                 </td>
               </tr>
             ))}

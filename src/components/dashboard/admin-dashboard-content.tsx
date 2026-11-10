@@ -47,10 +47,20 @@ const PieChart = dynamic(
   },
 );
 
+// shortLabel is what the navbar shows; the drawer, the tooltip and screen
+// readers keep the full label.
 const navItems: DashboardNavItem[] = [
-  { key: "quizzes", label: "Manage Quizzes" },
-  { key: "teacher-accounts", label: "Manage Teacher Accounts" },
-  { key: "students", label: "Manage Student Accounts" },
+  { key: "quizzes", label: "Manage Quizzes", shortLabel: "Quizzes" },
+  {
+    key: "teacher-accounts",
+    label: "Manage Teacher Accounts",
+    shortLabel: "Teachers",
+  },
+  {
+    key: "students",
+    label: "Manage Student Accounts",
+    shortLabel: "Students",
+  },
 ];
 
 // Tables the admin dashboard summarises. A change in any of them refreshes

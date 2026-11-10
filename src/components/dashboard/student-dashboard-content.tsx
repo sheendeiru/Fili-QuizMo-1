@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import {
   usePathname,
   useRouter,
@@ -11,7 +11,6 @@ import type { DashboardNavItem } from "@/components/dashboard/dashboard-shell";
 import {
   AverageByQuiz,
   ChartCard,
-  LatestBreakdown,
   PercentChip,
   RetakeProgress,
   ScoreBands,
@@ -61,21 +60,29 @@ type StudentDashboardContentProps = {
     email: string | null;
     createdAt: string | null;
   };
-  history: StudentHistoryRow[];
+  /**
+   * Quiz History was merged into Assessment, so these three are no longer
+   * used here. They stay optional so the page can keep passing them until it
+   * stops loading the paginated history.
+   */
+  history?: StudentHistoryRow[];
+  historyPage?: number;
+  historyTotalPages?: number;
   summaryHistory: StudentHistoryRow[];
   historyTotal: number;
-  historyPage: number;
-  historyTotalPages: number;
 };
 
 const navItems: DashboardNavItem[] = [
   { key: "overview", label: "Overview" },
-  { key: "quizzes", label: "My Quizzes" },
-  { key: "history", label: "Quiz History" },
+  // shortLabel is what the compact navbar shows; the drawer uses the full label.
+  { key: "quizzes", label: "My Quizzes", shortLabel: "Quizzes" },
   { key: "assessment", label: "Assessment" },
-  { key: "badges", label: "Achievements" },
+  { key: "badges", label: "Achievements", shortLabel: "Badges" },
   { key: "profile", label: "Profile" },
 ];
+
+/** How many of the newest attempts the Overview lists. */
+const RECENT_ATTEMPTS_SHOWN = 5;
 
 const dateFormatter = new Intl.DateTimeFormat("en-PH", {
   dateStyle: "medium",
@@ -98,16 +105,6 @@ function formatPercent(value: number | null): string {
   return value === null || !Number.isFinite(value)
     ? "—"
     : `${Math.round(value)}%`;
-}
-
-function formatDuration(value: number | null): string {
-  if (value === null || !Number.isFinite(value) || value < 0) {
-    return "—";
-  }
-
-  const minutes = Math.floor(value / 60);
-  const seconds = value % 60;
-  return `${minutes}:${String(seconds).padStart(2, "0")}`;
 }
 
 type RawPair = { first: string; latest: string };
@@ -139,7 +136,6 @@ function buildRawScores(
   const byDate = [...scored].sort(
     (left, right) => completedTime(right) - completedTime(left),
   );
-  const latestRow = byDate[0];
   const bestRow = byDate.reduce<StudentHistoryRow | undefined>(
     (best, row) =>
       !best || (row.percentage ?? 0) > (best.percentage ?? 0) ? row : best,
@@ -170,70 +166,81 @@ function buildRawScores(
     best: same(bestRow?.percentage ?? null, analytics.kpis.best)
       ? rawOf(bestRow)
       : null,
-    latest: same(latestRow?.percentage ?? null, analytics.kpis.latest)
-      ? rawOf(latestRow)
-      : null,
     retakes,
   };
 }
 
-function HistoryTable({
+/**
+ * The newest few attempts, three columns so it fits a phone without scrolling.
+ * The full list (with message badges and paging) lives in Assessment.
+ */
+function RecentAttemptsTable({
   rows,
-  emptyMessage,
-  page,
-  totalPages,
-  onPageChange,
+  onReview,
 }: {
   rows: StudentHistoryRow[];
-  emptyMessage: string;
-  page: number;
-  totalPages: number;
-  onPageChange: (page: number) => void;
+  onReview: (attemptId: string) => void;
 }) {
   return (
     <PaginatedTable
-      caption="Quiz history"
+      caption="Recent quiz attempts"
       columns={[
         {
           key: "quiz",
           label: "Quiz",
-          render: (row) => row.quiz_title ?? "Untitled quiz",
-        },
-        {
-          key: "attempt",
-          label: "Attempt",
-          render: (row) => row.attempt_number ?? "—",
+          render: (row) => (
+            <span className="block">
+              <span className="block font-semibold text-foreground">
+                {row.quiz_title ?? "Untitled quiz"}
+              </span>
+              <span className="mt-0.5 block font-normal text-neutral-600">
+                Attempt {row.attempt_number ?? "—"} ·{" "}
+                {formatDate(row.completed_at)}
+              </span>
+            </span>
+          ),
         },
         {
           key: "score",
           label: "Score",
+          className: "whitespace-nowrap",
+          render: (row) => (
+            <span className="inline-flex items-center gap-2">
+              <span>
+                {formatRawScore(row.correct_count, row.total_questions) ??
+                  `${row.correct_count ?? 0}/${row.total_questions ?? 0}`}
+              </span>
+              <PercentChip value={row.percentage} />
+            </span>
+          ),
+        },
+        {
+          key: "review",
+          label: "Answers",
+          className: "whitespace-nowrap",
           render: (row) =>
-            `${row.correct_count ?? 0}/${row.total_questions ?? 0}`,
-        },
-        {
-          key: "percentage",
-          label: "Percentage",
-          render: (row) => <PercentChip value={row.percentage} />,
-        },
-        {
-          key: "completed",
-          label: "Completed",
-          render: (row) => formatDate(row.completed_at),
-        },
-        {
-          key: "duration",
-          label: "Duration",
-          render: (row) => formatDuration(row.duration_seconds),
+            row.attempt_id ? (
+              <Button
+                type="button"
+                size="sm"
+                onClick={() => onReview(row.attempt_id as string)}
+              >
+                Review
+              </Button>
+            ) : (
+              "—"
+            ),
         },
       ]}
       rows={rows}
       rowKey={(row) =>
         `${row.attempt_id ?? row.session_id}-${row.attempt_number ?? 0}`
       }
-      page={page}
-      totalPages={totalPages}
-      onPageChange={onPageChange}
-      emptyMessage={emptyMessage}
+      page={1}
+      totalPages={1}
+      onPageChange={() => undefined}
+      hidePagerWhenSinglePage
+      emptyMessage="No quiz results yet. Your completed quizzes will appear here."
     />
   );
 }
@@ -241,11 +248,8 @@ function HistoryTable({
 export default function StudentDashboardContent({
   assignedQuizzes,
   profile,
-  history,
   summaryHistory,
   historyTotal,
-  historyPage,
-  historyTotalPages,
 }: StudentDashboardContentProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -255,9 +259,9 @@ export default function StudentDashboardContent({
   const activeKey =
     searchParams.get("tab") === "quizzes"
       ? "quizzes"
-      : searchParams.get("tab") === "history"
-      ? "history"
-      : searchParams.get("tab") === "assessment"
+      : // Quiz History was merged into Assessment; old links land there.
+        searchParams.get("tab") === "assessment" ||
+          searchParams.get("tab") === "history"
         ? "assessment"
         : searchParams.get("tab") === "badges"
           ? "badges"
@@ -324,33 +328,72 @@ export default function StudentDashboardContent({
     window.scrollTo({ top: 0 });
   }
 
-  const navigateToPage = useCallback(
-    (page: number, replace = false) => {
-      const params = new URLSearchParams(search);
-      params.set("tab", "history");
-      if (page === 1) {
-        params.delete("page");
-      } else {
-        params.set("page", String(page));
-      }
-      navigate(() =>
-        replace
-          ? router.replace(`${pathname}?${params.toString()}`, {
-              scroll: false,
-            })
-          : router.push(`${pathname}?${params.toString()}`, {
-              scroll: false,
-            }),
-      );
-    },
-    [navigate, pathname, router, search],
-  );
-
-  useEffect(() => {
-    if (activeKey === "history" && historyPage > historyTotalPages) {
-      navigateToPage(historyTotalPages, true);
-    }
-  }, [activeKey, historyPage, historyTotalPages, navigateToPage]);
+  // The charts, paired so each row holds two of a kind (the two drawn charts,
+  // then the two lists) and the grid never ends with an empty cell: with an odd
+  // number the first (the trend line, which likes the width) spans both columns.
+  const chartTabsBase = analytics
+    ? [
+        {
+          key: "trend",
+          label: "Trend",
+          content: (
+            <ChartCard
+              title="Score trend"
+              caption={`Your last ${analytics.trend.length} completed quiz${analytics.trend.length === 1 ? "" : "zes"}`}
+            >
+              <ScoreTrendChart points={analytics.trend} />
+            </ChartCard>
+          ),
+        },
+        {
+          key: "bands",
+          label: "Bands",
+          content: (
+            <ChartCard
+              title="Score bands"
+              caption="How many quizzes landed in each range"
+            >
+              <ScoreBands bands={analytics.bands} />
+            </ChartCard>
+          ),
+        },
+        {
+          key: "byQuiz",
+          label: "By quiz",
+          content: (
+            <ChartCard
+              title="Average by quiz"
+              caption="Your strongest quizzes first"
+            >
+              <AverageByQuiz rows={analytics.byQuiz} />
+            </ChartCard>
+          ),
+        },
+        ...(analytics.retakes.length > 0
+          ? [
+              {
+                key: "retakes",
+                label: "Retakes",
+                content: (
+                  <ChartCard
+                    title="Retake progress"
+                    caption="First attempt compared with your latest"
+                  >
+                    <RetakeProgress
+                      rows={analytics.retakes}
+                      raw={rawScores?.retakes}
+                    />
+                  </ChartCard>
+                ),
+              },
+            ]
+          : []),
+      ]
+    : [];
+  const chartTabs = chartTabsBase.map((tab, index) => ({
+    ...tab,
+    wide: chartTabsBase.length % 2 === 1 && index === 0,
+  }));
 
   return (
     <DashboardShell
@@ -362,15 +405,12 @@ export default function StudentDashboardContent({
     >
       {activeKey === "overview" ? (
         <div className="space-y-2 sm:space-y-3">
-          <section>
-            <h2 className="text-xl font-bold text-foreground">
-              Welcome back, {profile.username ?? "Student"}!
-            </h2>
-            <p className="mt-1 text-sm text-px-muted">
-              Here is a summary of your quiz activity.
-            </p>
-          </section>
+          <h2 className="text-xl font-bold text-foreground">
+            Welcome back, {profile.username ?? "Student"}!
+          </h2>
 
+          {/* Needs attention: new messages and how the last quiz went. Each one
+              shows nothing when there is nothing to say. */}
           <UnreadMessagesNotice
             viewer="student"
             onOpen={(attemptId) =>
@@ -390,17 +430,26 @@ export default function StudentDashboardContent({
             }
           />
 
-          <section aria-label="Score summary">
-            <StatGrid columns={4}>
+          {/* Progress: the totals and the charts that explain them. */}
+          <section aria-labelledby="student-progress-title" className="space-y-2">
+            <h3
+              id="student-progress-title"
+              className="text-base font-semibold text-foreground"
+            >
+              Your progress
+            </h3>
+
+            {/* Short labels so all three fit on one phone row. */}
+            <StatGrid columns={3} phoneColumns={3}>
               <StatCard
-                label="Recorded attempts"
+                label="Attempts"
                 value={String(historyTotal)}
-                hint={`Latest ${summaryHistory.length} in the summary`}
+                hint="With retakes"
               />
               <StatCard
-                label="Average score"
+                label="Average"
                 value={formatPercent(analytics?.kpis.average ?? null)}
-                hint={`Latest ${summaryHistory.length} attempts`}
+                hint={`Latest ${summaryHistory.length}`}
               />
               <StatCard
                 label="Best score"
@@ -408,125 +457,40 @@ export default function StudentDashboardContent({
                   rawScores?.best ??
                   formatPercent(analytics?.kpis.best ?? null)
                 }
-                hint="Highest in latest results"
-              />
-              <StatCard
-                label="Latest score"
-                value={
-                  rawScores?.latest ??
-                  formatPercent(analytics?.kpis.latest ?? null)
-                }
-                hint={analytics?.kpis.latestQuiz ?? "No completed quiz yet"}
+                hint="Highest result"
               />
             </StatGrid>
+
+            {chartTabs.length > 0 ? (
+              // Phones: one chart at a time behind tabs. md and up: 2-column grid.
+              <ChartTabs label="Performance charts" tabs={chartTabs} />
+            ) : null}
           </section>
 
-          {analytics ? (
-            <section aria-label="Performance charts">
-              {/* Phones: one chart at a time behind tabs. md and up: 2-column grid. */}
-              <ChartTabs
-                label="Performance charts"
-                tabs={[
-                  {
-                    key: "trend",
-                    label: "Trend",
-                    wide: !analytics.latestBreakdown,
-                    content: (
-                      <ChartCard
-                        title="Score trend"
-                        caption={`Your last ${analytics.trend.length} completed quiz${analytics.trend.length === 1 ? "" : "zes"}`}
-                      >
-                        <ScoreTrendChart points={analytics.trend} />
-                      </ChartCard>
-                    ),
-                  },
-                  ...(analytics.latestBreakdown
-                    ? [
-                        {
-                          key: "latest",
-                          label: "Latest",
-                          content: (
-                            <ChartCard
-                              title="Latest quiz"
-                              caption="How your most recent answers added up"
-                            >
-                              <LatestBreakdown data={analytics.latestBreakdown} />
-                            </ChartCard>
-                          ),
-                        },
-                      ]
-                    : []),
-                  {
-                    key: "byQuiz",
-                    label: "By quiz",
-                    content: (
-                      <ChartCard
-                        title="Average by quiz"
-                        caption="Your strongest quizzes first"
-                      >
-                        <AverageByQuiz rows={analytics.byQuiz} />
-                      </ChartCard>
-                    ),
-                  },
-                  {
-                    key: "bands",
-                    label: "Bands",
-                    content: (
-                      <ChartCard
-                        title="Score bands"
-                        caption="How many quizzes landed in each range"
-                      >
-                        <ScoreBands bands={analytics.bands} />
-                      </ChartCard>
-                    ),
-                  },
-                  ...(analytics.retakes.length > 0
-                    ? [
-                        {
-                          key: "retakes",
-                          label: "Retakes",
-                          wide: true,
-                          content: (
-                            <ChartCard
-                              title="Retake progress"
-                              caption="First attempt compared with your latest"
-                            >
-                              <RetakeProgress
-                                rows={analytics.retakes}
-                                raw={rawScores?.retakes}
-                              />
-                            </ChartCard>
-                          ),
-                        },
-                      ]
-                    : []),
-                ]}
-              />
-            </section>
-          ) : null}
-
-          <section>
+          {/* Recent: the newest attempts, with a shortcut to review each one. */}
+          <section aria-labelledby="student-recent-title">
             <div className="mb-2 flex items-center justify-between gap-3">
-              <h3 className="text-lg font-semibold text-foreground">
-                Recent quiz history
+              <h3
+                id="student-recent-title"
+                className="min-w-0 text-base font-semibold text-foreground"
+              >
+                Recent attempts
               </h3>
-              {historyTotal > 5 ? (
+              {summaryHistory.length > RECENT_ATTEMPTS_SHOWN ? (
                 <Button
                   type="button"
                   variant="accent"
                   size="sm"
-                  onClick={() => navigateToSection("history")}
+                  className="shrink-0 whitespace-nowrap"
+                  onClick={() => navigateToSection("assessment")}
                 >
                   View all
                 </Button>
               ) : null}
             </div>
-            <HistoryTable
-              rows={summaryHistory.slice(0, 5)}
-              page={1}
-              totalPages={1}
-              onPageChange={() => undefined}
-              emptyMessage="No quiz results yet. Your completed quizzes will appear here."
+            <RecentAttemptsTable
+              rows={summaryHistory.slice(0, RECENT_ATTEMPTS_SHOWN)}
+              onReview={openAssessment}
             />
           </section>
         </div>
@@ -534,27 +498,6 @@ export default function StudentDashboardContent({
 
       {activeKey === "quizzes" ? (
         <AssignedQuizzesSection quizzes={assignedQuizzes} />
-      ) : null}
-
-      {activeKey === "history" ? (
-        <div className="space-y-2 sm:space-y-3">
-          <div>
-            <h2 className="text-xl font-bold text-foreground">
-              Quiz History
-            </h2>
-            <p className="mt-1 text-sm text-px-muted">
-              {historyTotal} recorded attempt
-              {historyTotal === 1 ? "" : "s"}.
-            </p>
-          </div>
-          <HistoryTable
-            rows={history}
-            page={historyPage}
-            totalPages={historyTotalPages}
-            onPageChange={navigateToPage}
-            emptyMessage="No quiz results yet. Your completed quizzes will appear here."
-          />
-        </div>
       ) : null}
 
       {activeKey === "assessment" ? (

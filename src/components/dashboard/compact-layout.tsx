@@ -56,18 +56,26 @@ const STAT_COLUMNS = {
 /**
  * Two columns on phones, `columns` from the sm breakpoint up. A lone last
  * tile on an odd row stretches across the phone grid so there is no gap.
+ *
+ * `phoneColumns={3}` puts three short tiles on one phone row instead (keep
+ * their labels brief; long text is cut off with an ellipsis).
  */
 export function StatGrid({
   columns = 4,
+  phoneColumns = 2,
   children,
 }: {
   columns?: keyof typeof STAT_COLUMNS;
+  phoneColumns?: 2 | 3;
   children: ReactNode;
 }) {
+  const phone =
+    phoneColumns === 3
+      ? "grid-cols-3"
+      : "grid-cols-2 [&>:last-child:nth-child(odd)]:col-span-2 sm:[&>:last-child:nth-child(odd)]:col-span-1";
+
   return (
-    <div
-      className={`grid grid-cols-2 gap-2 sm:gap-3 [&>:last-child:nth-child(odd)]:col-span-2 sm:[&>:last-child:nth-child(odd)]:col-span-1 ${STAT_COLUMNS[columns]}`}
-    >
+    <div className={`grid gap-2 sm:gap-3 ${phone} ${STAT_COLUMNS[columns]}`}>
       {children}
     </div>
   );

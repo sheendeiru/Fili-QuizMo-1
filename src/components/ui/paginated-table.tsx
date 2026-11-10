@@ -25,6 +25,7 @@ export function PaginatedTable<T>({
   pageSizeOptions,
   onPageSizeChange,
   stickyFirstColumn = false,
+  hidePagerWhenSinglePage = false,
 }: {
   caption: string;
   columns: readonly PaginatedTableColumn<T>[];
@@ -47,6 +48,11 @@ export function PaginatedTable<T>({
    * so every row stays identifiable on a narrow screen.
    */
   stickyFirstColumn?: boolean;
+  /**
+   * For short lists (such as "Recent attempts" on an overview): when there is
+   * only one page, leave out the "Page 1 of 1  Prev  Next" row.
+   */
+  hidePagerWhenSinglePage?: boolean;
 }) {
   // Wide tables scroll sideways inside their own box. Track whether this one
   // actually overflows so the keyboard can reach it and a hint can be shown.
@@ -146,6 +152,7 @@ export function PaginatedTable<T>({
           Scroll sideways to see all columns.
         </p>
       ) : null}
+      {hidePagerWhenSinglePage && totalPages <= 1 && !showPageSize ? null : (
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p aria-live="polite" className="text-xs sm:text-sm">
           Page {validPage} of {Math.max(totalPages, 1)}
@@ -192,6 +199,7 @@ export function PaginatedTable<T>({
           </PixelButton>
         </div>
       </div>
+      )}
     </div>
   );
 }

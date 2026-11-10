@@ -60,11 +60,13 @@ const PieChart = dynamic(
   },
 );
 
+// shortLabel is what the desktop navbar shows; the drawer, the tooltip and
+// screen readers keep the full label.
 const navItems: DashboardNavItem[] = [
-  { key: "quizzes", label: "View Quizzes" },
-  { key: "students", label: "Manage Student Info" },
-  { key: "classes", label: "My Classes" },
-  { key: "scores", label: "View Scores" },
+  { key: "quizzes", label: "View Quizzes", shortLabel: "Quizzes" },
+  { key: "students", label: "Manage Student Info", shortLabel: "Students" },
+  { key: "classes", label: "My Classes", shortLabel: "Classes" },
+  { key: "scores", label: "View Scores", shortLabel: "Scores" },
   { key: "assessment", label: "Assessment" },
   { key: "leaderboard", label: "Leaderboard" },
 ];

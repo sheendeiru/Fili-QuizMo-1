@@ -6,16 +6,10 @@ import {
   createAccountRoleLookup,
   resolveAccountAccess,
 } from "@/lib/auth/roles";
+import { loadStudentQuizAttempts } from "@/lib/dashboard/data";
 
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-// More than this many finished attempts are cut off and flagged as truncated.
-// (Not exported: Next.js route files may only export HTTP handlers.)
-const STUDENT_QUIZZES_LIMIT = 100;
-
-const COLUMNS =
-  "attempt_id, session_id, quiz_title, attempt_number, correct_count, total_questions, percentage, started_at, completed_at, duration_seconds";
 
 function errorResponse(error: SearchError): Response {
   return Response.json(
@@ -27,18 +21,15 @@ function errorResponse(error: SearchError): Response {
   );
 }
 
-function numberOrNull(value: number | null): number | null {
-  return typeof value === "number" && Number.isFinite(value) ? value : null;
-}
-
 /**
  * GET /api/student-quizzes?studentId=<uuid>
  *
- * The finished quiz attempts of one student, newest first. Who may see what is
- * decided by row-level security on the teacher_student_scores view: a teacher
- * gets only attempts on quizzes they own (for students they manage or who took
- * their quizzes), an admin with a verified multi-factor session gets all of
- * them. Correct answers are never returned here.
+ * The finished quiz attempts of one student, newest first. It reads the same
+ * rows as the teacher's Assessment list (the student_quiz_results view, matched
+ * by username, see loadStudentQuizAttempts in lib/dashboard/data.ts), so the
+ * popup and the Assessment page always agree. A teacher gets only attempts on
+ * quizzes they own; an admin with a verified multi-factor session gets quizzes
+ * owned by existing teachers. Correct answers are never returned here.
  */
 export async function GET(request: Request): Promise<Response> {
   const studentId =
@@ -86,40 +77,34 @@ export async function GET(request: Request): Promise<Response> {
       throw new SearchError(404, "STUDENT_NOT_FOUND", "Student not found.");
     }
 
-    const { data: rows, error } = await supabase
-      .from("teacher_student_scores")
-      .select(COLUMNS)
-      .eq("student_user_id", id)
-      .order("completed_at", { ascending: false, nullsFirst: false })
-      .limit(STUDENT_QUIZZES_LIMIT + 1);
+    // quiz_sessions.teacher_id is the teacher's auth user id.
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
 
-    if (error) {
-      console.error("Student quiz history failed.", error.message);
+    const ownerId = user?.id ?? "";
+
+    if (context.role !== "admin" && !ownerId) {
       throw new SearchError(
-        503,
-        "STUDENT_QUIZZES_FAILED",
-        "Unable to load this student's quizzes right now.",
+        401,
+        "UNAUTHENTICATED",
+        "Sign in to view student quizzes.",
       );
     }
 
-    const attempts = (rows ?? []).slice(0, STUDENT_QUIZZES_LIMIT).map((row) => ({
-      attemptId: row.attempt_id ?? "",
-      sessionId: row.session_id ?? "",
-      quizTitle: row.quiz_title?.trim() || "Untitled quiz",
-      attemptNumber: numberOrNull(row.attempt_number),
-      correctCount: numberOrNull(row.correct_count),
-      totalQuestions: numberOrNull(row.total_questions),
-      percentage: numberOrNull(row.percentage),
-      startedAt: row.started_at,
-      completedAt: row.completed_at,
-      durationSeconds: numberOrNull(row.duration_seconds),
-    }));
+    const { attempts, truncated } = await loadStudentQuizAttempts(
+      supabase,
+      profile.username ?? "",
+      context.role === "admin"
+        ? { kind: "admin" }
+        : { kind: "teacher", ownerId },
+    );
 
     return Response.json(
       {
         student: { id: profile.user_id, username: profile.username ?? "" },
         scope: context.role === "admin" ? "all-quizzes" : "own-quizzes",
-        truncated: (rows?.length ?? 0) > STUDENT_QUIZZES_LIMIT,
+        truncated,
         quizzes: attempts,
       },
       { headers: { "Cache-Control": "private, no-store" } },
