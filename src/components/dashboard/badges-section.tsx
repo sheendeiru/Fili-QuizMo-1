@@ -4,6 +4,7 @@ import Image from "next/image";
 import { useEffect, useState } from "react";
 import { PixelButton, PixelCard } from "@/components/ui/pixel-primitives";
 import { parseAchievements, type Achievement } from "@/lib/dashboard/achievements";
+import { readStudentResponse } from "@/lib/classes/student-request";
 import {
   createSessionRequestController,
   releaseSessionRequestController,
@@ -23,12 +24,11 @@ export function BadgesSection() {
           cache: "no-store",
           signal: controller.signal,
         });
-        if (!response.ok) throw new Error("Achievements could not sync.");
-        const data = parseAchievements(await response.json());
+        const data = parseAchievements(await readStudentResponse(response));
         if (!controller.signal.aborted) setAchievements(data);
-      } catch {
+      } catch (error) {
         if (!controller.signal.aborted) {
-          setError("Achievements could not sync. Your quiz results are saved.");
+          setError(error instanceof Error ? error.message : "Achievements could not sync. Please retry.");
         }
       } finally {
         releaseSessionRequestController(controller);

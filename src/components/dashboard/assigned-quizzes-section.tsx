@@ -1,4 +1,11 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { createSessionRequestController, releaseSessionRequestController } from "@/lib/auth/session-state";
+import { parseAssignedQuizzes } from "@/lib/classes/client";
+import { readStudentResponse } from "@/lib/classes/student-request";
 import {
+  PixelButton,
   PixelBadge,
   PixelCard,
 } from "@/components/ui/pixel-primitives";
@@ -35,12 +42,28 @@ export function quizStatus(quiz: AssignedQuiz): Status {
  * Quizzes the teacher sent to this student or their class. Quizzes are played
  * in the mobile app, so this is a to-do list, not a player.
  */
-export function AssignedQuizzesSection({
-  quizzes,
-}: {
-  /** null when the quiz server could not be reached. */
-  quizzes: readonly AssignedQuiz[] | null;
-}) {
+export function AssignedQuizzesSection() {
+  const [quizzes, setQuizzes] = useState<AssignedQuiz[] | null>(null);
+  const [error, setError] = useState("");
+  const [attempt, setAttempt] = useState(0);
+  useEffect(() => {
+    const controller = createSessionRequestController();
+    async function load() {
+      try {
+        const response = await fetch("/api/assigned-quizzes", {
+          cache: "no-store", signal: controller.signal,
+        });
+        const data = parseAssignedQuizzes(await readStudentResponse(response));
+        if (!controller.signal.aborted) setQuizzes(data);
+      } catch (error) {
+        if (!controller.signal.aborted) setError(error instanceof Error ? error.message : "Quizzes could not be loaded. Please retry.");
+      } finally {
+        releaseSessionRequestController(controller);
+      }
+    }
+    void load();
+    return () => { controller.abort(); releaseSessionRequestController(controller); };
+  }, [attempt]);
   return (
     <div className="space-y-2 sm:space-y-3">
       <div>
@@ -51,13 +74,13 @@ export function AssignedQuizzesSection({
         </p>
       </div>
 
-      {quizzes === null ? (
+      {error ? (
         <PixelCard>
-          <p role="status" className="text-sm">
-            Your assigned quizzes could not be loaded right now. Please try
-            again later.
-          </p>
+          <p role="alert" className="text-sm">{error}</p>
+          <PixelButton className="mt-3" onClick={() => { setError(""); setAttempt((value) => value + 1); }}>Retry</PixelButton>
         </PixelCard>
+      ) : quizzes === null ? (
+        <p role="status" className="text-sm">Loading your assigned quizzes...</p>
       ) : quizzes.length === 0 ? (
         <PixelCard>
           <p className="text-sm">

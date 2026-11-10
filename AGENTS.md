@@ -1,5 +1,11 @@
 # AGENTS.md
 
+## Communication
+
+- Do the requested work and keep updates and final responses concise.
+- Give a brief plan when requested. Report only relevant changes, checks, and blockers.
+- Avoid lengthy explanations unless the user asks for them.
+
 Guidance for AI coding agents (Claude Code, Copilot, Cursor, etc.) working in this repository. Read this before making changes.
 
 ## Project Overview
