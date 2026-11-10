@@ -23,7 +23,6 @@ import { SettingsPasswordForm } from "@/components/dashboard/settings-password-f
 import { ManageQuizzesTable } from "@/components/dashboard/manage-quizzes";
 import {
   BarChartCard,
-  MeterCard,
   RecentScoresCard,
   percentOf,
 } from "@/components/dashboard/dashboard-charts";
@@ -178,14 +177,24 @@ export default function AdminDashboardContent({
   );
 }
 
+/** 53.84 -> "53.8%"; anything that is not a number -> "0%". */
+function formatPercent(value: number | string): string {
+  const number = Number(value);
+
+  return Number.isFinite(number) ? `${Math.round(number * 10) / 10}%` : "0%";
+}
+
+/**
+ * Each section holds one category only:
+ *   Quizzes  - the quiz library and its status
+ *   Teachers - teacher accounts and how much each one has created
+ *   Students - student accounts and their scores
+ */
 function ManageQuizzesSection({ data }: { data: AdminDashboardData }) {
   const { total, ready, draft, failed } = data.quizzes;
   // 'processing' quizzes are in the total but have no stat card of their own
   const processing = Math.max(total - ready - draft - failed, 0);
-  const topTeachers = data.teacherAccounts
-    .filter((teacher) => teacher.quizCount > 0)
-    .sort((left, right) => right.quizCount - left.quizCount)
-    .slice(0, 5);
+  const share = (count: number) => `${Math.round(percentOf(count, total))}% of total`;
 
   return (
     <div className="space-y-2 sm:space-y-3">
@@ -195,92 +204,15 @@ function ManageQuizzesSection({ data }: { data: AdminDashboardData }) {
       />
 
       <StatGrid columns={4}>
-        <StatCard label="Total Quizzes" value={String(total)} />
-        <StatCard label="Ready" value={String(ready)} />
-        <StatCard label="Drafts" value={String(draft)} />
-        <StatCard label="Failed" value={String(failed)} />
+        <StatCard
+          label="Total Quizzes"
+          value={String(total)}
+          hint={processing > 0 ? `${processing} processing` : undefined}
+        />
+        <StatCard label="Ready" value={String(ready)} hint={share(ready)} />
+        <StatCard label="Drafts" value={String(draft)} hint={share(draft)} />
+        <StatCard label="Failed" value={String(failed)} hint={share(failed)} />
       </StatGrid>
-
-      <div className="grid grid-cols-2 gap-2 sm:gap-3">
-        <MeterCard label="Ready Rate" percent={percentOf(ready, total)} />
-        <MeterCard label="Failed Rate" percent={percentOf(failed, total)} />
-      </div>
-
-      {/* Phones: one chart at a time behind tabs. md and up: all four in a 2-column grid. */}
-      <ChartTabs
-        label="Quiz charts"
-        tabs={[
-          {
-            key: "teachers",
-            label: "By Teacher",
-            content: (
-              <BarChartCard
-                title="Quizzes by Teacher"
-                description="Top teachers by number of quizzes created."
-                total={total}
-                items={topTeachers.map((teacher) => ({
-                  label: teacher.username,
-                  value: teacher.quizCount,
-                  color: "bg-primary",
-                }))}
-              />
-            ),
-          },
-          {
-            key: "recent",
-            label: "Recent Scores",
-            content: (
-              <RecentScoresCard
-                title="Recent Scores"
-                description="The latest completed attempts across the platform."
-                scores={data.recentScores}
-              />
-            ),
-          },
-          {
-            key: "status",
-            label: "Quiz Status",
-            content: (
-              <BarChartCard
-                title="Quiz Status"
-                description="How the quizzes on the platform are split by status."
-                total={total}
-                items={[
-                  { label: "Ready", value: ready, color: "bg-success" },
-                  { label: "Drafts", value: draft, color: "bg-px-gold" },
-                  { label: "Failed", value: failed, color: "bg-danger-dark" },
-                  ...(processing > 0
-                    ? [
-                        {
-                          label: "Processing",
-                          value: processing,
-                          color: "bg-px-indigo",
-                        },
-                      ]
-                    : []),
-                ]}
-              />
-            ),
-          },
-          {
-            key: "distribution",
-            label: "Score Distribution",
-            content: (
-              <PixelCard className="h-full p-2.5! sm:p-3!">
-                <h3 className="text-base font-semibold text-foreground">
-                  Score Distribution
-                </h3>
-                <p className="mt-1 text-sm text-neutral-500">
-                  Completed attempt scores across the platform.
-                </p>
-                <div className="mt-2">
-                  <PieChart distributions={data.distributions} />
-                </div>
-              </PixelCard>
-            ),
-          },
-        ]}
-      />
 
       <ManageQuizzesTable actorRole="admin" />
     </div>
@@ -289,6 +221,10 @@ function ManageQuizzesSection({ data }: { data: AdminDashboardData }) {
 
 function TeacherAccountsSection({ data }: { data: AdminDashboardData }) {
   const { total, approved, pending, rejected, suspended } = data.teachers;
+  const topTeachers = data.teacherAccounts
+    .filter((teacher) => teacher.quizCount > 0)
+    .sort((left, right) => right.quizCount - left.quizCount)
+    .slice(0, 5);
 
   return (
     <div className="space-y-2 sm:space-y-3">
@@ -301,18 +237,57 @@ function TeacherAccountsSection({ data }: { data: AdminDashboardData }) {
         <StatCard label="Total Teachers" value={String(total)} />
         <StatCard label="Approved" value={String(approved)} />
         <StatCard label="Pending" value={String(pending)} />
-        <MeterCard label="Approval Rate" percent={percentOf(approved, total)} />
+        <StatCard
+          label="Approval Rate"
+          value={formatPercent(percentOf(approved, total))}
+        />
       </StatGrid>
 
-      <BarChartCard
-        title="Account Status"
-        description="Teacher accounts by approval status."
-        total={total}
-        items={[
-          { label: "Approved", value: approved, color: "bg-success" },
-          { label: "Pending", value: pending, color: "bg-px-gold" },
-          { label: "Rejected", value: rejected, color: "bg-danger-dark" },
-          { label: "Suspended", value: suspended, color: "bg-px-indigo" },
+      {/* Phones: one chart at a time behind tabs. md and up: side by side. */}
+      <ChartTabs
+        label="Teacher charts"
+        tabs={[
+          {
+            key: "status",
+            label: "Account status",
+            content: (
+              <BarChartCard
+                title="Account Status"
+                description="Teacher accounts by approval status."
+                total={total}
+                items={[
+                  { label: "Approved", value: approved, color: "bg-success" },
+                  { label: "Pending", value: pending, color: "bg-px-gold" },
+                  {
+                    label: "Rejected",
+                    value: rejected,
+                    color: "bg-danger-dark",
+                  },
+                  {
+                    label: "Suspended",
+                    value: suspended,
+                    color: "bg-px-indigo",
+                  },
+                ]}
+              />
+            ),
+          },
+          {
+            key: "quizzes",
+            label: "Quizzes made",
+            content: (
+              <BarChartCard
+                title="Quizzes by Teacher"
+                description="Top teachers by number of quizzes created."
+                total={data.quizzes.total}
+                items={topTeachers.map((teacher) => ({
+                  label: teacher.username,
+                  value: teacher.quizCount,
+                  color: "bg-primary",
+                }))}
+              />
+            ),
+          },
         ]}
       />
 
@@ -340,19 +315,48 @@ function StudentAccountsSection({ data }: { data: AdminDashboardData }) {
         description="Create and remove student logins, and optionally assign a managing teacher."
       />
 
-      <StatGrid columns={3}>
+      <StatGrid columns={3} phoneColumns={3}>
         <StatCard label="Students" value={String(data.studentCount)} />
         <StatCard label="Results" value={String(data.studentResults.total)} />
-        <MeterCard
-          label="Average Score"
-          percent={Number(data.studentResults.average)}
+        <StatCard
+          label="Average"
+          value={formatPercent(data.studentResults.average)}
         />
       </StatGrid>
 
-      <RecentScoresCard
-        title="Recent Scores"
-        description="The latest completed attempts by student accounts."
-        scores={data.studentRecentScores}
+      {/* Scores live here, with the students who earned them. */}
+      <ChartTabs
+        label="Score charts"
+        tabs={[
+          {
+            key: "recent",
+            label: "Recent scores",
+            content: (
+              <RecentScoresCard
+                title="Recent Scores"
+                description="The latest completed attempts by student accounts."
+                scores={data.studentRecentScores}
+              />
+            ),
+          },
+          {
+            key: "distribution",
+            label: "Distribution",
+            content: (
+              <PixelCard className="h-full p-2.5! sm:p-3!">
+                <h3 className="text-base font-semibold text-foreground">
+                  Score Distribution
+                </h3>
+                <p className="mt-1 text-sm text-neutral-500">
+                  Completed attempt scores across the platform.
+                </p>
+                <div className="mt-2">
+                  <PieChart distributions={data.distributions} />
+                </div>
+              </PixelCard>
+            ),
+          },
+        ]}
       />
 
       <ManageAccountsTable
