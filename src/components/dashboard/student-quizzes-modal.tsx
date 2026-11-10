@@ -8,16 +8,16 @@ import {
   PixelTable,
 } from "@/components/ui/pixel-primitives";
 
+/** Same fields the Assessment list shows for an attempt. */
 export type StudentQuizAttempt = {
   attemptId: string;
-  sessionId: string;
   quizTitle: string;
   attemptNumber: number | null;
   correctCount: number | null;
   totalQuestions: number | null;
   percentage: number | null;
-  startedAt: string | null;
   completedAt: string | null;
+  /** Seconds the student took on this attempt, null when not recorded. */
   durationSeconds: number | null;
 };
 
@@ -28,9 +28,9 @@ export type StudentQuizzesPayload = {
   quizzes: StudentQuizAttempt[];
 };
 
+// Date only, like the Assessment list.
 const dateFormatter = new Intl.DateTimeFormat("en-PH", {
   dateStyle: "medium",
-  timeStyle: "short",
   timeZone: "Asia/Manila",
 });
 
@@ -42,8 +42,10 @@ export function formatAttemptDate(value: string | null): string {
   return Number.isNaN(date.getTime()) ? "—" : dateFormatter.format(date);
 }
 
-export function formatDuration(seconds: number | null): string {
-  if (seconds === null || seconds < 0) return "—";
+export function formatDuration(seconds: number | null | undefined): string {
+  if (typeof seconds !== "number" || !Number.isFinite(seconds) || seconds < 0) {
+    return "—";
+  }
 
   const total = Math.round(seconds);
   const minutes = Math.floor(total / 60);

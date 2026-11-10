@@ -45,3 +45,5 @@ next-env.d.ts
 # Local secrets and certificates
 *.pem
 *.key
+.vercel
+.env*

@@ -8,6 +8,7 @@ vi.mock("@/lib/auth/roles", () => ({
   createAccountRoleLookup: vi.fn(), resolveAccountAccess: mocks.resolveAccountAccess,
 }));
 import { GET } from "./route";
+import { GET as getQuizzes } from "../assigned-quizzes/route";
 
 const payload = { awards: [{ badge: 1, unlockedAt: "2026-11-09T08:00:00Z" }],
   distinctQuizzes: 1, bestImprovement: 0, streak: 1, bestPercentage: 90 };
@@ -56,4 +57,40 @@ it("reports a failed sync without fabricating achievements or exposing upstream 
 it("rejects malformed backend data", async () => {
   mocks.fetch.mockResolvedValue(Response.json({}));
   expect((await GET()).status).toBe(503);
+});
+
+it("reports missing configuration without contacting the backend", async () => {
+  vi.stubEnv("QUIZMO_API_URL", "");
+  const response = await GET();
+  expect(response.status).toBe(503);
+  expect((await response.json()).error.code).toBe("BACKEND_NOT_CONFIGURED");
+  expect(mocks.fetch).not.toHaveBeenCalled();
+});
+
+it("loads assigned quizzes through the student's token", async () => {
+  const data = { quizzes: [{ sessionId: "assigned-1", title: "Filipino" }] };
+  mocks.fetch.mockResolvedValue(Response.json(data));
+  const response = await getQuizzes();
+  expect(response.status).toBe(200);
+  expect(await response.json()).toEqual(data);
+  expect(mocks.fetch).toHaveBeenCalledWith("https://quiz.example.com/student/quizzes",
+    expect.objectContaining({ headers: { Authorization: "Bearer student-token", Accept: "application/json" } }));
+});
+
+it("does not turn a broken assigned-quizzes response into an empty list", async () => {
+  mocks.fetch.mockResolvedValue(Response.json({ error: "missing data" }));
+  expect((await getQuizzes()).status).toBe(503);
+});
+
+it("protects assigned quizzes from unsigned callers", async () => {
+  signIn(null);
+  expect((await getQuizzes()).status).toBe(401);
+  expect(mocks.fetch).not.toHaveBeenCalled();
+});
+
+it("can recover after an upstream failure on the next request", async () => {
+  mocks.fetch.mockRejectedValueOnce(new Error("timeout"));
+  expect((await getQuizzes()).status).toBe(503);
+  mocks.fetch.mockResolvedValueOnce(Response.json({ quizzes: [] }));
+  expect((await getQuizzes()).status).toBe(200);
 });

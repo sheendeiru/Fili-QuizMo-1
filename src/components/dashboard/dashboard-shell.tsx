@@ -13,6 +13,11 @@ import { getSessionEpoch } from "@/lib/auth/session-state";
 export type DashboardNavItem = {
   key: string;
   label: string;
+  /**
+   * Shorter text for the desktop navbar, where space is tight. The drawer on
+   * phones always uses the full label.
+   */
+  shortLabel?: string;
 };
 
 type DashboardShellProps = {
@@ -77,6 +82,19 @@ export function DashboardShell({
       window.location.href,
     );
   }, [pathname, search]);
+
+  // The drawer is for phones. If the window grows to tablet size or more
+  // (the navbar shows the sections instead), close it so it is not left open.
+  useEffect(() => {
+    const desktop = window.matchMedia("(min-width: 768px)");
+
+    function closeOnDesktop(event: MediaQueryListEvent) {
+      if (event.matches) setSidebarOpen(false);
+    }
+
+    desktop.addEventListener("change", closeOnDesktop);
+    return () => desktop.removeEventListener("change", closeOnDesktop);
+  }, []);
 
   // Escape closes the sidebar, the profile menu and the log out confirmation.
   useEffect(() => {
@@ -154,17 +172,19 @@ export function DashboardShell({
         <button
           type="button"
           aria-label="Close sidebar"
-          className="fixed inset-0 z-30 bg-black/40"
+          className="fixed inset-0 z-30 bg-black/40 md:hidden"
           onClick={() => setSidebarOpen(false)}
         />
       ) : null}
 
-      {/* Slide-in drawer on every screen size, closed by default. `inert` keeps its buttons out of the tab order while hidden. */}
+      {/* Slide-in drawer for phones, closed by default. From md (768px) up
+          the same sections are in the navbar and the drawer is not rendered
+          at all. `inert` keeps its buttons out of the tab order while hidden. */}
       <aside
         id="dashboard-sidebar"
         ref={asideRef}
         inert={!sidebarOpen}
-        className={`fixed inset-y-0 left-0 z-40 flex w-56 shrink-0 flex-col overflow-y-auto bg-ink text-surface transition-transform duration-200 ${
+        className={`fixed inset-y-0 left-0 z-40 flex w-56 shrink-0 flex-col overflow-y-auto bg-ink text-surface transition-transform duration-200 md:hidden ${
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
@@ -205,8 +225,8 @@ export function DashboardShell({
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-20 flex h-14 items-center justify-between border-b-2 border-ink bg-surface px-3 shadow-[0_3px_0_var(--color-ink)] sm:px-4">
-          <div className="flex items-center gap-3">
+        <header className="sticky top-0 z-20 flex h-14 items-center gap-3 border-b-2 border-ink bg-surface px-3 shadow-[0_3px_0_var(--color-ink)] sm:px-4">
+          <div className="flex shrink-0 items-center gap-3">
             <button
               ref={hamburgerRef}
               type="button"
@@ -214,7 +234,7 @@ export function DashboardShell({
               aria-label="Open sidebar"
               aria-controls="dashboard-sidebar"
               aria-expanded={sidebarOpen}
-              className="inline-flex h-9 w-9 items-center justify-center text-ink transition-colors border-2 border-ink hover:bg-neutral-100"
+              className="inline-flex h-9 w-9 items-center justify-center border-2 border-ink text-ink transition-colors hover:bg-neutral-100 md:hidden"
             >
               <svg
                 className="h-4 w-4"
@@ -231,11 +251,44 @@ export function DashboardShell({
               </svg>
             </button>
             <h1 className="text-base font-semibold text-ink">
-              {role} Dashboard
+              {role}
+              {/* Role alone on very narrow phones and on tablets and small desktops (md to xl),
+                so the navbar sections keep the room. */}
+              <span className="max-[359px]:sr-only md:max-xl:sr-only"> Dashboard</span>
             </h1>
           </div>
 
-          <div className="relative">
+          {/* Desktop: the sections live in the navbar. The current one is gold
+              with an outline; the others stay quiet until hovered. */}
+          <nav
+            aria-label="Dashboard sections"
+            className="hidden min-w-0 flex-1 items-center gap-0.5 overflow-x-auto border-l-2 border-ink/20 py-1 pl-2 md:flex xl:gap-1 xl:pl-2.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          >
+            {navItems.map((item) => {
+              const isActive = item.key === activeKey;
+
+              return (
+                <button
+                  key={item.key}
+                  type="button"
+                  aria-current={isActive ? "page" : undefined}
+                  // The full name, for when the navbar shows the short one.
+                  title={item.shortLabel ? item.label : undefined}
+                  aria-label={item.shortLabel ? item.label : undefined}
+                  onClick={() => handleNavigate(item.key)}
+                  className={`shrink-0 whitespace-nowrap border-2 px-1.5 py-0.5 text-xs font-semibold text-ink xl:px-2 xl:py-1 xl:text-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink ${
+                    isActive
+                      ? "border-ink bg-accent shadow-[2px_2px_0_var(--color-ink)]"
+                      : "border-transparent hover:border-ink hover:bg-neutral-100"
+                  }`}
+                >
+                  {item.shortLabel ?? item.label}
+                </button>
+              );
+            })}
+          </nav>
+
+          <div className="relative ml-auto shrink-0 md:ml-0">
             <button
               ref={profileButtonRef}
               type="button"

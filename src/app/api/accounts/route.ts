@@ -5,7 +5,7 @@ import {
   resolveAccountAccess,
 } from "@/lib/auth/roles";
 import { isInvalidSession } from "@/lib/auth/session-errors";
-import { validatePassword } from "@/lib/password-policy";
+import { passwordProblem, validatePassword } from "@/lib/password-policy";
 
 type AccountRole = "student" | "teacher";
 type RequestBody = Record<string, unknown>;
@@ -166,11 +166,12 @@ function parseCreateInput(body: RequestBody):
       );
     }
 
-    if (!validatePassword(body.password, [email, username]).valid) {
+    const check = validatePassword(body.password, [email, username]);
+    if (!check.valid) {
       return errorResponse(
         400,
         "INVALID_PASSWORD",
-        "Temporary password does not meet the password requirements.",
+        `Temporary password: ${passwordProblem(check)}`,
       );
     }
 

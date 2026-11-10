@@ -16,6 +16,7 @@ import {
 import {
   PASSWORD_MAX_LENGTH,
   PASSWORD_MIN_LENGTH,
+  passwordProblem,
   validatePassword,
 } from "@/lib/password-policy";
 
@@ -165,10 +166,9 @@ export function ChangePasswordForm({
         return;
       }
 
-      if (!validatePassword(password, [accountEmail]).valid) {
-        setErrorMessage(
-          "Your new password does not meet all of the requirements.",
-        );
+      const check = validatePassword(password, [accountEmail]);
+      if (!check.valid) {
+        setErrorMessage(passwordProblem(check));
         return;
       }
 

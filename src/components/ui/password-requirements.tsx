@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { Fragment, useMemo } from "react";
 import { validatePassword } from "@/lib/password-policy";
 
 export const PASSWORD_REQUIREMENTS_ID = "password-requirements";
@@ -15,9 +15,9 @@ type RequirementCheck = {
 };
 
 const HEADINGS: Record<PasswordContext, string> = {
-  create: "Password must include:",
-  change: "New password must include:",
-  reset: "New password must include:",
+  create: "Password needs one of these:",
+  change: "New password needs one of these:",
+  reset: "New password needs one of these:",
 };
 
 const ICON_COLORS: Record<CheckState, string> = {
@@ -75,58 +75,97 @@ export function PasswordRequirements({
   );
   const touched = password.length > 0;
 
-  const checks: RequirementCheck[] = validation.results
-    // Only surface the length limit when it is actually exceeded.
-    .filter((result) => result.id !== "max-length" || !result.passed)
+  // The two ways to be long enough are alternatives, so the one not used is
+  // never marked as a failure: it is just not ticked.
+  const options: RequirementCheck[] = validation.results
+    .filter((result) => result.kind === "option")
     .map((result) => ({
       id: result.id,
       label: result.label,
       example: result.example,
-      state: !touched ? "neutral" : result.passed ? "passed" : "unmet",
+      state: touched && result.passed ? "passed" : "neutral",
     }));
 
-  if (confirmPassword !== undefined) {
-    const bothTyped = password.length > 0 && confirmPassword.length > 0;
-    checks.push({
-      id: "match",
-      label: "Passwords match",
-      example: "same",
-      state: !bothTyped
-        ? "neutral"
-        : password === confirmPassword
-          ? "passed"
-          : "unmet",
-    });
-  }
+  // Everything else is shown only when it is actually a problem, and only once
+  // the password is long enough to be judged, so the first few letters of a
+  // normal password never flash a warning.
+  const longEnough = options.some((check) => check.state === "passed");
+  const problems: RequirementCheck[] = touched
+    ? validation.results
+        .filter(
+          (result) =>
+            result.kind === "extra" &&
+            !result.passed &&
+            (longEnough || result.id === "max-length"),
+        )
+        .map((result) => ({
+          id: result.id,
+          label: result.label,
+          state: "unmet",
+        }))
+    : [];
 
-  const unmet = checks.filter((check) => check.state === "unmet");
+  const matchCheck: RequirementCheck | null =
+    confirmPassword !== undefined
+      ? {
+          id: "match",
+          label: "Passwords match",
+          state:
+            password.length > 0 && confirmPassword.length > 0
+              ? password === confirmPassword
+                ? "passed"
+                : "unmet"
+              : "neutral",
+        }
+      : null;
+
+  const rows: RequirementCheck[] = [...problems, ...(matchCheck ? [matchCheck] : [])];
+  const unmetRows = rows.filter((check) => check.state === "unmet");
   const announcement = !touched
     ? ""
-    : unmet.length > 0
-      ? `Still needed: ${unmet.map((check) => check.label).join(", ")}.`
-      : checks.every((check) => check.state === "passed")
-        ? "All password requirements met."
-        : "";
+    : unmetRows.length > 0
+      ? `Still needed: ${unmetRows.map((check) => check.label).join(", ")}.`
+      : !validation.valid
+        ? `Still needed: ${options.map((check) => check.label).join(", or ")}.`
+        : matchCheck && matchCheck.state !== "passed"
+          ? ""
+          : "All password requirements met.";
+
+  function renderRow(check: RequirementCheck) {
+    return (
+      <li key={check.id} className="flex items-start gap-1 leading-tight!">
+        <span className={`mt-0.5 shrink-0 ${ICON_COLORS[check.state]}`}>
+          <RuleIcon state={check.state} />
+        </span>
+        <span className={TEXT_COLORS[check.state]}>
+          {check.label}
+          {check.example ? <span> ({check.example})</span> : null}
+        </span>
+      </li>
+    );
+  }
 
   return (
     <div id={PASSWORD_REQUIREMENTS_ID} className={`text-xs ${className}`.trim()}>
       <p className="font-semibold text-foreground leading-tight!">{HEADINGS[context]}</p>
-      <ul className="mt-0.5 grid grid-cols-2 gap-x-2 gap-y-0">
-        {checks.map((check) => (
-          <li key={check.id} className="flex items-start gap-1 leading-tight!">
-            <span className={`mt-0.5 shrink-0 ${ICON_COLORS[check.state]}`}>
-              <RuleIcon state={check.state} />
-            </span>
-            <span className={TEXT_COLORS[check.state]}>
-              {check.label}
-              {check.example ? <span> ({check.example})</span> : null}
-            </span>
-          </li>
+      <ul className="mt-0.5 space-y-0">
+        {options.map((check, index) => (
+          <Fragment key={check.id}>
+            {index > 0 ? (
+              <li
+                aria-hidden="true"
+                className="pl-4 font-semibold uppercase leading-tight! text-neutral-500"
+              >
+                or
+              </li>
+            ) : null}
+            {renderRow(check)}
+          </Fragment>
         ))}
       </ul>
-      <p className="mt-0.5 leading-tight! text-neutral-500">
-        Avoid common passwords like &quot;password123&quot;.
-      </p>
+      {rows.length > 0 ? (
+        <ul className="mt-0.5 space-y-0">{rows.map(renderRow)}</ul>
+      ) : null}
       <p className="sr-only" aria-live="polite" aria-atomic="true">
         {announcement}
       </p>

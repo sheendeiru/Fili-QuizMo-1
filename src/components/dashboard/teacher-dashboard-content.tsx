@@ -23,11 +23,7 @@ import {
 } from "@/components/dashboard/compact-layout";
 import { SearchFilter } from "@/components/dashboard/search-filter";
 import { ManageQuizzesTable } from "@/components/dashboard/manage-quizzes";
-import {
-  BarChartCard,
-  MeterCard,
-  RecentScoresCard,
-} from "@/components/dashboard/dashboard-charts";
+import { RecentScoresCard } from "@/components/dashboard/dashboard-charts";
 import { ManageAccountsTable } from "@/components/dashboard/manage-accounts";
 import { ClassProgress } from "@/components/dashboard/class-progress";
 import { ManageClasses } from "@/components/dashboard/manage-classes";
@@ -60,11 +56,13 @@ const PieChart = dynamic(
   },
 );
 
+// shortLabel is what the desktop navbar shows; the drawer, the tooltip and
+// screen readers keep the full label.
 const navItems: DashboardNavItem[] = [
-  { key: "quizzes", label: "View Quizzes" },
-  { key: "students", label: "Manage Student Info" },
-  { key: "classes", label: "My Classes" },
-  { key: "scores", label: "View Scores" },
+  { key: "quizzes", label: "View Quizzes", shortLabel: "Quizzes" },
+  { key: "students", label: "Manage Student Info", shortLabel: "Students" },
+  { key: "classes", label: "My Classes", shortLabel: "Classes" },
+  { key: "scores", label: "View Scores", shortLabel: "Scores" },
   { key: "assessment", label: "Assessment" },
   { key: "leaderboard", label: "Leaderboard" },
 ];
@@ -292,6 +290,11 @@ function ChartPanel({
   );
 }
 
+/**
+ * View Quizzes is about the quiz library only: how many quizzes there are, what
+ * state they are in, and the table to manage them. Student and score figures
+ * live in their own sections.
+ */
 function QuizzesSection({
   data,
   notices,
@@ -307,9 +310,11 @@ function QuizzesSection({
     <div className="space-y-2 sm:space-y-3">
       <SectionHeading
         title="View Quizzes"
-        description="Review your quiz library and overall class performance."
+        description="Your quiz library and what needs your attention."
       />
 
+      {/* Needs attention: new student messages and low scores. Each one shows
+          nothing when there is nothing to say. */}
       <UnreadMessagesNotice viewer="teacher" onOpen={onOpenMessages} />
 
       <PerformanceNotices
@@ -318,70 +323,12 @@ function QuizzesSection({
         onAction={onReviewNotice}
       />
 
-      <StatGrid columns={3}>
+      <StatGrid columns={4}>
         <StatCard label="Total Quizzes" value={String(data.quizzes.total)} />
-        <StatCard label="Active Students" value={String(data.studentCount)} />
-        <StatCard label="Average Score" value={`${data.results.average}%`} />
+        <StatCard label="Ready" value={String(data.quizzes.ready)} />
+        <StatCard label="Drafts" value={String(data.quizzes.draft)} />
+        <StatCard label="Failed" value={String(data.quizzes.failed)} />
       </StatGrid>
-
-      {/* Phones: one chart at a time behind tabs. md and up: 2-column grid. */}
-      <ChartTabs
-        label="Quiz charts"
-        tabs={[
-          {
-            key: "status",
-            label: "Quiz Status",
-            content: (
-              <BarChartCard
-                title="Quiz Status"
-                description="How your quizzes are split by status."
-                total={data.quizzes.total}
-                items={[
-                  {
-                    label: "Ready",
-                    value: data.quizzes.ready,
-                    color: "bg-success",
-                  },
-                  {
-                    label: "Drafts",
-                    value: data.quizzes.draft,
-                    color: "bg-px-gold",
-                  },
-                  {
-                    label: "Failed",
-                    value: data.quizzes.failed,
-                    color: "bg-danger-dark",
-                  },
-                ]}
-              />
-            ),
-          },
-          {
-            key: "recent",
-            label: "Recent Scores",
-            content: (
-              <RecentScoresCard
-                title="Recent Scores"
-                description="The latest completed attempts on your quizzes."
-                scores={data.recentScores}
-              />
-            ),
-          },
-          {
-            key: "distribution",
-            label: "Score Distribution",
-            wide: true,
-            content: (
-              <ChartPanel
-                title="Student Score Distribution"
-                caption="Latest quiz performance across score bands."
-              >
-                <PieChart distributions={data.distributions} />
-              </ChartPanel>
-            ),
-          },
-        ]}
-      />
 
       <ManageQuizzesTable actorRole="teacher" assignedTo={data.assignedTo} />
     </div>
@@ -414,13 +361,17 @@ function ClassesSection() {
   );
 }
 
+/**
+ * Students & Scores holds every score figure: the headline numbers, the two
+ * charts, class progress and the searchable table. The numbers follow the
+ * selected class (?class=...), the same filter the table uses.
+ */
 function ScoresSection({ data }: { data: TeacherDashboardData }) {
-  // The class filter lives in the URL (?class=...), shared with the table
-  // below, so the cards and the table always describe the same students.
   const classId = useSearchParams().get("class") ?? "";
   const classView = data.classViews.find((item) => item.classId === classId);
   const results = classView?.results ?? data.results;
   const distributions = classView?.distributions ?? data.distributions;
+  const activeStudents = classView ? classView.studentCount : data.studentCount;
 
   return (
     <div className="space-y-2 sm:space-y-3">
@@ -428,22 +379,48 @@ function ScoresSection({ data }: { data: TeacherDashboardData }) {
         title="Students & Scores"
         description="Search students and review their quiz performances."
       />
-      <div className="grid gap-2 sm:gap-3 md:grid-cols-[minmax(0,1fr)_minmax(0,2fr)] md:items-start">
-        <MeterCard
-          label={classView ? `Average Score (${classView.name})` : "Average Score"}
-          percent={results.average}
-        />
-        <ChartPanel
-          title="Score Distribution"
-          caption={
-            classView
-              ? `Score distribution per quiz for ${classView.name}.`
-              : "Student score distribution per quiz."
-          }
-        >
-          <PieChart distributions={distributions} />
-        </ChartPanel>
-      </div>
+
+      {/* Short labels so all three sit on one row, even on a phone. */}
+      <StatGrid columns={3} phoneColumns={3}>
+        <StatCard label="Average" value={`${results.average}%`} />
+        <StatCard label="Students" value={String(activeStudents)} />
+        <StatCard label="Quizzes" value={String(distributions.length)} />
+      </StatGrid>
+
+      {/* Phones: one chart at a time behind tabs. md and up: side by side. */}
+      <ChartTabs
+        label="Score charts"
+        tabs={[
+          {
+            key: "distribution",
+            label: "Distribution",
+            content: (
+              <ChartPanel
+                title="Score Distribution"
+                caption={
+                  classView
+                    ? `Score distribution per quiz for ${classView.name}.`
+                    : "Student score distribution per quiz."
+                }
+              >
+                <PieChart distributions={distributions} />
+              </ChartPanel>
+            ),
+          },
+          {
+            key: "recent",
+            label: "Recent scores",
+            content: (
+              <RecentScoresCard
+                title="Recent Scores"
+                description="The latest completed attempts on your quizzes."
+                scores={data.recentScores}
+              />
+            ),
+          },
+        ]}
+      />
+
       <ClassProgress classViews={data.classViews} selectedClassId={classId} />
       <SearchFilter
         role="teacher"
